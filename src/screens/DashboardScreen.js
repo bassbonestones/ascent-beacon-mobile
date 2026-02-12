@@ -6,9 +6,21 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Platform,
 } from "react-native";
 
 export default function DashboardScreen({ user, onLogout, navigation }) {
+  const blurActiveElement = () => {
+    if (Platform.OS !== "web" || typeof document === "undefined") {
+      return;
+    }
+
+    const activeElement = document.activeElement;
+    if (activeElement && typeof activeElement.blur === "function") {
+      activeElement.blur();
+    }
+  };
+
   const modules = [
     {
       id: "values",
@@ -25,7 +37,6 @@ export default function DashboardScreen({ user, onLogout, navigation }) {
       icon: require("../../assets/AnchorIcon_Priorities.png"),
       color: "#2196F3",
       route: "Priorities",
-      disabled: true, // Coming soon
     },
     {
       id: "alignment",
@@ -44,9 +55,17 @@ export default function DashboardScreen({ user, onLogout, navigation }) {
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Welcome back</Text>
-          <Text style={styles.userName}>{user?.email || "User"}</Text>
+          <Text style={styles.userName}>
+            {user?.display_name || user?.email || "User"}
+          </Text>
         </View>
-        <TouchableOpacity onPress={onLogout} style={styles.logoutButton}>
+        <TouchableOpacity
+          onPress={() => {
+            blurActiveElement();
+            onLogout();
+          }}
+          style={styles.logoutButton}
+        >
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
@@ -70,10 +89,14 @@ export default function DashboardScreen({ user, onLogout, navigation }) {
                 styles.moduleCard,
                 module.disabled && styles.moduleCardDisabled,
               ]}
-              onPress={() =>
-                !module.disabled &&
-                navigation.navigate(module.route, module.params || {})
-              }
+              onPress={() => {
+                if (module.disabled) {
+                  return;
+                }
+
+                blurActiveElement();
+                navigation.navigate(module.route, module.params || {});
+              }}
               disabled={module.disabled}
               activeOpacity={0.7}
             >
@@ -84,7 +107,11 @@ export default function DashboardScreen({ user, onLogout, navigation }) {
                     { backgroundColor: module.color + "20" },
                   ]}
                 >
-                  <Image source={module.icon} style={styles.icon} />
+                  <Image
+                    source={module.icon}
+                    style={styles.icon}
+                    resizeMode="contain"
+                  />
                 </View>
                 <View style={styles.moduleTextContainer}>
                   <Text style={styles.moduleTitle}>{module.title}</Text>
@@ -169,10 +196,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 16,
     marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.1)",
     elevation: 3,
   },
   moduleCardDisabled: {
@@ -194,7 +218,6 @@ const styles = StyleSheet.create({
   icon: {
     width: 32,
     height: 32,
-    resizeMode: "contain",
   },
   moduleTextContainer: {
     flex: 1,

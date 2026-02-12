@@ -11,6 +11,7 @@ import LoginScreen from "./src/screens/LoginScreen";
 import DashboardScreen from "./src/screens/DashboardScreen";
 import AssistantScreen from "./src/screens/AssistantScreen";
 import ValuesScreen from "./src/screens/ValuesScreenNew";
+import PrioritiesScreen from "./src/screens/PrioritiesScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import api from "./src/services/api";
 import { isAuthenticated, clearTokens } from "./src/utils/auth";
@@ -118,6 +119,15 @@ export default function App() {
                 <Stack.Screen name="Values">
                   {(props) => (
                     <ValuesScreen
+                      {...props}
+                      user={user}
+                      onLogout={handleLogout}
+                    />
+                  )}
+                </Stack.Screen>
+                <Stack.Screen name="Priorities">
+                  {(props) => (
+                    <PrioritiesScreen
                       {...props}
                       user={user}
                       onLogout={handleLogout}

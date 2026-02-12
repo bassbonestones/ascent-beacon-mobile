@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
+  Image,
+  Platform,
 } from "react-native";
 import api from "../services/api";
 
@@ -57,10 +59,22 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
   const [statementText, setStatementText] = useState("");
   const [createdStatements, setCreatedStatements] = useState([]);
   const [existingValues, setExistingValues] = useState([]);
+  const [isSavingStatement, setIsSavingStatement] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  const blurActiveElement = () => {
+    if (Platform.OS !== "web" || typeof document === "undefined") {
+      return;
+    }
+
+    const activeElement = document.activeElement;
+    if (activeElement && typeof activeElement.blur === "function") {
+      activeElement.blur();
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -538,7 +552,10 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
           visible={moveModalVisible}
           transparent={true}
           animationType="slide"
-          onRequestClose={() => setMoveModalVisible(false)}
+          onRequestClose={() => {
+            blurActiveElement();
+            setMoveModalVisible(false);
+          }}
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
@@ -554,6 +571,7 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
                       style={styles.modalButton}
                       onPress={() => {
                         moveToBucket(selectedItem, "important");
+                        blurActiveElement();
                         setMoveModalVisible(false);
                       }}
                     >
@@ -565,6 +583,7 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
                       style={styles.modalButton}
                       onPress={() => {
                         moveToBucket(selectedItem, "not_now");
+                        blurActiveElement();
                         setMoveModalVisible(false);
                       }}
                     >
@@ -579,6 +598,7 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
                       style={styles.modalButton}
                       onPress={() => {
                         moveToBucket(selectedItem, "core");
+                        blurActiveElement();
                         setMoveModalVisible(false);
                       }}
                     >
@@ -588,6 +608,7 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
                       style={styles.modalButton}
                       onPress={() => {
                         moveToBucket(selectedItem, "not_now");
+                        blurActiveElement();
                         setMoveModalVisible(false);
                       }}
                     >
@@ -602,6 +623,7 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
                       style={styles.modalButton}
                       onPress={() => {
                         moveToBucket(selectedItem, "core");
+                        blurActiveElement();
                         setMoveModalVisible(false);
                       }}
                     >
@@ -611,6 +633,7 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
                       style={styles.modalButton}
                       onPress={() => {
                         moveToBucket(selectedItem, "important");
+                        blurActiveElement();
                         setMoveModalVisible(false);
                       }}
                     >
@@ -623,7 +646,10 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
 
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonCancel]}
-                  onPress={() => setMoveModalVisible(false)}
+                  onPress={() => {
+                    blurActiveElement();
+                    setMoveModalVisible(false);
+                  }}
                 >
                   <Text style={styles.modalButtonText}>Cancel</Text>
                 </TouchableOpacity>
@@ -637,7 +663,10 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
           visible={coreWarningModalVisible}
           transparent={true}
           animationType="fade"
-          onRequestClose={() => setCoreWarningModalVisible(false)}
+          onRequestClose={() => {
+            blurActiveElement();
+            setCoreWarningModalVisible(false);
+          }}
         >
           <View style={styles.coreWarningOverlay}>
             <View style={styles.coreWarningContent}>
@@ -652,7 +681,10 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
                     styles.coreWarningButton,
                     styles.coreWarningButtonPrimary,
                   ]}
-                  onPress={() => setCoreWarningModalVisible(false)}
+                  onPress={() => {
+                    blurActiveElement();
+                    setCoreWarningModalVisible(false);
+                  }}
                 >
                   <Text style={styles.coreWarningButtonTextPrimary}>
                     Review
@@ -662,6 +694,7 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
                 <TouchableOpacity
                   style={styles.coreWarningButton}
                   onPress={() => {
+                    blurActiveElement();
                     setCoreWarningModalVisible(false);
                     setStep("review");
                   }}
@@ -781,7 +814,10 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
           visible={narrowingErrorModalVisible}
           transparent={true}
           animationType="fade"
-          onRequestClose={() => setNarrowingErrorModalVisible(false)}
+          onRequestClose={() => {
+            blurActiveElement();
+            setNarrowingErrorModalVisible(false);
+          }}
         >
           <View style={styles.coreWarningOverlay}>
             <View style={styles.coreWarningContent}>
@@ -794,7 +830,10 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
                   styles.coreWarningButton,
                   styles.coreWarningButtonPrimary,
                 ]}
-                onPress={() => setNarrowingErrorModalVisible(false)}
+                onPress={() => {
+                  blurActiveElement();
+                  setNarrowingErrorModalVisible(false);
+                }}
               >
                 <Text style={styles.coreWarningButtonTextPrimary}>OK</Text>
               </TouchableOpacity>
@@ -849,6 +888,7 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
           transparent={true}
           animationType="fade"
           onRequestClose={() => {
+            blurActiveElement();
             setSuccessModalVisible(false);
             setCurrentCoreIndex(0);
             setStatementStarter(SENTENCE_STARTERS[0]);
@@ -870,6 +910,7 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
                   styles.coreWarningButtonPrimary,
                 ]}
                 onPress={() => {
+                  blurActiveElement();
                   setSuccessModalVisible(false);
                   setCurrentCoreIndex(0);
                   setStatementStarter(SENTENCE_STARTERS[0]);
@@ -889,7 +930,10 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
           visible={errorModalVisible}
           transparent={true}
           animationType="fade"
-          onRequestClose={() => setErrorModalVisible(false)}
+          onRequestClose={() => {
+            blurActiveElement();
+            setErrorModalVisible(false);
+          }}
         >
           <View style={styles.coreWarningOverlay}>
             <View style={styles.coreWarningContent}>
@@ -902,7 +946,10 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
                   styles.coreWarningButton,
                   styles.coreWarningButtonPrimary,
                 ]}
-                onPress={() => setErrorModalVisible(false)}
+                onPress={() => {
+                  blurActiveElement();
+                  setErrorModalVisible(false);
+                }}
               >
                 <Text style={styles.coreWarningButtonTextPrimary}>OK</Text>
               </TouchableOpacity>
@@ -925,7 +972,26 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
     }
 
     const handleSaveStatement = async () => {
+      // Prevent double submission
+      if (isSavingStatement) {
+        console.warn("Already saving statement, ignoring duplicate save");
+        return;
+      }
+
+      // Check if this prompt already has a statement in this session
+      const alreadyCreated = createdStatements.some(
+        (stmt) => stmt.prompt_id === currentCoreItem.prompt_id,
+      );
+      if (alreadyCreated) {
+        Alert.alert(
+          "Already Created",
+          "You've already created a statement for this value.",
+        );
+        return;
+      }
+
       try {
+        setIsSavingStatement(true);
         const fullStatement = `${statementStarter} ${statementText}`.trim();
 
         // Calculate equal weight for all values
@@ -963,6 +1029,8 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
       } catch (error) {
         console.error("Failed to save value:", error);
         setErrorModalVisible(true);
+      } finally {
+        setIsSavingStatement(false);
       }
     };
 
@@ -1077,13 +1145,18 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
           <TouchableOpacity
             style={[
               styles.continueButton,
-              !statementText.trim() && styles.continueButtonDisabled,
+              (!statementText.trim() || isSavingStatement) &&
+                styles.continueButtonDisabled,
             ]}
             onPress={handleSaveStatement}
-            disabled={!statementText.trim()}
+            disabled={!statementText.trim() || isSavingStatement}
           >
             <Text style={styles.continueButtonText}>
-              {currentCoreIndex < totalCore - 1 ? "Next" : "Finish"}
+              {isSavingStatement
+                ? "Saving..."
+                : currentCoreIndex < totalCore - 1
+                  ? "Next"
+                  : "Finish"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -1095,13 +1168,24 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
   if (step === "view_values") {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Your Core Values</Text>
-          <Text style={styles.subtitle}>
-            {existingValues.length}{" "}
-            {existingValues.length === 1 ? "value" : "values"} guiding your
-            priorities
-          </Text>
+        <View style={[styles.header, styles.compactHeader]}>
+          <View style={styles.headerMainRow}>
+            <View style={styles.headerIconContainer}>
+              <Image
+                source={require("../../assets/NorthStarIcon_values.png")}
+                style={styles.headerMainIcon}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.headerTextBlock}>
+              <Text style={styles.title}>Your Core Values</Text>
+              <Text style={styles.subtitle}>
+                {existingValues.length}{" "}
+                {existingValues.length === 1 ? "value" : "values"} guiding your
+                priorities
+              </Text>
+            </View>
+          </View>
         </View>
 
         <ScrollView
@@ -1121,7 +1205,10 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
         <View style={styles.footer}>
           <TouchableOpacity
             style={styles.continueButton}
-            onPress={() => navigation.navigate("Dashboard")}
+            onPress={() => {
+              blurActiveElement();
+              navigation.navigate("Dashboard");
+            }}
           >
             <Text style={styles.continueButtonText}>Back to Dashboard</Text>
           </TouchableOpacity>
@@ -1142,7 +1229,10 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
           </Text>
           <TouchableOpacity
             style={styles.doneButton}
-            onPress={() => navigation.navigate("Dashboard")}
+            onPress={() => {
+              blurActiveElement();
+              navigation.navigate("Dashboard");
+            }}
           >
             <Text style={styles.doneButtonText}>Go to Dashboard</Text>
           </TouchableOpacity>
@@ -1154,7 +1244,10 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
         visible={loadErrorModalVisible}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setLoadErrorModalVisible(false)}
+        onRequestClose={() => {
+          blurActiveElement();
+          setLoadErrorModalVisible(false);
+        }}
       >
         <View style={styles.coreWarningOverlay}>
           <View style={styles.coreWarningContent}>
@@ -1168,6 +1261,7 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
                 styles.coreWarningButtonPrimary,
               ]}
               onPress={() => {
+                blurActiveElement();
                 setLoadErrorModalVisible(false);
                 loadData();
               }}
@@ -1183,7 +1277,10 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
         visible={noSelectionModalVisible}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setNoSelectionModalVisible(false)}
+        onRequestClose={() => {
+          blurActiveElement();
+          setNoSelectionModalVisible(false);
+        }}
       >
         <View style={styles.coreWarningOverlay}>
           <View style={styles.coreWarningContent}>
@@ -1196,7 +1293,10 @@ export default function ValuesScreen({ user, onLogout, navigation }) {
                 styles.coreWarningButton,
                 styles.coreWarningButtonPrimary,
               ]}
-              onPress={() => setNoSelectionModalVisible(false)}
+              onPress={() => {
+                blurActiveElement();
+                setNoSelectionModalVisible(false);
+              }}
             >
               <Text style={styles.coreWarningButtonTextPrimary}>OK</Text>
             </TouchableOpacity>
@@ -1218,6 +1318,27 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
     borderBottomColor: "#E5E5EA",
+  },
+  compactHeader: {
+    paddingTop: 36,
+  },
+  headerMainRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    minHeight: 120,
+    gap: 0,
+  },
+  headerIconContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerMainIcon: {
+    width: 112,
+    height: 112,
+  },
+  headerTextBlock: {
+    flex: 1,
   },
   title: {
     fontSize: 28,

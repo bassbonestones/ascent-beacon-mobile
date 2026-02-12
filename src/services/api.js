@@ -57,7 +57,25 @@ class ApiService {
       }
 
       if (!response.ok) {
-        throw new Error(data.detail || "Request failed");
+        // Try to extract detailed error message
+        let errorMessage = "Request failed";
+        if (data.detail) {
+          errorMessage =
+            typeof data.detail === "string"
+              ? data.detail
+              : JSON.stringify(data.detail);
+        } else if (data.error) {
+          errorMessage = data.error;
+        }
+
+        // For validation errors, pass the full response as JSON string
+        if (data.name_feedback || data.why_feedback) {
+          const error = new Error(JSON.stringify(data));
+          error.validationData = data;
+          throw error;
+        }
+
+        throw new Error(errorMessage);
       }
 
       return data;
@@ -296,6 +314,62 @@ class ApiService {
       method: "POST",
       body: JSON.stringify({ selections }),
     });
+  }
+
+  // Priorities endpoints
+  async getPriorities() {
+    return await this.request("/priorities");
+  }
+
+  async createPriority(priorityData) {
+    return await this.request("/priorities", {
+      method: "POST",
+      body: JSON.stringify(priorityData),
+    });
+  }
+
+  async validatePriority(data) {
+    return await this.request("/priorities/validate", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getPriorityHistory(priorityId) {
+    return await this.request(`/priorities/${priorityId}/history`);
+  }
+
+  async createPriorityRevision(priorityId, revisionData) {
+    return await this.request(`/priorities/${priorityId}/revisions`, {
+      method: "POST",
+      body: JSON.stringify(revisionData),
+    });
+  }
+
+  async anchorPriority(priorityId) {
+    return await this.request(`/priorities/${priorityId}/anchor`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  }
+
+  async unanchorPriority(priorityId) {
+    return await this.request(`/priorities/${priorityId}/unanchor`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  }
+
+  async deletePriority(priorityId) {
+    return await this.request(`/priorities/${priorityId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getPriorityValueLinks(priorityRevisionId) {
+    return await this.request(
+      `/priority-revisions/${priorityRevisionId}/links`,
+    );
   }
 }
 

@@ -1090,10 +1090,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
+    boxShadow: "0px 1px 3px rgba(0, 0, 0, 0.08)",
     elevation: 2,
   },
   similarHighlight: {
@@ -1212,10 +1209,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 2,
     borderColor: "#D4AF37",
-    shadowColor: "#D4AF37",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    boxShadow: "0px 2px 4px rgba(212, 175, 55, 0.15)",
     elevation: 3,
   },
   proposedHeader: {
