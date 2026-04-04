@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>22/22</span>
+                <span class='fraction'>24/24</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>22/22</span>
+                <span class='fraction'>24/24</span>
             </div>
         
             
@@ -327,12 +327,7 @@
 <a name='L262'></a><a href='#L262'>262</a>
 <a name='L263'></a><a href='#L263'>263</a>
 <a name='L264'></a><a href='#L264'>264</a>
-<a name='L265'></a><a href='#L265'>265</a>
-<a name='L266'></a><a href='#L266'>266</a>
-<a name='L267'></a><a href='#L267'>267</a>
-<a name='L268'></a><a href='#L268'>268</a>
-<a name='L269'></a><a href='#L269'>269</a>
-<a name='L270'></a><a href='#L270'>270</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L265'></a><a href='#L265'>265</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -370,10 +365,14 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -441,12 +440,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -526,27 +525,18 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
@@ -607,6 +597,10 @@
   AssistantRecommendation,
   DiscoveryPrompt,
   ValueSelection,
+  SelectionBucket,
+  BulkSelectionUpdate,
+  DiscoveryPromptsResponse,
+  UserSelectionsResponse,
 } from "../types";
 import type ApiServiceBase from "./apiBase";
 &nbsp;
@@ -761,20 +755,6 @@ export const recommendationsMethods = &lt;
 // ============================================================================
 &nbsp;
 /**
- * Selection bucket type (for value discovery).
- */
-export type SelectionBucket = "important" | "somewhat" | "not_sure";
-&nbsp;
-/**
- * Bulk selection update item.
- */
-export interface BulkSelectionUpdate {
-  id: string;
-  bucket: SelectionBucket;
-  display_order: number;
-}
-&nbsp;
-/**
  * Discovery state response.
  */
 export interface DiscoveryStateResponse {
@@ -814,11 +794,16 @@ export const discoveryMethods = &lt;TBase extends Constructor&lt;ApiServiceBase&
 ) =&gt;
   class extends Base implements DiscoveryMethods {
     async getDiscoveryPrompts(): Promise&lt;DiscoveryPrompt[]&gt; {
-      return await this.request&lt;DiscoveryPrompt[]&gt;("/discovery/prompts");
+      const response =
+        await this.request&lt;DiscoveryPromptsResponse&gt;("/discovery/prompts");
+      return response.prompts;
     }
 &nbsp;
     async getUserSelections(): Promise&lt;ValueSelection[]&gt; {
-      return await this.request&lt;ValueSelection[]&gt;("/discovery/selections");
+      const response = await this.request&lt;UserSelectionsResponse&gt;(
+        "/discovery/selections",
+      );
+      return response.selections;
     }
 &nbsp;
     async createSelection(
@@ -877,7 +862,7 @@ export const discoveryMethods = &lt;TBase extends Constructor&lt;ApiServiceBase&
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-04T13:03:50.761Z
+                at 2026-04-04T16:23:10.914Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

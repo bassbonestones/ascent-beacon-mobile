@@ -2,6 +2,7 @@ import ApiServiceBase from "./apiBase";
 import { authMethods, type AuthMethods } from "./apiAuth";
 import { valuesMethods, type ValuesMethods } from "./apiValues";
 import { prioritiesMethods, type PrioritiesMethods } from "./apiPriorities";
+import { goalsMethods, type GoalsMethods } from "./apiGoals";
 import {
   assistantMethods,
   recommendationsMethods,
@@ -20,6 +21,7 @@ export interface ApiServiceInterface
     AuthMethods,
     ValuesMethods,
     PrioritiesMethods,
+    GoalsMethods,
     AssistantMethods,
     RecommendationsMethods,
     DiscoveryMethods {}
@@ -31,7 +33,9 @@ export interface ApiServiceInterface
 class ApiService extends discoveryMethods(
   recommendationsMethods(
     assistantMethods(
-      prioritiesMethods(valuesMethods(authMethods(ApiServiceBase))),
+      goalsMethods(
+        prioritiesMethods(valuesMethods(authMethods(ApiServiceBase))),
+      ),
     ),
   ),
 ) {}

@@ -445,6 +445,7 @@ export type RootStackParamList = {
   ValuesDiscovery: undefined;
   ValuesManagement: undefined;
   Priorities: undefined;
+  Goals: undefined;
   ValuePriorityLinks: { valueId: string; valueStatement: string };
   Assistant: { contextMode?: string };
   Alignment: undefined;
@@ -528,6 +529,93 @@ export interface UseLinksReturn {
   error: Error | null;
   createLink: (data: CreateLinkRequest) => Promise<PriorityValueLink>;
   deleteLink: (priorityId: string, valueId: string) => Promise<void>;
+}
+
+// ============================================================================
+// Goal Types
+// ============================================================================
+
+export type GoalStatus =
+  | "not_started"
+  | "in_progress"
+  | "completed"
+  | "abandoned";
+
+export interface GoalPriorityInfo {
+  id: string;
+  title: string;
+  score: number | null;
+}
+
+export interface Goal {
+  id: string;
+  user_id: string;
+  parent_goal_id: string | null;
+  title: string;
+  description: string | null;
+  target_date: string | null; // ISO date string
+  status: GoalStatus;
+  progress_cached: number;
+  total_time_minutes: number;
+  completed_time_minutes: number;
+  has_incomplete_breakdown: boolean;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  priorities: GoalPriorityInfo[];
+}
+
+export interface GoalWithSubGoals extends Goal {
+  sub_goals: GoalWithSubGoals[];
+}
+
+export interface GoalListResponse {
+  goals: Goal[];
+  reschedule_count: number;
+}
+
+export interface CreateGoalRequest {
+  title: string;
+  description?: string | null;
+  target_date?: string | null; // ISO date string
+  priority_ids?: string[];
+  parent_goal_id?: string | null;
+}
+
+export interface UpdateGoalRequest {
+  title?: string;
+  description?: string | null;
+  target_date?: string | null;
+  status?: GoalStatus;
+  parent_goal_id?: string | null;
+}
+
+export interface UpdateGoalStatusRequest {
+  status: GoalStatus;
+}
+
+export interface SetPriorityLinksRequest {
+  priority_ids: string[];
+}
+
+export interface GoalRescheduleItem {
+  goal_id: string;
+  new_target_date: string; // ISO date string
+}
+
+export interface RescheduleGoalsRequest {
+  goal_updates: GoalRescheduleItem[];
+}
+
+export interface UseGoalsReturn {
+  goals: Goal[];
+  loading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+  createGoal: (data: CreateGoalRequest) => Promise<Goal>;
+  updateGoal: (id: string, data: UpdateGoalRequest) => Promise<Goal>;
+  updateGoalStatus: (id: string, status: GoalStatus) => Promise<Goal>;
+  deleteGoal: (id: string) => Promise<void>;
 }
 
 // ============================================================================

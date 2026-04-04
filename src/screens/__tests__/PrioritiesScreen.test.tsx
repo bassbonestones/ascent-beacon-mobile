@@ -328,6 +328,7 @@ describe("PrioritiesScreen", () => {
     } as any);
     mockedApi.getValues.mockResolvedValue({ values: mockValues } as any);
     mockedApi.getStashedPriorities.mockResolvedValue({ priorities: [] } as any);
+    mockedApi.stashPriority.mockResolvedValue({ id: "p1" } as any);
   });
 
   it("shows loading indicator initially", () => {
@@ -352,6 +353,127 @@ describe("PrioritiesScreen", () => {
     render(<PrioritiesScreen user={mockUser} navigation={mockNavigation} />);
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalled();
+    });
+  });
+
+  it("navigates to detail view when priority pressed", async () => {
+    const { getByTestId } = render(
+      <PrioritiesScreen user={mockUser} navigation={mockNavigation} />,
+    );
+    await waitFor(() => {
+      expect(getByTestId("list-view")).toBeTruthy();
+    });
+    fireEvent.press(getByTestId("priority-p1"));
+    await waitFor(() => {
+      expect(getByTestId("detail-view")).toBeTruthy();
+    });
+  });
+
+  it("navigates to step1 when create pressed", async () => {
+    const { getByTestId } = render(
+      <PrioritiesScreen user={mockUser} navigation={mockNavigation} />,
+    );
+    await waitFor(() => {
+      expect(getByTestId("list-view")).toBeTruthy();
+    });
+    fireEvent.press(getByTestId("create-btn"));
+    await waitFor(() => {
+      expect(getByTestId("step1")).toBeTruthy();
+    });
+  });
+
+  it("navigates back to home when back pressed on list", async () => {
+    const { getByTestId } = render(
+      <PrioritiesScreen user={mockUser} navigation={mockNavigation} />,
+    );
+    await waitFor(() => {
+      expect(getByTestId("list-view")).toBeTruthy();
+    });
+    fireEvent.press(getByTestId("back-btn"));
+    expect(mockNavigation.navigate).toHaveBeenCalledWith("Dashboard");
+  });
+
+  it("navigates back to list from detail", async () => {
+    const { getByTestId } = render(
+      <PrioritiesScreen user={mockUser} navigation={mockNavigation} />,
+    );
+    await waitFor(() => {
+      expect(getByTestId("list-view")).toBeTruthy();
+    });
+    fireEvent.press(getByTestId("priority-p1"));
+    await waitFor(() => {
+      expect(getByTestId("detail-view")).toBeTruthy();
+    });
+    fireEvent.press(getByTestId("detail-back"));
+    await waitFor(() => {
+      expect(getByTestId("list-view")).toBeTruthy();
+    });
+  });
+
+  it("navigates to edit mode from detail", async () => {
+    const { getByTestId } = render(
+      <PrioritiesScreen user={mockUser} navigation={mockNavigation} />,
+    );
+    await waitFor(() => {
+      expect(getByTestId("list-view")).toBeTruthy();
+    });
+    fireEvent.press(getByTestId("priority-p1"));
+    await waitFor(() => {
+      expect(getByTestId("detail-view")).toBeTruthy();
+    });
+    fireEvent.press(getByTestId("detail-edit"));
+    await waitFor(() => {
+      expect(getByTestId("step1")).toBeTruthy();
+    });
+  });
+
+  it("handles stash toggle", async () => {
+    const { getByTestId } = render(
+      <PrioritiesScreen user={mockUser} navigation={mockNavigation} />,
+    );
+    await waitFor(() => {
+      expect(getByTestId("list-view")).toBeTruthy();
+    });
+    fireEvent.press(getByTestId("priority-p1"));
+    await waitFor(() => {
+      expect(getByTestId("detail-view")).toBeTruthy();
+    });
+    fireEvent.press(getByTestId("detail-stash"));
+    await waitFor(() => {
+      expect(mockedApi.stashPriority).toHaveBeenCalled();
+    });
+  });
+
+  it("progresses through create wizard steps", async () => {
+    const { getByTestId } = render(
+      <PrioritiesScreen user={mockUser} navigation={mockNavigation} />,
+    );
+    await waitFor(() => {
+      expect(getByTestId("list-view")).toBeTruthy();
+    });
+
+    // Start create flow
+    fireEvent.press(getByTestId("create-btn"));
+    await waitFor(() => {
+      expect(getByTestId("step1")).toBeTruthy();
+    });
+
+    // Go to step 2
+    fireEvent.press(getByTestId("step1-next"));
+    await waitFor(() => {
+      expect(getByTestId("step2")).toBeTruthy();
+    });
+
+    // Go back to step 1
+    fireEvent.press(getByTestId("step2-back"));
+    await waitFor(() => {
+      expect(getByTestId("step1")).toBeTruthy();
+    });
+
+    // Cancel and return to list
+    fireEvent.press(getByTestId("step1-cancel"));
+    await waitFor(() => {
+      expect(getByTestId("list-view")).toBeTruthy();
     });
   });
 });

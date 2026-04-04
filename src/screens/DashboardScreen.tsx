@@ -63,6 +63,14 @@ export default function DashboardScreen({
       route: "Priorities",
     },
     {
+      id: "goals",
+      title: "Goals",
+      subtitle: "Set your targets",
+      icon: require("../../assets/kite_vertical.png") as ImageSourcePropType,
+      color: "#FF9800",
+      route: "Goals",
+    },
+    {
       id: "alignment",
       title: "Alignment",
       subtitle: "See your coherence",

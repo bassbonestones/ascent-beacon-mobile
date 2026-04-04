@@ -14,3 +14,4 @@ export {
   type UseFetchOnFocusOptions,
   type UseFetchOnFocusReturn,
 } from "./useFetchOnFocus";
+export { useGoals, type UseGoalsOptions } from "./useGoals";

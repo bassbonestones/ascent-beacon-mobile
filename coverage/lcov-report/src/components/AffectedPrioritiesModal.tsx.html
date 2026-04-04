@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">80% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>5/5</span>
+                <span class='fraction'>8/10</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">90.9% </span>
+                <span class="strong">86.66% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>10/11</span>
+                <span class='fraction'>13/15</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">75% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>2/2</span>
+                <span class='fraction'>3/4</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">77.77% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>4/4</span>
+                <span class='fraction'>7/9</span>
             </div>
         
             
@@ -248,7 +248,27 @@
 <a name='L183'></a><a href='#L183'>183</a>
 <a name='L184'></a><a href='#L184'>184</a>
 <a name='L185'></a><a href='#L185'>185</a>
-<a name='L186'></a><a href='#L186'>186</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -271,6 +291,16 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -302,7 +332,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -433,7 +473,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import React from "react";
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import React, { useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -460,6 +500,16 @@ export default function AffectedPrioritiesModal({
   onContinue,
   onClose,
 }: AffectedPrioritiesModalProps): React.JSX.Element | null {
+  const closeButtonRef = useRef&lt;View&gt;(null);
+&nbsp;
+  useEffect(() =&gt; {
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (visible &amp;&amp; Platform.OS === "web") {
+<span class="cstat-no" title="statement not covered" >      setTimeout(<span class="fstat-no" title="function not covered" >()</span> =&gt; {</span>
+<span class="cstat-no" title="statement not covered" >        (closeButtonRef.current as unknown as HTMLElement)?.focus?.();</span>
+      }, 100);
+    }
+  }, [visible]);
+&nbsp;
   if (!visible || !priorities || priorities.length === 0) return null;
 &nbsp;
   return (
@@ -474,7 +524,13 @@ export default function AffectedPrioritiesModal({
           {/* Header */}
           &lt;View style={styles.header}&gt;
             &lt;Text style={styles.title}&gt;Connected Priorities&lt;/Text&gt;
-            &lt;TouchableOpacity onPress={onClose} style={styles.closeButton}&gt;
+            &lt;TouchableOpacity
+              ref={closeButtonRef}
+              onPress={onClose}
+              style={styles.closeButton}
+              accessibilityLabel="Close"
+              accessibilityRole="button"
+            &gt;
               &lt;Text style={styles.closeButtonText}&gt;✕&lt;/Text&gt;
             &lt;/TouchableOpacity&gt;
           &lt;/View&gt;
@@ -506,12 +562,16 @@ export default function AffectedPrioritiesModal({
             &lt;TouchableOpacity
               style={styles.secondaryButton}
               onPress={onContinue}
+              accessibilityLabel="Confirm links still fit"
+              accessibilityRole="button"
             &gt;
               &lt;Text style={styles.buttonText}&gt;They Still Fit&lt;/Text&gt;
             &lt;/TouchableOpacity&gt;
             &lt;TouchableOpacity
               style={styles.primaryButton}
               onPress={onReviewLinks}
+              accessibilityLabel="Review priority links"
+              accessibilityRole="button"
             &gt;
               &lt;Text style={styles.buttonText}&gt;Review Links&lt;/Text&gt;
             &lt;/TouchableOpacity&gt;
@@ -625,7 +685,7 @@ const styles = StyleSheet.create({
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-04T13:03:50.761Z
+                at 2026-04-04T16:23:10.914Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
