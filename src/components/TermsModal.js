@@ -1,4 +1,5 @@
 import React from "react";
+import PropTypes from "prop-types";
 import {
   Modal,
   View,
@@ -179,3 +180,8 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 });
+
+TermsModal.propTypes = {
+  visible: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+};

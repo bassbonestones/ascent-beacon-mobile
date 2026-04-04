@@ -1,75 +1,38 @@
-import React, { useState, useEffect } from "react";
+// Must be first import to suppress warnings before react-native-web loads
+import "./src/utils/suppressWarnings";
+
+import React from "react";
 import {
   ActivityIndicator,
   View,
   StyleSheet,
   ImageBackground,
+  LogBox,
 } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
+
+// Suppress known warnings on mobile (LogBox)
+LogBox.ignoreLogs([
+  "props.pointerEvents is deprecated",
+  "Animated: `useNativeDriver`",
+]);
+
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import ErrorBoundary from "./src/components/ErrorBoundary";
+import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import LoginScreen from "./src/screens/LoginScreen";
 import DashboardScreen from "./src/screens/DashboardScreen";
 import AssistantScreen from "./src/screens/AssistantScreen";
-import ValuesScreen from "./src/screens/ValuesScreenNew";
+import ValuesDiscovery from "./src/screens/ValuesDiscovery";
 import PrioritiesScreen from "./src/screens/PrioritiesScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
-import api from "./src/services/api";
-import { isAuthenticated, clearTokens } from "./src/utils/auth";
+import ValuePriorityLinksScreen from "./src/screens/ValuePriorityLinksScreen";
 
 const Stack = createNativeStackNavigator();
 
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const authed = await isAuthenticated();
-      if (authed) {
-        try {
-          const currentUser = await api.getCurrentUser();
-          if (currentUser) {
-            setUser(currentUser);
-          } else {
-            setUser(null);
-          }
-        } catch (error) {
-          // Token may have expired, clear it
-          await clearTokens();
-          setUser(null);
-        }
-      }
-    } catch (error) {
-      console.error("Auth check failed:", error.message);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLoginSuccess = (userData) => {
-    setUser(userData);
-  };
-
-  const handleOnboardingComplete = (userData) => {
-    setUser(userData);
-  };
-
-  const handleLogout = async () => {
-    try {
-      await api.logout();
-      setUser(null);
-    } catch (error) {
-      console.error("Logout failed:", error);
-    }
-  };
-
-  const needsOnboarding =
-    user && (!user.display_name || !user.is_email_verified);
+function AppNavigator() {
+  const { user, loading, login, logout, updateUser, needsOnboarding } =
+    useAuth();
 
   if (loading) {
     return (
@@ -87,65 +50,66 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {user ? (
-          <>
-            {needsOnboarding ? (
-              <Stack.Screen
-                name="Onboarding"
-                options={{ animationEnabled: false }}
-              >
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {user ? (
+        <>
+          {needsOnboarding ? (
+            <Stack.Screen
+              name="Onboarding"
+              options={{ animationEnabled: false }}
+            >
+              {(props) => (
+                <OnboardingScreen
+                  {...props}
+                  user={user}
+                  onComplete={updateUser}
+                />
+              )}
+            </Stack.Screen>
+          ) : (
+            <>
+              <Stack.Screen name="Dashboard">
                 {(props) => (
-                  <OnboardingScreen
-                    {...props}
-                    user={user}
-                    onComplete={handleOnboardingComplete}
-                  />
+                  <DashboardScreen {...props} user={user} onLogout={logout} />
                 )}
               </Stack.Screen>
-            ) : (
-              <>
-                <Stack.Screen name="Dashboard">
-                  {(props) => (
-                    <DashboardScreen
-                      {...props}
-                      user={user}
-                      onLogout={handleLogout}
-                    />
-                  )}
-                </Stack.Screen>
-                <Stack.Screen name="Assistant" component={AssistantScreen} />
-                <Stack.Screen name="Values">
-                  {(props) => (
-                    <ValuesScreen
-                      {...props}
-                      user={user}
-                      onLogout={handleLogout}
-                    />
-                  )}
-                </Stack.Screen>
-                <Stack.Screen name="Priorities">
-                  {(props) => (
-                    <PrioritiesScreen
-                      {...props}
-                      user={user}
-                      onLogout={handleLogout}
-                    />
-                  )}
-                </Stack.Screen>
-              </>
-            )}
-          </>
-        ) : (
-          <Stack.Screen name="Login">
-            {(props) => (
-              <LoginScreen {...props} onLoginSuccess={handleLoginSuccess} />
-            )}
-          </Stack.Screen>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+              <Stack.Screen name="Assistant" component={AssistantScreen} />
+              <Stack.Screen name="Values">
+                {(props) => (
+                  <ValuesDiscovery {...props} user={user} onLogout={logout} />
+                )}
+              </Stack.Screen>
+              <Stack.Screen name="Priorities">
+                {(props) => (
+                  <PrioritiesScreen {...props} user={user} onLogout={logout} />
+                )}
+              </Stack.Screen>
+              <Stack.Screen
+                name="ValuePriorityLinks"
+                component={ValuePriorityLinksScreen}
+                options={{ title: "Review Links" }}
+              />
+            </>
+          )}
+        </>
+      ) : (
+        <Stack.Screen name="Login">
+          {(props) => <LoginScreen {...props} onLoginSuccess={login} />}
+        </Stack.Screen>
+      )}
+    </Stack.Navigator>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AuthProvider>
+        <NavigationContainer>
+          <AppNavigator />
+        </NavigationContainer>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

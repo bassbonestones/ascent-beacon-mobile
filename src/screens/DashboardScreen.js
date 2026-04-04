@@ -33,7 +33,7 @@ export default function DashboardScreen({ user, onLogout, navigation }) {
     {
       id: "priorities",
       title: "Priorities",
-      subtitle: "Lock what's important",
+      subtitle: "Anchor what's important",
       icon: require("../../assets/AnchorIcon_Priorities.png"),
       color: "#2196F3",
       route: "Priorities",
@@ -65,6 +65,8 @@ export default function DashboardScreen({ user, onLogout, navigation }) {
             onLogout();
           }}
           style={styles.logoutButton}
+          accessibilityLabel="Logout"
+          accessibilityRole="button"
         >
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
@@ -99,6 +101,12 @@ export default function DashboardScreen({ user, onLogout, navigation }) {
               }}
               disabled={module.disabled}
               activeOpacity={0.7}
+              accessibilityLabel={
+                module.disabled
+                  ? `${module.title}, coming soon`
+                  : `Navigate to ${module.title}`
+              }
+              accessibilityRole="button"
             >
               <View style={styles.moduleContent}>
                 <View
