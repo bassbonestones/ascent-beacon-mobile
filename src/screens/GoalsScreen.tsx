@@ -8,6 +8,7 @@ import {
   Alert,
   TextInput,
   ScrollView,
+  Platform,
 } from "react-native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { Goal, User, RootStackParamList, GoalStatus } from "../types";
@@ -114,6 +115,12 @@ export default function GoalsScreen({
     setSelectedGoal(null);
   }, []);
 
+  const blurActiveElement = (): void => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+    }
+  };
+
   const renderGoalItem = ({ item }: { item: Goal }) => (
     <GoalCard goal={item} onPress={handleGoalPress} />
   );
@@ -121,6 +128,17 @@ export default function GoalsScreen({
   const renderListView = () => (
     <View style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => {
+            blurActiveElement();
+            navigation.goBack();
+          }}
+          accessibilityLabel="Back to Dashboard"
+          accessibilityRole="button"
+          style={styles.backButton}
+        >
+          <Text style={styles.backButtonText}>← Dashboard</Text>
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Goals</Text>
         <TouchableOpacity
           style={styles.addButton}
@@ -181,15 +199,16 @@ export default function GoalsScreen({
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
+          style={styles.backButton}
           onPress={() => {
             setViewMode("list");
             setNewGoalTitle("");
             setNewGoalDescription("");
           }}
-          accessibilityLabel="Cancel and go back"
+          accessibilityLabel="Cancel and go back to list"
           accessibilityRole="button"
         >
-          <Text style={styles.backButton}>← Back</Text>
+          <Text style={styles.backButtonText}>← Cancel</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>New Goal</Text>
         <View style={{ width: 60 }} />

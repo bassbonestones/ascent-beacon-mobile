@@ -18,8 +18,14 @@ export const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: "#F9FAFB",
+    flex: 1,
+    textAlign: "center",
   },
   backButton: {
+    paddingVertical: 4,
+    paddingRight: 8,
+  },
+  backButtonText: {
     fontSize: 16,
     color: "#60A5FA",
   },

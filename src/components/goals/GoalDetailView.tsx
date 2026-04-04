@@ -31,11 +31,12 @@ export function GoalDetailView({
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
+          style={styles.backButton}
           onPress={onBack}
-          accessibilityLabel="Go back to goals list"
+          accessibilityLabel="Back to goals list"
           accessibilityRole="button"
         >
-          <Text style={styles.backButton}>← Back</Text>
+          <Text style={styles.backButtonText}>← Goals</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Goal Detail</Text>
         <TouchableOpacity

@@ -1,11 +1,18 @@
 import React from "react";
-import { View, Text, Image, ImageSourcePropType } from "react-native";
+import {
+  View,
+  Text,
+  Image,
+  ImageSourcePropType,
+  TouchableOpacity,
+} from "react-native";
 import { styles } from "../../screens/styles/prioritiesScreenStyles";
 
 interface PriorityHeaderProps {
   title?: string;
   subtitle?: string;
   stepNumber?: string;
+  onBackPress?: () => void;
 }
 
 /**
@@ -15,9 +22,20 @@ export default function PriorityHeader({
   title = "Priorities",
   subtitle = "Anchor what's important",
   stepNumber = undefined,
+  onBackPress,
 }: PriorityHeaderProps): React.ReactElement {
   return (
     <View style={styles.header}>
+      {onBackPress && (
+        <TouchableOpacity
+          onPress={onBackPress}
+          accessibilityLabel="Back to Dashboard"
+          accessibilityRole="button"
+          style={{ marginBottom: 8 }}
+        >
+          <Text style={{ fontSize: 16, color: "#2196F3" }}>← Dashboard</Text>
+        </TouchableOpacity>
+      )}
       {stepNumber ? (
         <>
           <Text style={styles.stepNumber}>{stepNumber}</Text>

@@ -27,6 +27,7 @@ import ValuesDiscovery from "./src/screens/ValuesDiscovery";
 import PrioritiesScreen from "./src/screens/PrioritiesScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import ValuePriorityLinksScreen from "./src/screens/ValuePriorityLinksScreen";
+import GoalsScreen from "./src/screens/GoalsScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -89,6 +90,12 @@ function AppNavigator() {
                 component={ValuePriorityLinksScreen}
                 options={{ title: "Review Links" }}
               />
+              <Stack.Screen
+                name="Goals"
+                options={{ headerShown: true, title: "Goals" }}
+              >
+                {(props) => <GoalsScreen {...props} user={user} />}
+              </Stack.Screen>
             </>
           )}
         </>

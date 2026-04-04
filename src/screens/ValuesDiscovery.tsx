@@ -113,7 +113,14 @@ export default function ValuesDiscovery({
     }
   };
 
+  const blurActiveElement = (): void => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+    }
+  };
+
   const handleGoToDashboard = () => {
+    blurActiveElement();
     navigation.navigate("Dashboard");
   };
 
@@ -154,6 +161,7 @@ export default function ValuesDiscovery({
           onToggle={discovery.toggleSelection}
           onBack={discovery.goToPreviousLens}
           onContinue={handleContinueFromSelection}
+          onExit={handleGoToDashboard}
           canGoBack={canGoBack}
           isLastPage={isLastPage}
         />

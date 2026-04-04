@@ -13,6 +13,7 @@ interface SelectStepProps {
   onToggle: (promptId: string) => void;
   onBack: () => void;
   onContinue: () => void;
+  onExit?: () => void;
   canGoBack: boolean;
   isLastPage: boolean;
 }
@@ -29,6 +30,7 @@ export default function SelectStep({
   onToggle,
   onBack,
   onContinue,
+  onExit,
   canGoBack,
   isLastPage,
 }: SelectStepProps): React.ReactElement {
@@ -37,6 +39,16 @@ export default function SelectStep({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        {onExit && (
+          <TouchableOpacity
+            onPress={onExit}
+            accessibilityLabel="Exit to Dashboard"
+            accessibilityRole="button"
+            style={{ marginBottom: 8 }}
+          >
+            <Text style={{ fontSize: 16, color: "#007AFF" }}>← Dashboard</Text>
+          </TouchableOpacity>
+        )}
         <Text
           style={styles.title}
           accessibilityRole="header"

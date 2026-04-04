@@ -29,7 +29,7 @@ export default function PriorityListView({
 }: PriorityListViewProps): React.ReactElement {
   return (
     <View style={styles.container}>
-      <PriorityHeader />
+      <PriorityHeader onBackPress={onBackPress} />
 
       <ScrollView style={styles.content}>
         {priorities.length === 0 ? (
