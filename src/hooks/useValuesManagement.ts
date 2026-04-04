@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback, RefObject } from "react";
-import { Alert, ScrollView } from "react-native";
+import { ScrollView, Platform } from "react-native";
 import api from "../services/api";
 import { logError } from "../utils/logger";
 import { checkOrphanedPriorities } from "../utils/priorityOrphanCheck";
+import { showAlert, showAlertWithButtons } from "../utils/alert";
 import type {
   Value,
   ValueRevision,
@@ -112,7 +113,7 @@ export default function useValuesManagement(
       setValueInsights(nextInsights);
     } catch (error) {
       logError("Failed to load values:", error);
-      Alert.alert("Error", "Failed to load values");
+      showAlert("Error", "Failed to load values");
     } finally {
       setLoading(false);
     }
@@ -124,11 +125,11 @@ export default function useValuesManagement(
 
   const handleCreateValue = async (): Promise<void> => {
     if (!newStatement.trim()) {
-      Alert.alert("Required", "Please enter a value statement");
+      showAlert("Required", "Please enter a value statement");
       return;
     }
     if (values.length >= 6) {
-      Alert.alert("Limit Reached", "You can have a maximum of 6 values");
+      showAlert("Limit Reached", "You can have a maximum of 6 values");
       return;
     }
     try {
@@ -146,9 +147,22 @@ export default function useValuesManagement(
       }
       setNewStatement("");
       await loadValues();
+
+      // Show nudge to link priorities
+      showAlertWithButtons(
+        "Value Created!",
+        "Would you like to link this value to your priorities now?",
+        [
+          { text: "Later", style: "cancel" },
+          {
+            text: "Go to Priorities",
+            onPress: () => navigation?.navigate("Priorities"),
+          },
+        ],
+      );
     } catch (error) {
       logError("Failed to create value:", error);
-      Alert.alert("Error", "Failed to create value");
+      showAlert("Error", "Failed to create value");
     } finally {
       setCreating(false);
     }
@@ -156,29 +170,56 @@ export default function useValuesManagement(
 
   const handleDeleteValue = async (valueId: string): Promise<void> => {
     if (values.length <= 3) {
-      Alert.alert("Minimum Required", "You must have at least 3 values");
+      showAlert("Minimum Required", "You must have at least 3 values");
       return;
     }
-    Alert.alert(
-      "Delete Value",
-      "Are you sure? This will remove this value and rebalance your weights.",
-      [
+
+    // Check for linked priorities first
+    let linkedPriorities: AffectedPriorityInfo[] = [];
+    try {
+      linkedPriorities = await api.getLinkedPriorities(valueId);
+    } catch {
+      // Continue with delete even if check fails
+    }
+
+    const hasLinkedPriorities = linkedPriorities.length > 0;
+    const priorityNames = linkedPriorities
+      .map((p) => `• ${p.title}`)
+      .join("\n");
+
+    const title = hasLinkedPriorities
+      ? "Value Has Linked Priorities"
+      : "Delete Value";
+
+    const message = hasLinkedPriorities
+      ? `This value is linked to ${linkedPriorities.length} priority(ies):\n\n${priorityNames}\n\nDeleting will unlink these priorities. Continue?`
+      : "Are you sure? This will remove this value and rebalance your weights.";
+
+    const doDelete = async () => {
+      try {
+        await api.deleteValue(valueId, hasLinkedPriorities);
+        await loadValues();
+      } catch (error) {
+        logError("Failed to delete value:", error);
+        showAlert("Error", "Failed to delete value");
+      }
+    };
+
+    if (Platform.OS === "web") {
+      // Use window.confirm on web since showAlertWithButtons may have limitations
+      if (window.confirm(`${title}\n\n${message}`)) {
+        await doDelete();
+      }
+    } else {
+      showAlertWithButtons(title, message, [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete",
+          text: hasLinkedPriorities ? "Delete & Unlink" : "Delete",
           style: "destructive",
-          onPress: async () => {
-            try {
-              await api.deleteValue(valueId);
-              await loadValues();
-            } catch (error) {
-              logError("Failed to delete value:", error);
-              Alert.alert("Error", "Failed to delete value");
-            }
-          },
+          onPress: doDelete,
         },
-      ],
-    );
+      ]);
+    }
   };
 
   const handleStartEdit = (value: Value): void => {
@@ -191,7 +232,7 @@ export default function useValuesManagement(
 
   const handleSaveEdit = async (): Promise<void> => {
     if (!editingStatement.trim()) {
-      Alert.alert("Required", "Please enter a value statement");
+      showAlert("Required", "Please enter a value statement");
       return;
     }
     try {
@@ -232,7 +273,7 @@ export default function useValuesManagement(
       if (updated?.impact_info?.weight_verification_recommended) {
         setEditingValueId(null);
         setEditingStatement("");
-        Alert.alert(
+        showAlertWithButtons(
           "Value Updated",
           "Your value has been updated. Would you like to verify your weights on the slider?",
           [
@@ -240,7 +281,7 @@ export default function useValuesManagement(
               text: "Not now",
               onPress: async () => {
                 await loadValues();
-                Alert.alert("Success", "Value updated");
+                showAlert("Success", "Value updated");
               },
             },
             {
@@ -258,10 +299,10 @@ export default function useValuesManagement(
       setEditingValueId(null);
       setEditingStatement("");
       await loadValues();
-      Alert.alert("Success", "Value updated");
+      showAlert("Success", "Value updated");
     } catch (error) {
       logError("Failed to update value:", error);
-      Alert.alert("Error", "Failed to update value");
+      showAlert("Error", "Failed to update value");
     } finally {
       setSaving(false);
     }
@@ -277,7 +318,7 @@ export default function useValuesManagement(
     setAffectedPriorities([]);
     setLastEditedValueId(null);
     if (pendingImpactInfo?.weight_verification_recommended) {
-      Alert.alert(
+      showAlertWithButtons(
         "Weight Review",
         "Would you like to verify your weights on the slider?",
         [
@@ -285,7 +326,7 @@ export default function useValuesManagement(
             text: "Not now",
             onPress: async () => {
               await loadValues();
-              Alert.alert("Success", "Value updated");
+              showAlert("Success", "Value updated");
             },
           },
           {
@@ -299,7 +340,7 @@ export default function useValuesManagement(
       );
     } else {
       await loadValues();
-      Alert.alert("Success", "Value updated");
+      showAlert("Success", "Value updated");
     }
     setPendingImpactInfo(null);
   };
@@ -309,7 +350,7 @@ export default function useValuesManagement(
     setAffectedPriorities([]);
     setPendingImpactInfo(null);
     await loadValues();
-    Alert.alert("Success", "Value updated");
+    showAlert("Success", "Value updated");
     if (navigation && lastEditedValueId) {
       const value = values.find((v) => v.id === lastEditedValueId);
       const activeRev = value ? getActiveRevision(value) : null;
@@ -319,7 +360,7 @@ export default function useValuesManagement(
       });
       setLastEditedValueId(null);
     } else {
-      Alert.alert(
+      showAlert(
         "Info",
         "Please navigate to the Priorities screen to review the connections.",
       );
@@ -346,7 +387,7 @@ export default function useValuesManagement(
       }
       await loadValues();
       setShowWeightsModal(false);
-      Alert.alert("Success", "Weights updated successfully");
+      showAlert("Success", "Weights updated successfully");
     } catch (error) {
       logError("Failed to update weights:", error);
       throw error;

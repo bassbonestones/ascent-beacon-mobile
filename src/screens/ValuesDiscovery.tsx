@@ -11,9 +11,9 @@ import {
   NarrowStep,
   ReviewStep,
   CreateStatementStep,
-  ViewValuesStep,
   DoneStep,
 } from "../components/discovery";
+import ValuesManagement from "./ValuesManagement";
 
 interface ValuesDiscoveryProps {
   user: User;
@@ -26,6 +26,8 @@ interface ValuesDiscoveryProps {
  * Steps: select → bucket → narrow (if needed) → review → create_statement → view_values/done
  */
 export default function ValuesDiscovery({
+  user,
+  onLogout,
   navigation,
 }: ValuesDiscoveryProps): React.ReactElement {
   const discovery = useValuesDiscovery();
@@ -248,12 +250,14 @@ export default function ValuesDiscovery({
     );
   }
 
-  // Step 5: View values
+  // Step 5: Manage values (edit, delete, add, weights)
   if (discovery.step === "view_values") {
     return (
-      <ViewValuesStep
-        values={discovery.existingValues}
-        onGoToDashboard={handleGoToDashboard}
+      <ValuesManagement
+        user={user}
+        onLogout={onLogout}
+        navigation={navigation}
+        onExploreMore={discovery.startExploreMore}
       />
     );
   }

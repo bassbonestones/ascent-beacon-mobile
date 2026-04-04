@@ -181,6 +181,25 @@ export const infoStyles = StyleSheet.create({
   infoText: { fontSize: 14, lineHeight: 20, color: "#1B5E20" },
   guidanceBox: { backgroundColor: "#FFF3E0", padding: 16, borderRadius: 12 },
   guidanceText: { fontSize: 14, color: "#E65100", textAlign: "center" },
+  maxValuesBox: {
+    backgroundColor: "#E3F2FD",
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  maxValuesTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1565C0",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  maxValuesText: {
+    fontSize: 14,
+    color: "#1976D2",
+    textAlign: "center",
+    lineHeight: 20,
+  },
   hint: { fontSize: 13, color: "#666", textAlign: "center", marginTop: 12 },
 });
 
@@ -228,4 +247,31 @@ export const buttonStyles = StyleSheet.create({
     marginTop: 16,
   },
   backButtonStyledText: { color: "#333", fontSize: 16, fontWeight: "600" },
+  exploreSection: {
+    marginTop: 24,
+    marginBottom: 16,
+    alignItems: "center",
+  },
+  exploreDivider: {
+    color: "#999",
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  exploreButton: {
+    backgroundColor: "#F3E5F5",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    width: "100%",
+  },
+  exploreButtonText: {
+    color: "#7B1FA2",
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  exploreButtonSubtext: {
+    color: "#9C27B0",
+    fontSize: 13,
+  },
 });

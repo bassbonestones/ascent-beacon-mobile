@@ -1,7 +1,11 @@
 import { renderHook, act, waitFor } from "@testing-library/react-native";
 import { Alert } from "react-native";
 import useValuePriorityLinks from "../useValuePriorityLinks";
-import type { Priority, PriorityRevision } from "../../types";
+import type {
+  Priority,
+  PriorityRevision,
+  AffectedPriorityInfo,
+} from "../../types";
 
 // Mock the api module
 jest.mock("../../services/api", () => ({
@@ -82,7 +86,9 @@ describe("useValuePriorityLinks", () => {
   ];
 
   // Mock linked priorities - these are the priorities linked to a value (in this case, p1 is linked to v1)
-  const mockLinkedPriorities: Priority[] = [mockPriorities[0]];
+  const mockLinkedPriorities: AffectedPriorityInfo[] = [
+    { priority_id: "p1", title: "Priority 1", is_anchored: false },
+  ];
 
   beforeEach(() => {
     jest.clearAllMocks();

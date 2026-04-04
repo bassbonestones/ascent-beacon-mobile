@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   TextInput,
   ScrollView,
   Platform,
@@ -15,6 +14,7 @@ import type { Goal, User, RootStackParamList, GoalStatus } from "../types";
 import { useGoals } from "../hooks/useGoals";
 import { styles } from "./styles/goalsScreenStyles";
 import { GoalCard, GoalDetailView } from "../components/goals";
+import { showAlert, showConfirm } from "../utils/alert";
 
 interface GoalsScreenProps {
   user: User;
@@ -48,7 +48,7 @@ export default function GoalsScreen({
 
   const handleCreateGoal = useCallback(async () => {
     if (!newGoalTitle.trim()) {
-      Alert.alert("Error", "Please enter a goal title");
+      showAlert("Error", "Please enter a goal title");
       return;
     }
 
@@ -81,26 +81,19 @@ export default function GoalsScreen({
 
   const handleDeleteGoal = useCallback(
     async (goal: Goal) => {
-      Alert.alert(
+      const confirmed = await showConfirm(
         "Delete Goal",
         `Are you sure you want to delete "${goal.title}"?`,
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: async () => {
-              try {
-                await deleteGoal(goal.id);
-                setSelectedGoal(null);
-                setViewMode("list");
-              } catch {
-                // Error already handled in hook
-              }
-            },
-          },
-        ],
       );
+      if (confirmed) {
+        try {
+          await deleteGoal(goal.id);
+          setSelectedGoal(null);
+          setViewMode("list");
+        } catch {
+          // Error already handled in hook
+        }
+      }
     },
     [deleteGoal],
   );

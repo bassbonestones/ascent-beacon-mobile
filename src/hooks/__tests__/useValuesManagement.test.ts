@@ -17,6 +17,7 @@ jest.mock("../../services/api", () => ({
     stashPriority: jest.fn(),
     deletePriority: jest.fn(),
     acknowledgeValueInsight: jest.fn(),
+    getLinkedPriorities: jest.fn(),
   },
 }));
 
@@ -244,6 +245,7 @@ describe("useValuesManagement", () => {
         createMockValue("v4", "Value 4", 25),
       ];
       mockedApi.getValues.mockResolvedValueOnce({ values: fourValues });
+      mockedApi.getLinkedPriorities.mockResolvedValueOnce([]);
 
       const { result } = renderHook(() => useValuesManagement(mockNavigation));
 
@@ -258,6 +260,33 @@ describe("useValuesManagement", () => {
       expect(Alert.alert).toHaveBeenCalledWith(
         "Delete Value",
         "Are you sure? This will remove this value and rebalance your weights.",
+        expect.any(Array),
+      );
+    });
+
+    it("should show linked priorities warning when value has links", async () => {
+      const fourValues: Value[] = [
+        ...mockValues,
+        createMockValue("v4", "Value 4", 25),
+      ];
+      mockedApi.getValues.mockResolvedValueOnce({ values: fourValues });
+      mockedApi.getLinkedPriorities.mockResolvedValueOnce([
+        { priority_id: "p1", title: "My Priority", is_anchored: false },
+      ]);
+
+      const { result } = renderHook(() => useValuesManagement(mockNavigation));
+
+      await waitFor(() => {
+        expect(result.current.values).toHaveLength(4);
+      });
+
+      await act(async () => {
+        await result.current.handleDeleteValue("v1");
+      });
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        "Value Has Linked Priorities",
+        expect.stringContaining("My Priority"),
         expect.any(Array),
       );
     });

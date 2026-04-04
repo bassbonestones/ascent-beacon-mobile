@@ -100,7 +100,7 @@ describe("GoalDetailView", () => {
         onStatusChange={mockOnStatusChange}
       />,
     );
-    expect(screen.getByText("← Back")).toBeTruthy();
+    expect(screen.getByText("← Goals")).toBeTruthy();
     expect(screen.getByText("Goal Detail")).toBeTruthy();
     expect(screen.getByText("Delete")).toBeTruthy();
   });
@@ -115,7 +115,7 @@ describe("GoalDetailView", () => {
         onStatusChange={mockOnStatusChange}
       />,
     );
-    fireEvent.press(screen.getByLabelText("Go back to goals list"));
+    fireEvent.press(screen.getByLabelText("Back to goals list"));
     expect(mockOnBack).toHaveBeenCalled();
   });
 

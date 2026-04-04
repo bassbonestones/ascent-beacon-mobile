@@ -117,6 +117,7 @@ export interface UseValuesDiscoveryReturn {
   // Data actions
   saveSelections: () => Promise<boolean>;
   loadData: () => Promise<void>;
+  startExploreMore: () => Promise<void>;
 
   // Computed
   coreCount: number;
@@ -182,8 +183,14 @@ export default function useValuesDiscovery(): UseValuesDiscoveryReturn {
   const visiblePrompts = lensPrompts.slice(startIdx, endIdx);
 
   const coreCount = buckets.core.length;
-  const needsNarrowing = coreCount >= 4; // 4+ requires narrowing to 3-6
-  const canContinueFromBucket = coreCount >= MIN_CORE_VALUES;
+  // For "Explore More", include existing saved values in the total count
+  const totalCoreCount = existingValues.length + coreCount;
+  const needsNarrowing = coreCount >= 4; // 4+ NEW selections requires narrowing
+  // Can continue if total core values (existing + new) meets minimum
+  const canContinueFromBucket =
+    existingValues.length > 0
+      ? coreCount >= 1 // Explore More: need at least 1 new selection
+      : coreCount >= MIN_CORE_VALUES; // Initial: need 3+ core values
   const maxSelectableCore = Math.min(coreCount, MAX_CORE_VALUES);
   const currentCoreItem = buckets.core[currentCoreIndex] || null;
 
@@ -367,21 +374,22 @@ export default function useValuesDiscovery(): UseValuesDiscoveryReturn {
   ]);
 
   const continueFromBucketing = useCallback((): boolean => {
-    if (coreCount < MIN_CORE_VALUES) {
+    // In "Explore More" mode, user already has existing values so we don't require 3+ new
+    if (!canContinueFromBucket) {
       return false; // Let UI show warning
     }
 
     if (coreCount >= 4) {
-      // 4+ core values: narrow down to final 3-6
+      // 4+ NEW core values: narrow down to final 3-6
       setNarrowedCore(new Set());
       setStep("narrow");
       return true;
     }
 
-    // Core is exactly 3, go to review
+    // Core is ready, go to review
     setStep("review");
     return true;
-  }, [coreCount]);
+  }, [coreCount, canContinueFromBucket]);
 
   const continueFromNarrowing = useCallback((): boolean => {
     const selectedCount = narrowedCore.size;
@@ -484,11 +492,20 @@ export default function useValuesDiscovery(): UseValuesDiscoveryReturn {
       setSaving(true);
       const fullStatement = `${statementStarter} ${statementText}`.trim();
 
-      // Create the value
+      console.warn("=== saveStatement called ===");
+      console.warn(
+        "currentCoreItem:",
+        JSON.stringify(currentCoreItem, null, 2),
+      );
+      console.warn("source_prompt_id being sent:", currentCoreItem.prompt_id);
+      console.warn("prompt.id:", currentCoreItem.prompt?.id);
+
+      // Create the value with source prompt tracking
       await api.createValue({
         statement: fullStatement,
         weight_raw: 1, // Backend will normalize
         origin: "declared",
+        source_prompt_id: currentCoreItem.prompt_id,
       });
 
       // Store created statement locally
@@ -539,6 +556,38 @@ export default function useValuesDiscovery(): UseValuesDiscoveryReturn {
       setCurrentCoreIndex(currentCoreIndex - 1);
     }
   }, [currentCoreIndex, createdStatements]);
+
+  // ============================================================================
+  // Explore More Values
+  // ============================================================================
+
+  const startExploreMore = useCallback(async () => {
+    console.warn("=== startExploreMore CALLED ===");
+    // Reset state to start discovery fresh (but keeps existing values)
+    setSelections(new Set());
+    setBuckets({ core: [], important: [], not_now: [] });
+    setNarrowedCore(new Set());
+    setCurrentLensIndex(0);
+    setCurrentPage(0);
+    setCurrentCoreIndex(0);
+    setStatementStarter(SENTENCE_STARTERS[0]);
+    setStatementText("");
+    setCreatedStatements([]);
+    setStep("loading");
+
+    // Re-fetch prompts from API (will exclude already-used prompts)
+    try {
+      console.warn("=== Calling api.getDiscoveryPrompts() ===");
+      const freshPrompts = await api.getDiscoveryPrompts();
+      console.warn("=== Got prompts:", freshPrompts.length, "===");
+      setPrompts(freshPrompts);
+      setStep("select");
+    } catch (error) {
+      console.warn("=== ERROR in startExploreMore:", error, "===");
+      logError("Failed to load prompts for explore more", error);
+      setStep("select");
+    }
+  }, []);
 
   // ============================================================================
   // Return
@@ -594,6 +643,7 @@ export default function useValuesDiscovery(): UseValuesDiscoveryReturn {
     // Data actions
     saveSelections,
     loadData,
+    startExploreMore,
 
     // Computed
     coreCount,

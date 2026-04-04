@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, ActivityIndicator, Alert, Platform } from "react-native";
+import { View, ActivityIndicator, Platform } from "react-native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import api from "../services/api";
 import { styles } from "./styles/prioritiesScreenStyles";
 import usePriorityForm from "../hooks/usePriorityForm";
+import { showAlert, showAlertWithButtons } from "../utils/alert";
 import type { User, Priority, Value, RootStackParamList } from "../types";
 
 // Components
@@ -75,7 +76,7 @@ export default function PrioritiesScreen({
       setValues(valuesData.values || []);
       setStashedPriorities(stashedData.priorities || []);
     } catch (error) {
-      Alert.alert("Error", "Failed to load priorities");
+      showAlert("Error", "Failed to load priorities");
     } finally {
       setLoading(false);
     }
@@ -113,14 +114,14 @@ export default function PrioritiesScreen({
       await api.stashPriority(currentPriority.id, !isStashed);
       await loadData();
       setStep("view_list");
-      Alert.alert(
+      showAlert(
         isStashed ? "Unstashed" : "Stashed",
         isStashed
           ? "Priority moved back to active."
           : "Priority moved to Stash.",
       );
     } catch (e) {
-      Alert.alert("Error", "Failed to update stash status");
+      showAlert("Error", "Failed to update stash status");
     }
   };
 
@@ -129,7 +130,7 @@ export default function PrioritiesScreen({
       valueId,
       currentPriority?.active_revision?.is_anchored && isEditMode,
       () =>
-        Alert.alert(
+        showAlert(
           "Cannot Remove Last Value",
           "An anchored priority needs at least one linked value.",
         ),
@@ -142,7 +143,7 @@ export default function PrioritiesScreen({
       !formData.why_matters.trim() ||
       selectedValues.size === 0
     ) {
-      Alert.alert("Missing Info", "Please complete all required fields.");
+      showAlert("Missing Info", "Please complete all required fields.");
       return;
     }
     try {
@@ -158,10 +159,10 @@ export default function PrioritiesScreen({
       };
       if (isEditMode && currentPriority) {
         await api.createPriorityRevision(currentPriority.id, data);
-        Alert.alert("Success", "Priority updated successfully!");
+        showAlert("Success", "Priority updated successfully!");
       } else {
         await api.createPriority(data);
-        Alert.alert("Success", "Priority created successfully!");
+        showAlert("Success", "Priority created successfully!");
       }
       resetForm();
       setIsEditMode(false);
@@ -170,7 +171,7 @@ export default function PrioritiesScreen({
       setStep("view_list");
     } catch (error) {
       const err = error as Error;
-      Alert.alert("Error", err.message || "Failed to save priority");
+      showAlert("Error", err.message || "Failed to save priority");
     } finally {
       setLoading(false);
     }

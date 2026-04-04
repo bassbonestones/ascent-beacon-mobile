@@ -14,7 +14,7 @@ import type { User, RootStackParamList } from "../types";
 interface OnboardingScreenProps {
   navigation: NativeStackNavigationProp<RootStackParamList>;
   user: User;
-  onComplete: () => void;
+  onComplete: (user: User) => void;
 }
 
 const OnboardingScreen: React.FC<OnboardingScreenProps> = ({

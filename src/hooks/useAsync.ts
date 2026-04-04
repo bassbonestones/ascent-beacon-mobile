@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Alert } from "react-native";
+import { showAlert as displayAlert } from "../utils/alert";
 
 /**
  * Options for useAsync hook.
@@ -68,7 +68,7 @@ export function useAsync<T, Args extends unknown[]>(
         setError(errorObj);
 
         if (showAlert) {
-          Alert.alert(errorTitle, errorMessage);
+          displayAlert(errorTitle, errorMessage);
         }
 
         onError?.(errorObj);

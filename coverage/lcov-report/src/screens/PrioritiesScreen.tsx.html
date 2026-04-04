@@ -363,7 +363,9 @@
 <a name='L298'></a><a href='#L298'>298</a>
 <a name='L299'></a><a href='#L299'>299</a>
 <a name='L300'></a><a href='#L300'>300</a>
-<a name='L301'></a><a href='#L301'>301</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -664,11 +666,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import React, { useState, useEffect, useCallback } from "react";
-import { View, ActivityIndicator, Alert, Platform } from "react-native";
+import { View, ActivityIndicator, Platform } from "react-native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import api from "../services/api";
 import { styles } from "./styles/prioritiesScreenStyles";
 import usePriorityForm from "../hooks/usePriorityForm";
+import { showAlert, showAlertWithButtons } from "../utils/alert";
 import type { User, Priority, Value, RootStackParamList } from "../types";
 &nbsp;
 // Components
@@ -740,7 +743,7 @@ export default function PrioritiesScreen({
       setValues(valuesData.values || <span class="branch-1 cbranch-no" title="branch not covered" >[])</span>;
       setStashedPriorities(stashedData.priorities || <span class="branch-1 cbranch-no" title="branch not covered" >[])</span>;
     } catch (error) {
-      Alert.alert("Error", "Failed to load priorities");
+      showAlert("Error", "Failed to load priorities");
     } finally {
       setLoading(false);
     }
@@ -778,14 +781,14 @@ export default function PrioritiesScreen({
       await api.stashPriority(currentPriority.id, !isStashed);
       await loadData();
       setStep("view_list");
-      Alert.alert(
+      showAlert(
         isStashed ? <span class="branch-0 cbranch-no" title="branch not covered" >"Unstashed" </span>: "Stashed",
         isStashed
           ? <span class="branch-0 cbranch-no" title="branch not covered" >"Priority moved back to active."</span>
           : "Priority moved to Stash.",
       );
     } catch (e) {
-<span class="cstat-no" title="statement not covered" >      Alert.alert("Error", "Failed to update stash status");</span>
+<span class="cstat-no" title="statement not covered" >      showAlert("Error", "Failed to update stash status");</span>
     }
   };
 &nbsp;
@@ -794,7 +797,7 @@ export default function PrioritiesScreen({
       valueId,
       currentPriority?.active_revision?.is_anchored &amp;&amp; isEditMode,
 <span class="fstat-no" title="function not covered" >      ()</span> =&gt;
-<span class="cstat-no" title="statement not covered" >        Alert.alert(</span>
+<span class="cstat-no" title="statement not covered" >        showAlert(</span>
           "Cannot Remove Last Value",
           "An anchored priority needs at least one linked value.",
         ),
@@ -807,7 +810,7 @@ export default function PrioritiesScreen({
       !formData.why_matters.trim() ||
       selectedValues.size === 0
     ) {
-<span class="cstat-no" title="statement not covered" >      Alert.alert("Missing Info", "Please complete all required fields.");</span>
+<span class="cstat-no" title="statement not covered" >      showAlert("Missing Info", "Please complete all required fields.");</span>
 <span class="cstat-no" title="statement not covered" >      return;</span>
     }
 <span class="cstat-no" title="statement not covered" >    try {</span>
@@ -823,10 +826,10 @@ export default function PrioritiesScreen({
       };
 <span class="cstat-no" title="statement not covered" >      if (isEditMode &amp;&amp; currentPriority) {</span>
 <span class="cstat-no" title="statement not covered" >        await api.createPriorityRevision(currentPriority.id, data);</span>
-<span class="cstat-no" title="statement not covered" >        Alert.alert("Success", "Priority updated successfully!");</span>
+<span class="cstat-no" title="statement not covered" >        showAlert("Success", "Priority updated successfully!");</span>
       } else {
 <span class="cstat-no" title="statement not covered" >        await api.createPriority(data);</span>
-<span class="cstat-no" title="statement not covered" >        Alert.alert("Success", "Priority created successfully!");</span>
+<span class="cstat-no" title="statement not covered" >        showAlert("Success", "Priority created successfully!");</span>
       }
 <span class="cstat-no" title="statement not covered" >      resetForm();</span>
 <span class="cstat-no" title="statement not covered" >      setIsEditMode(false);</span>
@@ -835,7 +838,7 @@ export default function PrioritiesScreen({
 <span class="cstat-no" title="statement not covered" >      setStep("view_list");</span>
     } catch (error) {
       const err = <span class="cstat-no" title="statement not covered" >error as Error;</span>
-<span class="cstat-no" title="statement not covered" >      Alert.alert("Error", err.message || "Failed to save priority");</span>
+<span class="cstat-no" title="statement not covered" >      showAlert("Error", err.message || "Failed to save priority");</span>
     } finally {
 <span class="cstat-no" title="statement not covered" >      setLoading(false);</span>
     }
@@ -970,7 +973,7 @@ export default function PrioritiesScreen({
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-04T16:44:34.840Z
+                at 2026-04-04T19:19:26.578Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

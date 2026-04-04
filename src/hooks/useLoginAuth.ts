@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Alert } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
+import { showAlert } from "../utils/alert";
 import type { AuthRequest, AuthSessionResult } from "expo-auth-session";
 import { GOOGLE_CLIENT_ID } from "../config";
 import api from "../services/api";
@@ -77,7 +77,7 @@ export default function useLoginAuth(
       const user = await api.loginWithGoogle(idToken);
       onLoginSuccess(user);
     } catch (error) {
-      Alert.alert("Login Failed", (error as Error).message);
+      showAlert("Login Failed", (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -89,7 +89,7 @@ export default function useLoginAuth(
       const user = await api.devLogin();
       onLoginSuccess(user);
     } catch (error) {
-      Alert.alert("Dev Login Failed", (error as Error).message);
+      showAlert("Dev Login Failed", (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -101,7 +101,7 @@ export default function useLoginAuth(
       return;
     }
     if (!email.trim()) {
-      Alert.alert("Email Required", "Please enter your email address");
+      showAlert("Email Required", "Please enter your email address");
       return;
     }
     try {
@@ -111,7 +111,7 @@ export default function useLoginAuth(
       setShowVerifyScreen(true);
       setCountdown(300);
     } catch (error) {
-      Alert.alert("Error", (error as Error).message);
+      showAlert("Error", (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -122,9 +122,9 @@ export default function useLoginAuth(
       setLoading(true);
       await api.requestMagicLink(email);
       setCountdown(300);
-      Alert.alert("Email Sent", "Check your inbox for the magic link");
+      showAlert("Email Sent", "Check your inbox for the magic link");
     } catch (error) {
-      Alert.alert("Error", (error as Error).message);
+      showAlert("Error", (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -140,7 +140,7 @@ export default function useLoginAuth(
 
   const handleVerifyCode = async (): Promise<void> => {
     if (!verificationCode.trim()) {
-      Alert.alert("Code Required", "Please enter the 6-digit code");
+      showAlert("Code Required", "Please enter the 6-digit code");
       return;
     }
     try {
@@ -148,7 +148,7 @@ export default function useLoginAuth(
       const user = await api.verifyMagicLink(email, verificationCode);
       onLoginSuccess(user);
     } catch (error) {
-      Alert.alert("Verification Failed", (error as Error).message);
+      showAlert("Verification Failed", (error as Error).message);
     } finally {
       setLoading(false);
     }

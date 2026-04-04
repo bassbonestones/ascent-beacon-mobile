@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
-import { Alert } from "react-native";
 import api from "../services/api";
+import { showAlert } from "../utils/alert";
 import type {
   Goal,
   CreateGoalRequest,
@@ -36,7 +36,7 @@ export function useGoals(options: UseGoalsOptions = {}): UseGoalsReturn {
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       setError(error);
-      Alert.alert("Error", "Failed to load goals");
+      showAlert("Error", "Failed to load goals");
     } finally {
       setLoading(false);
     }
@@ -54,7 +54,7 @@ export function useGoals(options: UseGoalsOptions = {}): UseGoalsReturn {
         return goal;
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
-        Alert.alert("Error", "Failed to create goal");
+        showAlert("Error", "Failed to create goal");
         throw error;
       }
     },
@@ -69,7 +69,7 @@ export function useGoals(options: UseGoalsOptions = {}): UseGoalsReturn {
         return updated;
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
-        Alert.alert("Error", "Failed to update goal");
+        showAlert("Error", "Failed to update goal");
         throw error;
       }
     },
@@ -84,7 +84,7 @@ export function useGoals(options: UseGoalsOptions = {}): UseGoalsReturn {
         return updated;
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
-        Alert.alert("Error", "Failed to update goal status");
+        showAlert("Error", "Failed to update goal status");
         throw error;
       }
     },
@@ -96,7 +96,7 @@ export function useGoals(options: UseGoalsOptions = {}): UseGoalsReturn {
       await api.deleteGoal(id);
       setGoals((prev) => prev.filter((g) => g.id !== id));
     } catch (err) {
-      Alert.alert("Error", "Failed to delete goal");
+      showAlert("Error", "Failed to delete goal");
       throw err instanceof Error ? err : new Error(String(err));
     }
   }, []);

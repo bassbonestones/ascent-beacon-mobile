@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Alert } from "react-native";
 import api from "../services/api";
 import { logError } from "../utils/logger";
+import { showAlert, showAlertWithButtons } from "../utils/alert";
 import type { Priority, PriorityRevision } from "../types";
 
 type NavigationType = {
@@ -51,11 +51,11 @@ export default function useValuePriorityLinks(
         api.getLinkedPriorities(valueId),
       ]);
       setPriorities(prioritiesData.priorities || []);
-      const linked = new Set((linkedData || []).map((p) => p.id));
+      const linked = new Set((linkedData || []).map((p) => p.priority_id));
       setLinkedPriorityIds(linked);
     } catch (error) {
       logError("Failed to load data:", error);
-      Alert.alert("Error", "Failed to load priorities");
+      showAlert("Error", "Failed to load priorities");
     } finally {
       setLoading(false);
     }
@@ -90,7 +90,7 @@ export default function useValuePriorityLinks(
         else currentValueIds.delete(valueId);
 
         if (currentValueIds.size === 0 && activeRev.is_anchored) {
-          Alert.alert(
+          showAlertWithButtons(
             "Cannot Remove Link",
             `"${activeRev.title}" is anchored and requires at least one linked value.`,
             [{ text: "OK" }],
@@ -108,18 +108,18 @@ export default function useValuePriorityLinks(
           value_ids: Array.from(currentValueIds),
         });
       }
-      Alert.alert("Success", "Priority links updated");
+      showAlert("Success", "Priority links updated");
       navigation.goBack();
     } catch (error) {
       logError("Failed to save links:", error);
       const errorObj = error as Error;
       if (errorObj.message?.includes("ORPHANED_ANCHORED_PRIORITY")) {
-        Alert.alert(
+        showAlertWithButtons(
           "Cannot Save",
           "One or more anchored priorities would be left without values.",
           [{ text: "OK" }],
         );
-      } else Alert.alert("Error", "Failed to update links");
+      } else showAlert("Error", "Failed to update links");
     } finally {
       setSaving(false);
     }

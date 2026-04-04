@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Alert } from "react-native";
 import api from "../services/api";
 import { logError } from "../utils/logger";
+import { showAlert } from "../utils/alert";
 import { getActiveRevision } from "../utils/valueMatching";
 import type { Value, ValueRevision } from "../types";
 
@@ -68,7 +68,7 @@ export default function useValueActions(
       );
     } catch (error) {
       logError("Failed to delete value:", error);
-      Alert.alert("Error", "Failed to delete value");
+      showAlert("Error", "Failed to delete value");
     } finally {
       setSending(false);
       setDeleteConfirmId(null);
@@ -97,7 +97,7 @@ export default function useValueActions(
       return true;
     } catch (error) {
       logError("Failed to update value:", error);
-      Alert.alert("Error", "Failed to update value");
+      showAlert("Error", "Failed to update value");
       return false;
     } finally {
       setSending(false);

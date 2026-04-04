@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Alert } from "react-native";
+import { showAlert } from "../utils/alert";
 import type { Value, ValueRevision } from "../types";
 
 /**
@@ -84,7 +84,7 @@ export default function useWeightAdjustment(
       setSaving(true);
       await onSave(weights);
     } catch (error) {
-      Alert.alert("Error", "Failed to save weights");
+      showAlert("Error", "Failed to save weights");
     } finally {
       setSaving(false);
     }

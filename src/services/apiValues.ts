@@ -5,7 +5,7 @@ import type {
   CreateValueRevisionRequest,
   ValueEditResponse,
   ValueMatchResponse,
-  Priority,
+  AffectedPriorityInfo,
 } from "../types";
 import type ApiServiceBase from "./apiBase";
 
@@ -22,14 +22,14 @@ export interface ValuesMethods {
     valueId: string,
     valueData: CreateValueRevisionRequest,
   ): Promise<ValueEditResponse>;
-  deleteValue(valueId: string): Promise<void>;
+  deleteValue(valueId: string, cascade?: boolean): Promise<void>;
   getValueHistory(valueId: string): Promise<Value>;
   matchValue(query: string): Promise<ValueMatchResponse>;
   acknowledgeValueInsight(
     valueId: string,
     revisionId?: string | null,
   ): Promise<Value>;
-  getLinkedPriorities(valueId: string): Promise<Priority[]>;
+  getLinkedPriorities(valueId: string): Promise<AffectedPriorityInfo[]>;
 }
 
 /**
@@ -60,8 +60,11 @@ export const valuesMethods = <TBase extends Constructor<ApiServiceBase>>(
       });
     }
 
-    async deleteValue(valueId: string): Promise<void> {
-      await this.request(`/values/${valueId}`, { method: "DELETE" });
+    async deleteValue(valueId: string, cascade = false): Promise<void> {
+      const url = cascade
+        ? `/values/${valueId}?cascade=true`
+        : `/values/${valueId}`;
+      await this.request(url, { method: "DELETE" });
     }
 
     async getValueHistory(valueId: string): Promise<Value> {
@@ -88,8 +91,10 @@ export const valuesMethods = <TBase extends Constructor<ApiServiceBase>>(
       );
     }
 
-    async getLinkedPriorities(valueId: string): Promise<Priority[]> {
-      return await this.request<Priority[]>(
+    async getLinkedPriorities(
+      valueId: string,
+    ): Promise<AffectedPriorityInfo[]> {
+      return await this.request<AffectedPriorityInfo[]>(
         `/values/${valueId}/linked-priorities`,
       );
     }

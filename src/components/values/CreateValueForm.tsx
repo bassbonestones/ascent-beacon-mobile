@@ -14,7 +14,6 @@ interface CreateValueFormProps {
   onChangeText: (text: string) => void;
   onCreate: () => void;
   onShowExamples: () => void;
-  onNavigateToDashboard: () => void;
   isCreating: boolean;
 }
 
@@ -27,7 +26,6 @@ export default function CreateValueForm({
   onChangeText,
   onCreate,
   onShowExamples,
-  onNavigateToDashboard,
   isCreating,
 }: CreateValueFormProps): React.ReactElement {
   const isFirstValue = valuesCount === 0;
@@ -88,15 +86,6 @@ export default function CreateValueForm({
           more.
         </Text>
       )}
-
-      <TouchableOpacity
-        style={styles.backButtonStyled}
-        onPress={onNavigateToDashboard}
-        accessibilityRole="button"
-        accessibilityLabel="Back to dashboard"
-      >
-        <Text style={styles.backButtonStyledText}>Back to Dashboard</Text>
-      </TouchableOpacity>
     </View>
   );
 }

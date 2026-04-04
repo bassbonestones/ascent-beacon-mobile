@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { Alert } from "react-native";
 import ApiService from "../services/api";
 import { logError } from "../utils/logger";
+import { showAlert } from "../utils/alert";
 import type { User } from "../types";
 
 type OnboardingStep = "display-name" | "email" | "verify-email";
@@ -58,7 +58,7 @@ export default function useOnboarding(
 
   const handleDisplayName = async (): Promise<void> => {
     if (!displayName.trim()) {
-      Alert.alert("Error", "Please enter a display name");
+      showAlert("Error", "Please enter a display name");
       return;
     }
     setLoading(true);
@@ -73,7 +73,7 @@ export default function useOnboarding(
       if (response.is_email_verified) onComplete(response);
       else setStep("email");
     } catch (error) {
-      Alert.alert(
+      showAlert(
         "Error",
         (error as Error).message || "Failed to set display name",
       );
@@ -88,7 +88,7 @@ export default function useOnboarding(
       setTimeRemaining((prev) => {
         if (prev <= 0) {
           clearInterval(interval);
-          Alert.alert(
+          showAlert(
             "Timeout",
             "Verification code expired. Please request a new one.",
           );
@@ -104,7 +104,7 @@ export default function useOnboarding(
   const handleEmailSubmit = async (): Promise<void> => {
     const emailToUse = isAddingEmail ? newEmail : email;
     if (!emailToUse.trim()) {
-      Alert.alert("Error", "Please enter an email");
+      showAlert("Error", "Please enter an email");
       return;
     }
     setLoading(true);
@@ -131,10 +131,7 @@ export default function useOnboarding(
         startVerificationCountdown();
       }
     } catch (error) {
-      Alert.alert(
-        "Error",
-        (error as Error).message || "Failed to update email",
-      );
+      showAlert("Error", (error as Error).message || "Failed to update email");
     } finally {
       setLoading(false);
     }
@@ -157,7 +154,7 @@ export default function useOnboarding(
 
   const handleVerifyEmail = async (): Promise<void> => {
     if (!verificationToken.trim()) {
-      Alert.alert("Error", "Please enter the verification code");
+      showAlert("Error", "Please enter the verification code");
       return;
     }
     setLoading(true);
@@ -170,14 +167,11 @@ export default function useOnboarding(
         },
       );
       if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-      Alert.alert("Success", "Email verified!");
+      showAlert("Success", "Email verified!");
       onComplete(response);
     } catch (error) {
       logError("Verification error:", error);
-      Alert.alert(
-        "Error",
-        (error as Error).message || "Failed to verify email",
-      );
+      showAlert("Error", (error as Error).message || "Failed to verify email");
     } finally {
       setLoading(false);
     }
@@ -190,10 +184,10 @@ export default function useOnboarding(
         method: "POST",
         body: JSON.stringify({ primary_email: email }),
       });
-      Alert.alert("Success", "Verification code sent to " + email);
+      showAlert("Success", "Verification code sent to " + email);
       startVerificationCountdown();
     } catch (error) {
-      Alert.alert("Error", (error as Error).message || "Failed to resend code");
+      showAlert("Error", (error as Error).message || "Failed to resend code");
     } finally {
       setLoading(false);
     }

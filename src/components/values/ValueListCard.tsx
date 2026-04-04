@@ -37,7 +37,6 @@ export default function ValueListCard({
     <View
       style={[styles.valueCard, isHighlighted && styles.similarHighlight]}
       onLayout={onLayout}
-      accessibilityRole="button"
       accessibilityLabel={`Value: ${activeRevision.statement}`}
     >
       <View style={styles.valueHeader}>

@@ -61,7 +61,7 @@ function AppNavigator(): React.ReactElement {
                 <OnboardingScreen
                   {...props}
                   user={user}
-                  onComplete={() => updateUser({})}
+                  onComplete={(updatedUser) => updateUser(updatedUser)}
                 />
               )}
             </Stack.Screen>

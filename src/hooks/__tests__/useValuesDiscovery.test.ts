@@ -328,6 +328,7 @@ describe("useValuesDiscovery", () => {
         statement: `${SENTENCE_STARTERS[0]} be present with my family`,
         weight_raw: 1,
         origin: "declared",
+        source_prompt_id: "p1",
       });
     });
   });
@@ -339,6 +340,32 @@ describe("useValuesDiscovery", () => {
       expect(PROMPTS_PER_PAGE).toBe(6);
       expect(MIN_CORE_VALUES).toBe(3);
       expect(MAX_CORE_VALUES).toBe(6);
+    });
+  });
+
+  describe("startExploreMore", () => {
+    it("resets state and goes to select step when user has values", async () => {
+      mockApi.getDiscoveryPrompts.mockResolvedValue(mockPrompts);
+      mockApi.getUserSelections.mockResolvedValue([]);
+      mockApi.getValues.mockResolvedValue({
+        values: [{ id: "v1", active_revision: { statement: "test" } }],
+      });
+
+      const { result } = renderHook(() => useValuesDiscovery());
+
+      await waitFor(() => {
+        expect(result.current.step).toBe("view_values");
+      });
+
+      // Call startExploreMore (now async - fetches fresh prompts)
+      await act(async () => {
+        await result.current.startExploreMore();
+      });
+
+      expect(result.current.step).toBe("select");
+      expect(result.current.selections.size).toBe(0);
+      expect(result.current.currentLensIndex).toBe(0);
+      expect(result.current.currentPage).toBe(0);
     });
   });
 });

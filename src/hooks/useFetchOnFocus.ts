@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { Alert } from "react-native";
+import { showAlert as showCrossPlatformAlert } from "../utils/alert";
 
 /**
  * Options for useFetchOnFocus hook.
@@ -69,7 +69,7 @@ export function useFetchOnFocus<T>(
       setError(errorObj);
 
       if (showAlert) {
-        Alert.alert(errorTitle, errorMessage);
+        showCrossPlatformAlert(errorTitle, errorMessage);
       }
 
       throw err;

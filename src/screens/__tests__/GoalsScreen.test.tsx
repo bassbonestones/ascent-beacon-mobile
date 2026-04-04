@@ -302,7 +302,7 @@ describe("GoalsScreen", () => {
     });
 
     it("goes back to list when back button pressed", () => {
-      fireEvent.press(screen.getByLabelText("Cancel and go back"));
+      fireEvent.press(screen.getByLabelText("Cancel and go back to list"));
       expect(screen.getByText("Goals")).toBeTruthy();
       expect(screen.queryByText("New Goal")).toBeNull();
     });
@@ -335,7 +335,7 @@ describe("GoalsScreen", () => {
     });
 
     it("goes back to list when back button pressed", () => {
-      fireEvent.press(screen.getByLabelText("Go back to goals list"));
+      fireEvent.press(screen.getByLabelText("Back to goals list"));
       expect(screen.getByText("Goals")).toBeTruthy();
       expect(screen.queryByText("Goal Detail")).toBeNull();
     });
@@ -358,7 +358,7 @@ describe("GoalsScreen", () => {
         'Are you sure you want to delete "Detail Goal"?',
         expect.arrayContaining([
           expect.objectContaining({ text: "Cancel" }),
-          expect.objectContaining({ text: "Delete" }),
+          expect.objectContaining({ text: "OK" }),
         ]),
       );
     });
@@ -366,12 +366,12 @@ describe("GoalsScreen", () => {
     it("calls deleteGoal when delete confirmed", async () => {
       fireEvent.press(screen.getByLabelText("Delete goal"));
 
-      // Find and call the delete callback
+      // Find and call the OK callback (showConfirm uses "OK" button)
       const alertCall = (Alert.alert as jest.Mock).mock.calls[0];
-      const deleteButton = alertCall[2].find(
-        (btn: { text: string }) => btn.text === "Delete",
+      const okButton = alertCall[2].find(
+        (btn: { text: string }) => btn.text === "OK",
       );
-      await deleteButton.onPress();
+      await okButton.onPress();
 
       await waitFor(() => {
         expect(mockDeleteGoal).toHaveBeenCalledWith(goal.id);

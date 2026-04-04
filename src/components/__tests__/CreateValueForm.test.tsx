@@ -14,7 +14,6 @@ jest.mock("../../screens/styles/valuesManagementStyles", () => ({
     createButtonDisabled: {},
     createButtonText: {},
     hint: {},
-    backButtonStyled: {},
   },
 }));
 
@@ -24,7 +23,6 @@ interface CreateValueFormProps {
   onChangeText: (text: string) => void;
   onCreate: () => void;
   onShowExamples: () => void;
-  onNavigateToDashboard: () => void;
   isCreating: boolean;
 }
 
@@ -35,7 +33,6 @@ describe("CreateValueForm", () => {
     onChangeText: jest.fn(),
     onCreate: jest.fn(),
     onShowExamples: jest.fn(),
-    onNavigateToDashboard: jest.fn(),
     isCreating: false,
   };
 
@@ -154,17 +151,6 @@ describe("CreateValueForm", () => {
       <CreateValueForm {...defaultProps} valuesCount={2} />,
     );
     expect(queryByText(/You have 2 values/)).toBeNull();
-  });
-
-  it("renders back to dashboard button", () => {
-    const { getByLabelText } = render(<CreateValueForm {...defaultProps} />);
-    expect(getByLabelText("Back to dashboard")).toBeTruthy();
-  });
-
-  it("calls onNavigateToDashboard when back button is pressed", () => {
-    const { getByLabelText } = render(<CreateValueForm {...defaultProps} />);
-    fireEvent.press(getByLabelText("Back to dashboard"));
-    expect(defaultProps.onNavigateToDashboard).toHaveBeenCalled();
   });
 
   it("shows loading indicator when isCreating", () => {

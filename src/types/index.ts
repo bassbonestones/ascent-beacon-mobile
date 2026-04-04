@@ -95,6 +95,7 @@ export interface ValueRevision {
   weight_normalized: number | null;
   is_active: boolean;
   origin: ValueOrigin;
+  source_prompt_id?: string | null;
   created_at: string;
 }
 
@@ -125,12 +126,14 @@ export interface CreateValueRequest {
   statement: string;
   weight_raw: number;
   origin?: ValueOrigin;
+  source_prompt_id?: string;
 }
 
 export interface CreateValueRevisionRequest {
   statement: string;
   weight_raw: number;
   origin?: ValueOrigin;
+  source_prompt_id?: string;
 }
 
 export interface AcknowledgeValueInsightRequest {
@@ -141,6 +144,11 @@ export interface AffectedPriorityInfo {
   priority_id: string;
   title: string;
   is_anchored: boolean;
+}
+
+export interface ValueDeleteConflict {
+  message: string;
+  affected_priorities: AffectedPriorityInfo[];
 }
 
 export interface ValueEditImpactInfo {

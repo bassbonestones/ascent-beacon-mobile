@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback, RefObject } from "react";
-import { Alert, ScrollView } from "react-native";
+import { ScrollView } from "react-native";
 import api from "../services/api";
 import { logError } from "../utils/logger";
+import { showAlert } from "../utils/alert";
 import { getActiveRevision } from "../utils/valueMatching";
 import {
   handlePendingAction,
@@ -145,7 +146,7 @@ export default function useAssistantChat(
       ]);
     } catch (error) {
       logError("Failed to create session:", error);
-      Alert.alert("Error", "Failed to start conversation");
+      showAlert("Error", "Failed to start conversation");
     } finally {
       setLoading(false);
     }
@@ -167,7 +168,7 @@ export default function useAssistantChat(
       await loadRecommendations();
     } catch (error) {
       logError("Failed to send message:", error);
-      Alert.alert("Error", "Failed to send message");
+      showAlert("Error", "Failed to send message");
     } finally {
       setSending(false);
     }
@@ -251,7 +252,7 @@ export default function useAssistantChat(
       }
     } catch (error) {
       logError("Failed to accept recommendation:", error);
-      Alert.alert("Error", (error as Error).message || "Failed to add value");
+      showAlert("Error", (error as Error).message || "Failed to add value");
     }
   };
 
@@ -261,12 +262,12 @@ export default function useAssistantChat(
       setRecommendations((prev) => prev.filter((r) => r.id !== recId));
     } catch (error) {
       logError("Failed to reject recommendation:", error);
-      Alert.alert("Error", "Failed to reject recommendation");
+      showAlert("Error", "Failed to reject recommendation");
     }
   };
 
   const handleVoiceRecord = (): void =>
-    Alert.alert("Voice Input", "Voice recording coming soon!");
+    showAlert("Voice Input", "Voice recording coming soon!");
 
   const handleKeepBoth = async (valueId: string): Promise<void> => {
     try {

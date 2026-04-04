@@ -6,6 +6,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Modal,
+  Platform,
 } from "react-native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
@@ -25,14 +26,27 @@ interface ValuesManagementProps {
   user: User;
   onLogout: () => void;
   navigation: NativeStackNavigationProp<RootStackParamList>;
+  onExploreMore?: () => void;
 }
 
 export default function ValuesManagement({
   user,
   onLogout,
   navigation,
+  onExploreMore,
 }: ValuesManagementProps): React.ReactElement {
   const vm = useValuesManagement(navigation);
+
+  const blurActiveElement = (): void => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+    }
+  };
+
+  const handleNavigateToDashboard = (): void => {
+    blurActiveElement();
+    navigation.navigate("Dashboard");
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -56,7 +70,7 @@ export default function ValuesManagement({
       <View style={styles.footerFullWidth}>
         <TouchableOpacity
           style={styles.backButtonFull}
-          onPress={() => navigation.navigate("Dashboard")}
+          onPress={handleNavigateToDashboard}
           accessibilityRole="button"
           accessibilityLabel="Back to dashboard"
         >
@@ -143,9 +157,40 @@ export default function ValuesManagement({
             onChangeText={vm.setNewStatement}
             onCreate={vm.handleCreateValue}
             onShowExamples={() => vm.setShowExamples(true)}
-            onNavigateToDashboard={() => navigation.navigate("Dashboard")}
             isCreating={vm.creating}
           />
+        )}
+
+        {/* Explore More Values */}
+        {vm.values.length < 6 && onExploreMore && (
+          <View style={styles.exploreSection}>
+            <Text style={styles.exploreDivider}>— or —</Text>
+            <TouchableOpacity
+              style={styles.exploreButton}
+              onPress={onExploreMore}
+              accessibilityRole="button"
+              accessibilityLabel="Explore more values through guided discovery"
+            >
+              <Text style={styles.exploreButtonText}>
+                🔍 Explore More Values
+              </Text>
+              <Text style={styles.exploreButtonSubtext}>
+                Find additional values through guided discovery
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* At max values - show explanation */}
+        {vm.values.length >= 6 && (
+          <View style={styles.maxValuesBox}>
+            <Text style={styles.maxValuesTitle}>
+              You have 6 values (the maximum)
+            </Text>
+            <Text style={styles.maxValuesText}>
+              To add a new value, delete one of your existing values first.
+            </Text>
+          </View>
         )}
 
         {/* Guidance */}
