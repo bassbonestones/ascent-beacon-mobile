@@ -132,8 +132,10 @@ const createMockGoal = (overrides: Partial<Goal> = {}): Goal => ({
   parent_goal_id: null,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
+  completed_at: null,
+  total_time_minutes: 0,
+  completed_time_minutes: 0,
   priorities: [],
-  children: [],
   ...overrides,
 });
 

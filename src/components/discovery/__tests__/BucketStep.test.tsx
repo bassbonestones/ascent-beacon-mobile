@@ -58,10 +58,12 @@ const createMockBucketItem = (
   prompt: {
     id,
     prompt_text: text,
-    lens: "Identity",
-    weight: 1,
+    primary_lens: "Identity",
+    display_order: 1,
+    active: true,
   },
   bucket,
+  display_order: 1,
 });
 
 describe("BucketStep", () => {

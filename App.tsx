@@ -26,6 +26,7 @@ import AssistantScreen from "./src/screens/AssistantScreen";
 import ValuesDiscovery from "./src/screens/ValuesDiscovery";
 import PrioritiesScreen from "./src/screens/PrioritiesScreen";
 import GoalsScreen from "./src/screens/GoalsScreen";
+import TasksScreen from "./src/screens/TasksScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import ValuePriorityLinksScreen from "./src/screens/ValuePriorityLinksScreen";
 import type { RootStackParamList } from "./src/types";
@@ -83,6 +84,9 @@ function AppNavigator(): React.ReactElement {
               </Stack.Screen>
               <Stack.Screen name="Goals">
                 {(props) => <GoalsScreen {...props} user={user} />}
+              </Stack.Screen>
+              <Stack.Screen name="Tasks">
+                {(props) => <TasksScreen {...props} user={user} />}
               </Stack.Screen>
               <Stack.Screen
                 name="ValuePriorityLinks"

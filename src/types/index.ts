@@ -454,6 +454,7 @@ export type RootStackParamList = {
   ValuesManagement: undefined;
   Priorities: undefined;
   Goals: undefined;
+  Tasks: undefined;
   ValuePriorityLinks: { valueId: string; valueStatement: string };
   Assistant: { contextMode?: string };
   Alignment: undefined;
@@ -624,6 +625,146 @@ export interface UseGoalsReturn {
   updateGoal: (id: string, data: UpdateGoalRequest) => Promise<Goal>;
   updateGoalStatus: (id: string, status: GoalStatus) => Promise<Goal>;
   deleteGoal: (id: string) => Promise<void>;
+}
+
+// ============================================================================
+// Task Types
+// ============================================================================
+
+export type TaskStatus = "pending" | "completed" | "skipped";
+
+export type SchedulingMode = "floating" | "fixed";
+
+export interface TaskGoalInfo {
+  id: string;
+  title: string;
+  status: GoalStatus;
+}
+
+export interface Task {
+  id: string;
+  user_id: string;
+  goal_id: string | null;
+  title: string;
+  description: string | null;
+  duration_minutes: number;
+  status: TaskStatus;
+  scheduled_at: string | null; // ISO datetime string
+  is_recurring: boolean;
+  recurrence_rule: string | null; // RRULE string
+  notify_before_minutes: number | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  is_lightning: boolean;
+  goal: TaskGoalInfo | null;
+  // Phase 4b fields
+  scheduling_mode: SchedulingMode | null;
+  skip_reason: string | null;
+}
+
+export interface TaskListResponse {
+  tasks: Task[];
+  total: number;
+  pending_count: number;
+  completed_count: number;
+}
+
+export interface CreateTaskRequest {
+  goal_id?: string | null;
+  title: string;
+  description?: string | null;
+  duration_minutes: number;
+  scheduled_at?: string | null;
+  notify_before_minutes?: number | null;
+  // Phase 4b fields
+  is_recurring?: boolean;
+  recurrence_rule?: string | null;
+  scheduling_mode?: SchedulingMode | null;
+}
+
+export interface UpdateTaskRequest {
+  goal_id?: string;
+  title?: string;
+  description?: string | null;
+  duration_minutes?: number;
+  scheduled_at?: string | null;
+  notify_before_minutes?: number | null;
+  // Phase 4b fields
+  is_recurring?: boolean;
+  recurrence_rule?: string | null;
+  scheduling_mode?: SchedulingMode | null;
+}
+
+export interface CompleteTaskRequest {
+  completed_at?: string | null;
+  scheduled_for?: string | null; // For recurring tasks: which occurrence was completed
+}
+
+export interface SkipTaskRequest {
+  reason?: string | null;
+  scheduled_for?: string | null; // For recurring tasks: which occurrence was skipped
+}
+
+// Phase 4b: Task completion history (for recurring tasks)
+export interface TaskCompletion {
+  id: string;
+  task_id: string;
+  status: "completed" | "skipped";
+  skip_reason: string | null;
+  scheduled_for: string | null;
+  completed_at: string;
+}
+
+export interface TaskCompletionListResponse {
+  completions: TaskCompletion[];
+  total: number;
+  completed_count: number;
+  skipped_count: number;
+}
+
+// Phase 4b: Today view
+export interface TodayTasksResponse {
+  tasks: Task[];
+  pending_count: number;
+  completed_today_count: number;
+  overdue_count: number;
+}
+
+// Phase 4b: Range view
+export interface TaskRangeRequest {
+  start_date: string; // ISO datetime
+  end_date: string; // ISO datetime
+  include_completed?: boolean;
+  offset?: number;
+  limit?: number;
+}
+
+export interface TaskRangeResponse {
+  tasks: Task[];
+  total: number;
+  has_more: boolean;
+  start_date: string;
+  end_date: string;
+}
+
+export interface UseTasksReturn {
+  tasks: Task[];
+  loading: boolean;
+  error: Error | null;
+  pendingCount: number;
+  completedCount: number;
+  refetch: () => Promise<void>;
+  createTask: (data: CreateTaskRequest) => Promise<Task>;
+  updateTask: (id: string, data: UpdateTaskRequest) => Promise<Task>;
+  completeTask: (id: string, scheduledFor?: string) => Promise<Task>;
+  skipTask: (
+    id: string,
+    reason?: string,
+    scheduledFor?: string,
+  ) => Promise<Task>;
+  reopenTask: (id: string) => Promise<Task>;
+  deleteTask: (id: string) => Promise<void>;
 }
 
 // ============================================================================

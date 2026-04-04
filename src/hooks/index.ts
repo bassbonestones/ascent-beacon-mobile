@@ -15,3 +15,4 @@ export {
   type UseFetchOnFocusReturn,
 } from "./useFetchOnFocus";
 export { useGoals, type UseGoalsOptions } from "./useGoals";
+export { useTasks, type UseTasksOptions } from "./useTasks";

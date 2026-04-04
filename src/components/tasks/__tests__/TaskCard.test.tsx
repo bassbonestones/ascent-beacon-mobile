@@ -1,0 +1,279 @@
+import React from "react";
+import { render, screen, fireEvent } from "@testing-library/react-native";
+import { TaskCard } from "../TaskCard";
+import type { Task } from "../../../types";
+
+const createMockTask = (overrides: Partial<Task> = {}): Task => ({
+  id: "task-1",
+  user_id: "user-1",
+  goal_id: "goal-1",
+  title: "Test Task",
+  description: "Test description",
+  duration_minutes: 30,
+  status: "pending",
+  scheduled_at: null,
+  is_recurring: false,
+  recurrence_rule: null,
+  notify_before_minutes: null,
+  completed_at: null,
+  created_at: "2024-01-01T00:00:00Z",
+  updated_at: "2024-01-01T00:00:00Z",
+  is_lightning: false,
+  goal: { id: "goal-1", title: "Test Goal", status: "in_progress" },
+  scheduling_mode: null,
+  skip_reason: null,
+  ...overrides,
+});
+
+describe("TaskCard", () => {
+  const mockOnPress = jest.fn();
+  const mockOnComplete = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("renders task title", () => {
+    const task = createMockTask({ title: "My Important Task" });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByText("My Important Task")).toBeTruthy();
+  });
+
+  it("renders goal title when goal is present", () => {
+    const task = createMockTask({
+      goal: { id: "goal-1", title: "Associated Goal", status: "in_progress" },
+    });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByText("Associated Goal")).toBeTruthy();
+  });
+
+  it("does not render goal title when goal is null", () => {
+    const task = createMockTask({ goal: null });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.queryByText("Test Goal")).toBeNull();
+  });
+
+  it("renders pending status badge", () => {
+    const task = createMockTask({ status: "pending" });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByText("Pending")).toBeTruthy();
+  });
+
+  it("renders completed status badge", () => {
+    const task = createMockTask({ status: "completed" });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByText("Completed")).toBeTruthy();
+  });
+
+  it("renders skipped status badge", () => {
+    const task = createMockTask({ status: "skipped" });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByText("Skipped")).toBeTruthy();
+  });
+
+  it("shows check button for pending tasks", () => {
+    const task = createMockTask({ status: "pending" });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByLabelText(`Complete task: ${task.title}`)).toBeTruthy();
+  });
+
+  it("does not show check button for completed tasks", () => {
+    const task = createMockTask({ status: "completed" });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.queryByLabelText(`Complete task: ${task.title}`)).toBeNull();
+  });
+
+  it("shows checkmark for completed tasks", () => {
+    const task = createMockTask({ status: "completed" });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByText("✓")).toBeTruthy();
+  });
+
+  it("shows lightning badge for lightning tasks", () => {
+    const task = createMockTask({ is_lightning: true, duration_minutes: 0 });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByText("⚡ Quick")).toBeTruthy();
+  });
+
+  it("shows duration for non-lightning tasks", () => {
+    const task = createMockTask({ is_lightning: false, duration_minutes: 30 });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByText("🕐 30m")).toBeTruthy();
+  });
+
+  it("formats duration with hours", () => {
+    const task = createMockTask({ is_lightning: false, duration_minutes: 90 });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByText("🕐 1h 30m")).toBeTruthy();
+  });
+
+  it("formats duration with exact hours", () => {
+    const task = createMockTask({ is_lightning: false, duration_minutes: 120 });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByText("🕐 2h")).toBeTruthy();
+  });
+
+  it("does not show duration for zero minutes non-lightning tasks", () => {
+    const task = createMockTask({ is_lightning: false, duration_minutes: 0 });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.queryByText(/🕐/)).toBeNull();
+  });
+
+  it("shows scheduled date when scheduled", () => {
+    const task = createMockTask({ scheduled_at: "2024-06-15T10:00:00Z" });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByText(/📅/)).toBeTruthy();
+  });
+
+  it("does not show scheduled date when not scheduled", () => {
+    const task = createMockTask({ scheduled_at: null });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.queryByText(/📅/)).toBeNull();
+  });
+
+  it("calls onPress when card is pressed", () => {
+    const task = createMockTask();
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    fireEvent.press(screen.getByLabelText(`Task: ${task.title}`));
+    expect(mockOnPress).toHaveBeenCalledWith(task);
+  });
+
+  it("calls onComplete when check button is pressed", () => {
+    const task = createMockTask({ status: "pending" });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    fireEvent.press(screen.getByLabelText(`Complete task: ${task.title}`));
+    expect(mockOnComplete).toHaveBeenCalledWith(task);
+  });
+
+  it("has correct accessibility label", () => {
+    const task = createMockTask({ title: "Accessible Task" });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByLabelText("Task: Accessible Task")).toBeTruthy();
+  });
+
+  it("has button accessibility role", () => {
+    const task = createMockTask();
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Task:/ })).toBeTruthy();
+  });
+});

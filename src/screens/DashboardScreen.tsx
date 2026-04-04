@@ -71,6 +71,14 @@ export default function DashboardScreen({
       route: "Goals",
     },
     {
+      id: "tasks",
+      title: "Tasks",
+      subtitle: "Take daily action",
+      icon: require("../../assets/AnchorIcon_Priorities.png") as ImageSourcePropType,
+      color: "#00BCD4",
+      route: "Tasks",
+    },
+    {
       id: "alignment",
       title: "Alignment",
       subtitle: "See your coherence",

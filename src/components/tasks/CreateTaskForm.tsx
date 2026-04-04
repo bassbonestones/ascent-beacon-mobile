@@ -1,0 +1,271 @@
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  ActivityIndicator,
+} from "react-native";
+import type { Goal, SchedulingMode } from "../../types";
+import { styles } from "../../screens/styles/tasksScreenStyles";
+import { RecurrencePicker } from "./RecurrencePicker";
+import { TimePicker } from "./TimePicker";
+import { getFrequencyDescription, parseRRule } from "./rruleUtils";
+
+interface CreateTaskFormProps {
+  goals: Goal[];
+  goalsLoading: boolean;
+  selectedGoalId: string;
+  onGoalSelect: (goalId: string) => void;
+  title: string;
+  onTitleChange: (title: string) => void;
+  description: string;
+  onDescriptionChange: (description: string) => void;
+  isLightning: boolean;
+  onLightningToggle: () => void;
+  duration: string;
+  onDurationChange: (duration: string) => void;
+  isRecurring: boolean;
+  onRecurringToggle: () => void;
+  recurrenceRule: string;
+  schedulingMode: SchedulingMode | null;
+  onRecurrenceChange: (rrule: string, mode: SchedulingMode) => void;
+  scheduledTime: string | null;
+  onScheduledTimeChange: (time: string | null) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
+}
+
+const getRecurrenceDescription = (rrule: string): string => {
+  if (!rrule) return "Set schedule...";
+  return getFrequencyDescription(parseRRule(rrule));
+};
+
+export function CreateTaskForm({
+  goals,
+  goalsLoading,
+  selectedGoalId,
+  onGoalSelect,
+  title,
+  onTitleChange,
+  description,
+  onDescriptionChange,
+  isLightning,
+  onLightningToggle,
+  duration,
+  onDurationChange,
+  isRecurring,
+  onRecurringToggle,
+  recurrenceRule,
+  schedulingMode,
+  onRecurrenceChange,
+  scheduledTime,
+  onScheduledTimeChange,
+  onSubmit,
+  onCancel,
+}: CreateTaskFormProps): React.ReactElement {
+  const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
+  const canSubmit = title.trim().length > 0;
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={onCancel}
+          accessibilityLabel="Cancel and go back to list"
+          accessibilityRole="button"
+        >
+          <Text style={styles.backButtonText}>← Cancel</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>New Task</Text>
+        <View style={{ width: 60 }} />
+      </View>
+
+      <ScrollView style={styles.formContainer}>
+        <Text style={styles.label}>Goal (optional)</Text>
+        {goalsLoading ? (
+          <ActivityIndicator size="small" />
+        ) : (
+          <View style={styles.goalSelector}>
+            <TouchableOpacity
+              style={[
+                styles.goalOption,
+                !selectedGoalId && styles.goalOptionSelected,
+              ]}
+              onPress={() => onGoalSelect("")}
+              accessibilityLabel="No goal (unaligned task)"
+              accessibilityRole="radio"
+            >
+              <Text
+                style={[
+                  styles.goalOptionText,
+                  !selectedGoalId && styles.goalOptionTextSelected,
+                ]}
+              >
+                ⊘ None (unaligned)
+              </Text>
+            </TouchableOpacity>
+            {goals.map((goal) => (
+              <TouchableOpacity
+                key={goal.id}
+                style={[
+                  styles.goalOption,
+                  selectedGoalId === goal.id && styles.goalOptionSelected,
+                ]}
+                onPress={() => onGoalSelect(goal.id)}
+                accessibilityLabel={`Select goal: ${goal.title}`}
+                accessibilityRole="radio"
+              >
+                <Text
+                  style={[
+                    styles.goalOptionText,
+                    selectedGoalId === goal.id && styles.goalOptionTextSelected,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {goal.title}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        <Text style={styles.label}>Title *</Text>
+        <TextInput
+          style={styles.input}
+          value={title}
+          onChangeText={onTitleChange}
+          placeholder="What needs to be done?"
+          placeholderTextColor="#9CA3AF"
+          accessibilityLabel="Task title"
+        />
+
+        <Text style={styles.label}>Description (optional)</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={description}
+          onChangeText={onDescriptionChange}
+          placeholder="Add more details..."
+          placeholderTextColor="#9CA3AF"
+          multiline
+          numberOfLines={4}
+          accessibilityLabel="Task description"
+        />
+
+        <TouchableOpacity
+          style={styles.lightningCheckbox}
+          onPress={onLightningToggle}
+          accessibilityLabel={
+            isLightning ? "Disable lightning task" : "Enable lightning task"
+          }
+          accessibilityRole="checkbox"
+        >
+          <View
+            style={[styles.checkbox, isLightning && styles.checkboxChecked]}
+          >
+            {isLightning && <Text style={{ color: "#1F2937" }}>⚡</Text>}
+          </View>
+          <Text style={styles.lightningLabel}>Lightning Task</Text>
+        </TouchableOpacity>
+        <Text style={styles.lightningHelp}>
+          For tasks that take less than a minute
+        </Text>
+
+        {!isLightning && (
+          <>
+            <Text style={styles.label}>Duration (minutes)</Text>
+            <TextInput
+              style={styles.input}
+              value={duration}
+              onChangeText={onDurationChange}
+              placeholder="30"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="numeric"
+              accessibilityLabel="Task duration in minutes"
+            />
+          </>
+        )}
+
+        {/* Recurring Task Toggle */}
+        <TouchableOpacity
+          style={styles.lightningCheckbox}
+          onPress={onRecurringToggle}
+          accessibilityLabel={
+            isRecurring ? "Make one-time task" : "Make recurring task"
+          }
+          accessibilityRole="checkbox"
+        >
+          <View
+            style={[styles.checkbox, isRecurring && styles.checkboxChecked]}
+          >
+            {isRecurring && <Text style={{ color: "#1F2937" }}>🔄</Text>}
+          </View>
+          <Text style={styles.lightningLabel}>Recurring Task</Text>
+        </TouchableOpacity>
+        <Text style={styles.lightningHelp}>
+          Repeats on a schedule (daily, weekly, etc.)
+        </Text>
+
+        {/* Recurrence Settings */}
+        {isRecurring && (
+          <TouchableOpacity
+            style={styles.recurrenceButton}
+            onPress={() => setShowRecurrencePicker(true)}
+            accessibilityLabel="Configure recurrence"
+            accessibilityRole="button"
+          >
+            <Text style={styles.recurrenceButtonText}>
+              {getRecurrenceDescription(recurrenceRule)}
+            </Text>
+            <Text style={styles.recurrenceButtonIcon}>→</Text>
+          </TouchableOpacity>
+        )}
+
+        {isRecurring && schedulingMode && (
+          <View style={styles.schedulingModeDisplay}>
+            <Text style={styles.schedulingModeText}>
+              {schedulingMode === "floating"
+                ? "🌍 Time-of-day"
+                : "📍 Fixed time"}
+            </Text>
+          </View>
+        )}
+
+        {/* Time Picker - shown for recurring tasks, optional for one-time */}
+        <TimePicker
+          value={scheduledTime}
+          onChange={onScheduledTimeChange}
+          label={isRecurring ? "Time of Day *" : "Scheduled Time (optional)"}
+        />
+        {isRecurring && !scheduledTime && (
+          <Text style={styles.timeWarning}>
+            Set a time to enable the scheduling mode
+          </Text>
+        )}
+
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            !canSubmit && styles.submitButtonDisabled,
+          ]}
+          onPress={onSubmit}
+          disabled={!canSubmit}
+          accessibilityLabel="Create task"
+          accessibilityRole="button"
+        >
+          <Text style={styles.submitButtonText}>Create Task</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      <RecurrencePicker
+        visible={showRecurrencePicker}
+        onClose={() => setShowRecurrencePicker(false)}
+        onSave={onRecurrenceChange}
+        initialRRule={recurrenceRule}
+        initialSchedulingMode={schedulingMode}
+      />
+    </View>
+  );
+}

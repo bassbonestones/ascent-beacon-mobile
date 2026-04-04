@@ -348,7 +348,27 @@ describe("useValuesDiscovery", () => {
       mockApi.getDiscoveryPrompts.mockResolvedValue(mockPrompts);
       mockApi.getUserSelections.mockResolvedValue([]);
       mockApi.getValues.mockResolvedValue({
-        values: [{ id: "v1", active_revision: { statement: "test" } }],
+        values: [
+          {
+            id: "v1",
+            user_id: "user-1",
+            active_revision_id: "r1",
+            created_at: "2024-01-01T00:00:00Z",
+            updated_at: "2024-01-01T00:00:00Z",
+            revisions: [],
+            insights: [],
+            active_revision: {
+              id: "r1",
+              value_id: "v1",
+              statement: "test",
+              weight_raw: 100,
+              weight_normalized: 100,
+              is_active: true,
+              origin: "declared",
+              created_at: "2024-01-01T00:00:00Z",
+            },
+          },
+        ],
       });
 
       const { result } = renderHook(() => useValuesDiscovery());

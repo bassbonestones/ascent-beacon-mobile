@@ -169,8 +169,13 @@ describe("apiGoals", () => {
 
   describe("rescheduleGoals", () => {
     it("should call request with POST to reschedule endpoint", async () => {
-      const request = { goal_ids: ["g1", "g2"] };
-      (api.request as jest.Mock).mockResolvedValueOnce({ goals: [] });
+      const request = {
+        goal_updates: [{ goal_id: "g1", new_target_date: "2026-05-01" }],
+      };
+      (api.request as jest.Mock).mockResolvedValueOnce({
+        goals: [],
+        reschedule_count: 0,
+      });
       await api.rescheduleGoals(request);
       expect(api.request).toHaveBeenCalledWith("/goals/reschedule", {
         method: "POST",

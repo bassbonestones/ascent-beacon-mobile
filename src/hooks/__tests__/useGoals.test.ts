@@ -33,8 +33,10 @@ const createMockGoal = (id: string, title: string): Goal => ({
   parent_goal_id: null,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
+  completed_at: null,
+  total_time_minutes: 0,
+  completed_time_minutes: 0,
   priorities: [],
-  children: [],
 });
 
 describe("useGoals", () => {
@@ -45,7 +47,10 @@ describe("useGoals", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedApi.getGoals.mockResolvedValue({ goals: mockGoals });
+    mockedApi.getGoals.mockResolvedValue({
+      goals: mockGoals,
+      reschedule_count: 0,
+    });
   });
 
   describe("initial fetch", () => {
@@ -268,7 +273,7 @@ describe("useGoals", () => {
       await waitFor(() => expect(result.current.loading).toBe(false));
 
       mockedApi.getGoals.mockClear();
-      mockedApi.getGoals.mockResolvedValue({ goals: [] });
+      mockedApi.getGoals.mockResolvedValue({ goals: [], reschedule_count: 0 });
 
       await act(async () => {
         await result.current.refetch();

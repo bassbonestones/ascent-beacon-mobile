@@ -32,15 +32,17 @@ const createMockValue = (id: string, statement: string): Value => ({
   active_revision_id: `rev-${id}`,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
+  revisions: [],
+  insights: [],
   active_revision: {
     id: `rev-${id}`,
     value_id: id,
     statement,
-    short_name: statement.slice(0, 10),
-    description: null,
+    weight_raw: 100,
+    weight_normalized: 33,
     is_active: true,
+    origin: "declared",
     created_at: "2024-01-01T00:00:00Z",
-    discovery_prompts: [],
   },
 });
 

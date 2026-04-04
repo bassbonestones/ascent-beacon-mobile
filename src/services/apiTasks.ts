@@ -1,0 +1,158 @@
+import type {
+  Task,
+  TaskListResponse,
+  CreateTaskRequest,
+  UpdateTaskRequest,
+  CompleteTaskRequest,
+  SkipTaskRequest,
+  TodayTasksResponse,
+  TaskRangeRequest,
+  TaskRangeResponse,
+  TaskCompletionListResponse,
+} from "../types";
+import type ApiServiceBase from "./apiBase";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Constructor<T = object> = new (...args: any[]) => T;
+
+/**
+ * Interface for tasks methods added by the mixin.
+ */
+export interface TasksMethods {
+  // CRUD
+  getTasks(params?: TasksListParams): Promise<TaskListResponse>;
+  getTask(taskId: string): Promise<Task>;
+  createTask(data: CreateTaskRequest): Promise<Task>;
+  updateTask(taskId: string, data: UpdateTaskRequest): Promise<Task>;
+  deleteTask(taskId: string): Promise<void>;
+
+  // Status transitions
+  completeTask(taskId: string, data?: CompleteTaskRequest): Promise<Task>;
+  skipTask(taskId: string, data?: SkipTaskRequest): Promise<Task>;
+  reopenTask(taskId: string): Promise<Task>;
+
+  // Phase 4b: Views
+  getTodayTasks(
+    timezone?: string,
+    includeCompleted?: boolean,
+  ): Promise<TodayTasksResponse>;
+  getTasksInRange(request: TaskRangeRequest): Promise<TaskRangeResponse>;
+  getTaskCompletions(
+    taskId: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<TaskCompletionListResponse>;
+}
+
+export interface TasksListParams {
+  goal_id?: string;
+  status?: string;
+}
+
+/**
+ * Tasks-related API methods mixin.
+ */
+export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
+  Base: TBase,
+) =>
+  class extends Base implements TasksMethods {
+    async getTasks(params: TasksListParams = {}): Promise<TaskListResponse> {
+      const searchParams = new URLSearchParams();
+
+      if (params.goal_id) {
+        searchParams.append("goal_id", params.goal_id);
+      }
+      if (params.status) {
+        searchParams.append("status", params.status);
+      }
+
+      const queryString = searchParams.toString();
+      const url = queryString ? `/tasks?${queryString}` : "/tasks";
+      return await this.request<TaskListResponse>(url);
+    }
+
+    async getTask(taskId: string): Promise<Task> {
+      return await this.request<Task>(`/tasks/${taskId}`);
+    }
+
+    async createTask(data: CreateTaskRequest): Promise<Task> {
+      return await this.request<Task>("/tasks", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    }
+
+    async updateTask(taskId: string, data: UpdateTaskRequest): Promise<Task> {
+      return await this.request<Task>(`/tasks/${taskId}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      });
+    }
+
+    async deleteTask(taskId: string): Promise<void> {
+      await this.request<void>(`/tasks/${taskId}`, {
+        method: "DELETE",
+      });
+    }
+
+    async completeTask(
+      taskId: string,
+      data: CompleteTaskRequest = {},
+    ): Promise<Task> {
+      return await this.request<Task>(`/tasks/${taskId}/complete`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    }
+
+    async skipTask(taskId: string, data: SkipTaskRequest = {}): Promise<Task> {
+      return await this.request<Task>(`/tasks/${taskId}/skip`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    }
+
+    async reopenTask(taskId: string): Promise<Task> {
+      return await this.request<Task>(`/tasks/${taskId}/reopen`, {
+        method: "POST",
+      });
+    }
+
+    // Phase 4b: Views
+
+    async getTodayTasks(
+      timezone: string = "UTC",
+      includeCompleted: boolean = false,
+    ): Promise<TodayTasksResponse> {
+      const params = new URLSearchParams();
+      params.append("timezone", timezone);
+      if (includeCompleted) {
+        params.append("include_completed", "true");
+      }
+      return await this.request<TodayTasksResponse>(
+        `/tasks/view/today?${params}`,
+      );
+    }
+
+    async getTasksInRange(
+      request: TaskRangeRequest,
+    ): Promise<TaskRangeResponse> {
+      return await this.request<TaskRangeResponse>("/tasks/view/range", {
+        method: "POST",
+        body: JSON.stringify(request),
+      });
+    }
+
+    async getTaskCompletions(
+      taskId: string,
+      limit: number = 50,
+      offset: number = 0,
+    ): Promise<TaskCompletionListResponse> {
+      const params = new URLSearchParams();
+      params.append("limit", limit.toString());
+      params.append("offset", offset.toString());
+      return await this.request<TaskCompletionListResponse>(
+        `/tasks/${taskId}/completions?${params}`,
+      );
+    }
+  };

@@ -1,0 +1,518 @@
+import React from "react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react-native";
+import TasksScreen from "../TasksScreen";
+import { useTasks } from "../../hooks/useTasks";
+import { useGoals } from "../../hooks/useGoals";
+import type {
+  Task,
+  Goal,
+  User,
+  UseTasksReturn,
+  UseGoalsReturn,
+} from "../../types";
+import { showAlert, showConfirm } from "../../utils/alert";
+
+jest.mock("../../hooks/useTasks");
+jest.mock("../../hooks/useGoals");
+jest.mock("../../utils/alert");
+
+const mockedUseTasks = jest.mocked(useTasks);
+const mockedUseGoals = jest.mocked(useGoals);
+const mockedShowAlert = jest.mocked(showAlert);
+const mockedShowConfirm = jest.mocked(showConfirm);
+
+const createMockTask = (overrides: Partial<Task> = {}): Task => ({
+  id: "task-1",
+  user_id: "user-1",
+  goal_id: "goal-1",
+  title: "Test Task",
+  description: "Test description",
+  duration_minutes: 30,
+  status: "pending",
+  scheduled_at: null,
+  is_recurring: false,
+  recurrence_rule: null,
+  notify_before_minutes: null,
+  completed_at: null,
+  created_at: "2024-01-01T00:00:00Z",
+  updated_at: "2024-01-01T00:00:00Z",
+  is_lightning: false,
+  goal: { id: "goal-1", title: "Test Goal", status: "in_progress" },
+  scheduling_mode: null,
+  skip_reason: null,
+  ...overrides,
+});
+
+const createMockGoal = (overrides: Partial<Goal> = {}): Goal => ({
+  id: "goal-1",
+  user_id: "user-1",
+  parent_goal_id: null,
+  title: "Test Goal",
+  description: "Test description",
+  target_date: "2024-12-31",
+  status: "in_progress",
+  progress_cached: 0,
+  total_time_minutes: 100,
+  completed_time_minutes: 25,
+  has_incomplete_breakdown: false,
+  created_at: "2024-01-01T00:00:00Z",
+  updated_at: "2024-01-01T00:00:00Z",
+  completed_at: null,
+  priorities: [],
+  ...overrides,
+});
+
+const mockUser: User = {
+  id: "user-1",
+  display_name: "Test User",
+  primary_email: "test@example.com",
+  is_email_verified: true,
+  created_at: "2024-01-01T00:00:00Z",
+};
+
+const defaultTasksHook: UseTasksReturn = {
+  tasks: [],
+  loading: false,
+  error: null,
+  pendingCount: 0,
+  completedCount: 0,
+  refetch: jest.fn(),
+  createTask: jest.fn(),
+  updateTask: jest.fn(),
+  completeTask: jest.fn(),
+  skipTask: jest.fn(),
+  reopenTask: jest.fn(),
+  deleteTask: jest.fn(),
+};
+
+const defaultGoalsHook: UseGoalsReturn = {
+  goals: [],
+  loading: false,
+  error: null,
+  refetch: jest.fn(),
+  createGoal: jest.fn(),
+  updateGoal: jest.fn(),
+  updateGoalStatus: jest.fn(),
+  deleteGoal: jest.fn(),
+};
+
+describe("TasksScreen", () => {
+  const mockNavigation = {
+    goBack: jest.fn(),
+    navigate: jest.fn(),
+    setOptions: jest.fn(),
+  } as any;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedUseTasks.mockReturnValue(defaultTasksHook);
+    mockedUseGoals.mockReturnValue(defaultGoalsHook);
+    mockedShowConfirm.mockResolvedValue(false);
+  });
+
+  describe("List View", () => {
+    it("renders header with title", () => {
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      expect(screen.getByText("Tasks")).toBeTruthy();
+    });
+
+    it("renders back button", () => {
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      expect(screen.getByLabelText("Back to Dashboard")).toBeTruthy();
+    });
+
+    it("navigates back when back button pressed", () => {
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Back to Dashboard"));
+      expect(mockNavigation.goBack).toHaveBeenCalled();
+    });
+
+    it("renders new task button", () => {
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      expect(screen.getByLabelText("Create new task")).toBeTruthy();
+    });
+
+    it("shows pending and completed counts", () => {
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        pendingCount: 5,
+        completedCount: 10,
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      expect(screen.getByText("5")).toBeTruthy();
+      expect(screen.getByText("10")).toBeTruthy();
+      expect(screen.getByText("pending")).toBeTruthy();
+      expect(screen.getByText("completed")).toBeTruthy();
+    });
+
+    it("renders filter buttons", () => {
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      expect(screen.getByLabelText("Show pending tasks")).toBeTruthy();
+      expect(screen.getByLabelText("Show completed tasks")).toBeTruthy();
+      expect(screen.getByLabelText("Show all tasks")).toBeTruthy();
+    });
+
+    it("shows empty state when no tasks", () => {
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks: [],
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      expect(screen.getByText("No pending tasks")).toBeTruthy();
+      expect(screen.getByText("Create a task to get started")).toBeTruthy();
+    });
+
+    it("shows different empty state for completed filter", () => {
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks: [],
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Show completed tasks"));
+      expect(screen.getByText("No completed tasks")).toBeTruthy();
+    });
+
+    it("shows different empty state for all filter", () => {
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks: [],
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Show all tasks"));
+      expect(screen.getByText("No tasks yet")).toBeTruthy();
+    });
+
+    it("renders task cards when tasks exist", () => {
+      const tasks = [
+        createMockTask({ id: "1", title: "Task One" }),
+        createMockTask({ id: "2", title: "Task Two" }),
+      ];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks,
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      expect(screen.getByText("Task One")).toBeTruthy();
+      expect(screen.getByText("Task Two")).toBeTruthy();
+    });
+
+    it("changes filter when filter button pressed", () => {
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Show completed tasks"));
+      // Second render should be called with completed status
+      expect(mockedUseTasks).toHaveBeenCalled();
+    });
+
+    it("shows loading indicator when loading", () => {
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        loading: true,
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      // ActivityIndicator doesn't have a text label; just verify no empty state shown
+      expect(screen.queryByText("No pending tasks")).toBeNull();
+    });
+  });
+
+  describe("Create View", () => {
+    it("switches to create view when new task pressed", () => {
+      mockedUseGoals.mockReturnValue({
+        ...defaultGoalsHook,
+        goals: [createMockGoal()],
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Create new task"));
+      expect(screen.getByText("New Task")).toBeTruthy();
+    });
+
+    it("shows create form in create view", () => {
+      mockedUseGoals.mockReturnValue({
+        ...defaultGoalsHook,
+        goals: [createMockGoal()],
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Create new task"));
+      expect(screen.getByLabelText("Task title")).toBeTruthy();
+    });
+
+    it("returns to list when cancel pressed", () => {
+      mockedUseGoals.mockReturnValue({
+        ...defaultGoalsHook,
+        goals: [createMockGoal()],
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Create new task"));
+      fireEvent.press(screen.getByLabelText("Cancel and go back to list"));
+      expect(screen.getByText("Tasks")).toBeTruthy();
+    });
+
+    it("disables submit when title is empty", () => {
+      mockedUseGoals.mockReturnValue({
+        ...defaultGoalsHook,
+        goals: [createMockGoal()],
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Create new task"));
+      const submitButton = screen.getByLabelText("Create task");
+      // Button should be disabled when title is empty
+      expect(submitButton.props.accessibilityState?.disabled).toBe(true);
+    });
+
+    it("creates task and returns to list on success", async () => {
+      const createTask = jest.fn().mockResolvedValue(undefined);
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        createTask,
+      });
+      mockedUseGoals.mockReturnValue({
+        ...defaultGoalsHook,
+        goals: [createMockGoal({ id: "goal-1", title: "My Goal" })],
+      });
+
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Create new task"));
+
+      fireEvent.changeText(screen.getByLabelText("Task title"), "New Task");
+      fireEvent.press(screen.getByLabelText("Create task"));
+
+      // Goal is optional and not auto-selected, so goal_id is undefined
+      await waitFor(() => {
+        expect(createTask).toHaveBeenCalledWith({
+          goal_id: undefined,
+          title: "New Task",
+          description: undefined,
+          duration_minutes: 30,
+          is_recurring: false,
+          recurrence_rule: undefined,
+          scheduling_mode: undefined,
+        });
+      });
+    });
+
+    it("creates task with selected goal", async () => {
+      const createTask = jest.fn().mockResolvedValue(undefined);
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        createTask,
+      });
+      mockedUseGoals.mockReturnValue({
+        ...defaultGoalsHook,
+        goals: [createMockGoal({ id: "goal-1", title: "My Goal" })],
+      });
+
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Create new task"));
+
+      // Select a goal
+      fireEvent.press(screen.getByLabelText("Select goal: My Goal"));
+      fireEvent.changeText(screen.getByLabelText("Task title"), "Aligned Task");
+      fireEvent.press(screen.getByLabelText("Create task"));
+
+      await waitFor(() => {
+        expect(createTask).toHaveBeenCalledWith({
+          goal_id: "goal-1",
+          title: "Aligned Task",
+          description: undefined,
+          duration_minutes: 30,
+          is_recurring: false,
+          recurrence_rule: undefined,
+          scheduling_mode: undefined,
+        });
+      });
+    });
+  });
+
+  describe("Detail View", () => {
+    it("switches to detail view when task pressed", () => {
+      const tasks = [createMockTask({ title: "Detailed Task" })];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks,
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Task: Detailed Task"));
+      expect(screen.getByText("Task Details")).toBeTruthy();
+    });
+
+    it("returns to list when back pressed in detail view", () => {
+      const tasks = [createMockTask({ title: "Detailed Task" })];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks,
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Task: Detailed Task"));
+      fireEvent.press(screen.getByLabelText("Back to tasks"));
+      expect(screen.getByText("Tasks")).toBeTruthy();
+    });
+
+    it("completes task when complete pressed", async () => {
+      const completeTask = jest.fn().mockResolvedValue(undefined);
+      const tasks = [createMockTask({ id: "t-1", title: "Complete Me" })];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks,
+        completeTask,
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Task: Complete Me"));
+      fireEvent.press(screen.getByLabelText("Complete task"));
+      await waitFor(() => {
+        expect(completeTask).toHaveBeenCalledWith("t-1");
+      });
+    });
+
+    it("skips task via skip modal", async () => {
+      const skipTask = jest.fn().mockResolvedValue(undefined);
+      const tasks = [createMockTask({ id: "t-1", title: "Skip Me" })];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks,
+        skipTask,
+      });
+
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Task: Skip Me"));
+      fireEvent.press(screen.getByLabelText("Skip task"));
+
+      // Skip modal should be visible
+      await waitFor(() => {
+        expect(screen.getByText('Skip "Skip Me"?')).toBeTruthy();
+      });
+
+      // Press Skip button in modal
+      fireEvent.press(screen.getByLabelText("Skip without reason"));
+
+      await waitFor(() => {
+        expect(skipTask).toHaveBeenCalledWith("t-1", undefined);
+      });
+    });
+
+    it("skips task with reason via skip modal", async () => {
+      const skipTask = jest.fn().mockResolvedValue(undefined);
+      const tasks = [createMockTask({ id: "t-1", title: "Skip Me" })];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks,
+        skipTask,
+      });
+
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Task: Skip Me"));
+      fireEvent.press(screen.getByLabelText("Skip task"));
+
+      // Skip modal should be visible
+      await waitFor(() => {
+        expect(screen.getByText('Skip "Skip Me"?')).toBeTruthy();
+      });
+
+      // Enter reason and submit
+      fireEvent.changeText(
+        screen.getByPlaceholderText("Why are you skipping? (optional)"),
+        "Too busy today",
+      );
+      fireEvent.press(screen.getByLabelText("Skip with reason"));
+
+      await waitFor(() => {
+        expect(skipTask).toHaveBeenCalledWith("t-1", "Too busy today");
+      });
+    });
+
+    it("closes skip modal when cancelled", async () => {
+      const skipTask = jest.fn();
+      const tasks = [createMockTask({ id: "t-1", title: "Skip Me" })];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks,
+        skipTask,
+      });
+
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Task: Skip Me"));
+      fireEvent.press(screen.getByLabelText("Skip task"));
+
+      // Skip modal should be visible
+      await waitFor(() => {
+        expect(screen.getByText('Skip "Skip Me"?')).toBeTruthy();
+      });
+
+      // Press cancel
+      fireEvent.press(screen.getByLabelText("Cancel skip"));
+
+      // Modal should close, skip not called
+      await waitFor(() => {
+        expect(screen.queryByText('Skip "Skip Me"?')).toBeNull();
+      });
+      expect(skipTask).not.toHaveBeenCalled();
+    });
+
+    it("reopens task when reopen pressed", async () => {
+      const reopenTask = jest
+        .fn()
+        .mockResolvedValue(createMockTask({ status: "pending" }));
+      const tasks = [
+        createMockTask({ id: "t-1", title: "Reopen Me", status: "completed" }),
+      ];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks,
+        reopenTask,
+      });
+
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Task: Reopen Me"));
+      fireEvent.press(screen.getByLabelText("Reopen task"));
+
+      await waitFor(() => {
+        expect(reopenTask).toHaveBeenCalledWith("t-1");
+      });
+    });
+
+    it("deletes task when confirmed", async () => {
+      const deleteTask = jest.fn().mockResolvedValue(undefined);
+      const tasks = [createMockTask({ id: "t-1", title: "Delete Me" })];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks,
+        deleteTask,
+      });
+      mockedShowConfirm.mockResolvedValue(true);
+
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Task: Delete Me"));
+      fireEvent.press(screen.getByLabelText("Delete task"));
+
+      await waitFor(() => {
+        expect(mockedShowConfirm).toHaveBeenCalledWith(
+          "Delete Task",
+          'Delete "Delete Me"?',
+        );
+        expect(deleteTask).toHaveBeenCalledWith("t-1");
+      });
+    });
+  });
+
+  describe("Quick complete from list", () => {
+    it("completes task from card check button", async () => {
+      const completeTask = jest.fn().mockResolvedValue(undefined);
+      const tasks = [createMockTask({ id: "t-1", title: "Quick Complete" })];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks,
+        completeTask,
+      });
+
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Complete task: Quick Complete"));
+
+      await waitFor(() => {
+        expect(completeTask).toHaveBeenCalledWith("t-1");
+      });
+    });
+  });
+});
