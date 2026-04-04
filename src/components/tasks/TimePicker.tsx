@@ -50,6 +50,51 @@ export function TimePicker({
     return num.toString().padStart(2, "0");
   };
 
+  const handleHourChange = (text: string): void => {
+    // Only allow digits
+    const digitsOnly = text.replace(/[^0-9]/g, "");
+    if (digitsOnly === "") {
+      setHourInput("");
+      return;
+    }
+    const num = parseInt(digitsOnly, 10);
+    // Clamp to 0-23
+    if (num > 23) {
+      setHourInput("23");
+    } else {
+      setHourInput(digitsOnly);
+    }
+  };
+
+  const handleMinuteChange = (text: string): void => {
+    // Only allow digits
+    const digitsOnly = text.replace(/[^0-9]/g, "");
+    if (digitsOnly === "") {
+      setMinuteInput("");
+      return;
+    }
+    const num = parseInt(digitsOnly, 10);
+    // Clamp to 0-59
+    if (num > 59) {
+      setMinuteInput("59");
+    } else {
+      setMinuteInput(digitsOnly);
+    }
+  };
+
+  const isValidInput = (): boolean => {
+    const hour = parseInt(hourInput, 10);
+    const minute = parseInt(minuteInput, 10);
+    return (
+      !isNaN(hour) &&
+      !isNaN(minute) &&
+      hour >= 0 &&
+      hour <= 23 &&
+      minute >= 0 &&
+      minute <= 59
+    );
+  };
+
   const handleSave = useCallback(() => {
     const hour = validateAndFormatHour(hourInput);
     const minute = validateAndFormatMinute(minuteInput);
@@ -102,8 +147,15 @@ export function TimePicker({
                 <Text style={pickerStyles.cancelText}>Cancel</Text>
               </TouchableOpacity>
               <Text style={pickerStyles.title}>Select Time</Text>
-              <TouchableOpacity onPress={handleSave}>
-                <Text style={pickerStyles.saveText}>Save</Text>
+              <TouchableOpacity onPress={handleSave} disabled={!isValidInput()}>
+                <Text
+                  style={[
+                    pickerStyles.saveText,
+                    !isValidInput() && pickerStyles.saveTextDisabled,
+                  ]}
+                >
+                  Save
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -114,7 +166,7 @@ export function TimePicker({
                 <TextInput
                   style={pickerStyles.timeInput}
                   value={hourInput}
-                  onChangeText={setHourInput}
+                  onChangeText={handleHourChange}
                   keyboardType="number-pad"
                   maxLength={2}
                   placeholder="09"
@@ -132,7 +184,7 @@ export function TimePicker({
                 <TextInput
                   style={pickerStyles.timeInput}
                   value={minuteInput}
-                  onChangeText={setMinuteInput}
+                  onChangeText={handleMinuteChange}
                   keyboardType="number-pad"
                   maxLength={2}
                   placeholder="00"
@@ -220,6 +272,9 @@ const pickerStyles = StyleSheet.create({
     fontSize: 16,
     color: "#60A5FA",
     fontWeight: "600",
+  },
+  saveTextDisabled: {
+    color: "#4B5563",
   },
   inputContainer: {
     flexDirection: "row",
