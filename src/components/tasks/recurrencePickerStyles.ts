@@ -177,4 +177,113 @@ export const recurrencePickerStyles = StyleSheet.create({
     color: "#F9FAFB",
     fontSize: 14,
   },
+  // Intra-day mode styles
+  intradayOption: {
+    minWidth: 90,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#374151",
+    marginBottom: 4,
+  },
+  intradayOptionActive: {
+    backgroundColor: "#3B82F6",
+    borderColor: "#3B82F6",
+  },
+  intradayLabel: {
+    color: "#9CA3AF",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  intradayLabelActive: {
+    color: "#FFFFFF",
+  },
+  intradayDesc: {
+    color: "#6B7280",
+    fontSize: 10,
+    marginTop: 2,
+  },
+  intradayConfig: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: "#374151",
+    borderRadius: 8,
+  },
+  configLabel: {
+    color: "#9CA3AF",
+    fontSize: 13,
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  intradayInput: {
+    backgroundColor: "#1F2937",
+    color: "#F9FAFB",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    width: 100,
+    fontSize: 16,
+  },
+  timesContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  timeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#3B82F6",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  timeChipText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+  },
+  timeChipRemove: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    opacity: 0.8,
+  },
+  addTimeButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#4B5563",
+    borderStyle: "dashed",
+  },
+  addTimeText: {
+    color: "#9CA3AF",
+    fontSize: 13,
+  },
+  addTimeContainer: {
+    marginTop: 8,
+  },
+  windowRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  windowInput: {
+    flex: 1,
+  },
+  windowLabel: {
+    color: "#6B7280",
+    fontSize: 11,
+    marginBottom: 4,
+  },
+  windowSeparator: {
+    color: "#9CA3AF",
+    fontSize: 14,
+    marginTop: 16,
+  },
+  windowError: {
+    color: "#EF4444",
+    fontSize: 12,
+    marginTop: 8,
+  },
 });

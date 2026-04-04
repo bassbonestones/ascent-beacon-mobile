@@ -68,6 +68,11 @@ export function CreateTaskForm({
   const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
   const canSubmit = title.trim().length > 0;
 
+  // Check if intra-day mode is "single" (or not set) - only then show external time picker
+  const parsedRule = parseRRule(recurrenceRule);
+  const showExternalTimePicker =
+    !isRecurring || parsedRule.intradayMode === "single";
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -233,13 +238,15 @@ export function CreateTaskForm({
           </View>
         )}
 
-        {/* Time Picker - shown for recurring tasks, optional for one-time */}
-        <TimePicker
-          value={scheduledTime}
-          onChange={onScheduledTimeChange}
-          label={isRecurring ? "Time of Day *" : "Scheduled Time (optional)"}
-        />
-        {isRecurring && !scheduledTime && (
+        {/* Time Picker - only show for single-time mode (times configured in RecurrencePicker for other modes) */}
+        {showExternalTimePicker && (
+          <TimePicker
+            value={scheduledTime}
+            onChange={onScheduledTimeChange}
+            label={isRecurring ? "Time of Day *" : "Scheduled Time (optional)"}
+          />
+        )}
+        {showExternalTimePicker && isRecurring && !scheduledTime && (
           <Text style={styles.timeWarning}>
             Set a time to enable the scheduling mode
           </Text>
@@ -265,6 +272,7 @@ export function CreateTaskForm({
         onSave={onRecurrenceChange}
         initialRRule={recurrenceRule}
         initialSchedulingMode={schedulingMode}
+        taskDurationMinutes={parseInt(duration, 10) || 0}
       />
     </View>
   );

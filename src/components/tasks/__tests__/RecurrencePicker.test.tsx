@@ -163,7 +163,7 @@ describe("RecurrencePicker", () => {
         />,
       );
       // After option should be reflected in summary
-      expect(screen.getByText("Every day, 10 times")).toBeTruthy();
+      expect(screen.getByText("Every day, 10 times total")).toBeTruthy();
     });
   });
 
@@ -214,6 +214,75 @@ describe("RecurrencePicker", () => {
       render(<RecurrencePicker {...defaultProps} />);
       fireEvent.press(screen.getByLabelText("Week"));
       expect(screen.getByText("Every week")).toBeTruthy();
+    });
+  });
+
+  describe("intraday modes", () => {
+    it("shows intraday mode options", () => {
+      render(<RecurrencePicker {...defaultProps} />);
+      expect(screen.getByText("Times per day")).toBeTruthy();
+      expect(screen.getByText("One time")).toBeTruthy();
+      expect(screen.getByText("X times/day")).toBeTruthy();
+      expect(screen.getByText("Multiple times")).toBeTruthy();
+      expect(screen.getByText("Every X min")).toBeTruthy();
+      expect(screen.getByText("Flexible")).toBeTruthy();
+    });
+
+    it("shows anytime config when X times/day selected", () => {
+      render(<RecurrencePicker {...defaultProps} />);
+      fireEvent.press(screen.getByText("X times/day"));
+      expect(screen.getByText("How many times per day?")).toBeTruthy();
+    });
+
+    it("shows specific times config when Multiple times selected", () => {
+      render(<RecurrencePicker {...defaultProps} />);
+      fireEvent.press(screen.getByText("Multiple times"));
+      expect(screen.getByText("At these times:")).toBeTruthy();
+      expect(screen.getByText("+ Add time")).toBeTruthy();
+    });
+
+    it("shows interval config when Every X min selected", () => {
+      render(<RecurrencePicker {...defaultProps} />);
+      fireEvent.press(screen.getByText("Every X min"));
+      expect(screen.getByText("Every how many minutes?")).toBeTruthy();
+      expect(screen.getByText("Between:")).toBeTruthy();
+    });
+
+    it("shows window config when Flexible selected", () => {
+      render(<RecurrencePicker {...defaultProps} />);
+      fireEvent.press(screen.getByText("Flexible"));
+      expect(screen.getByText("Complete anytime between:")).toBeTruthy();
+    });
+
+    it("parses anytime mode from RRULE", () => {
+      render(
+        <RecurrencePicker
+          {...defaultProps}
+          initialRRule="FREQ=DAILY;X-INTRADAY=anytime;X-DAILYOCC=8"
+        />,
+      );
+      expect(screen.getByText(/8x per day/)).toBeTruthy();
+    });
+
+    it("parses interval mode from RRULE", () => {
+      render(
+        <RecurrencePicker
+          {...defaultProps}
+          initialRRule="FREQ=DAILY;X-INTRADAY=interval;X-INTERVALMIN=45;X-WINSTART=10:00;X-WINEND=22:00"
+        />,
+      );
+      expect(screen.getByText(/every 45min/)).toBeTruthy();
+    });
+
+    it("parses window mode from RRULE", () => {
+      render(
+        <RecurrencePicker
+          {...defaultProps}
+          initialRRule="FREQ=DAILY;X-INTRADAY=window;X-WINSTART=16:00;X-WINEND=19:00"
+        />,
+      );
+      // Window mode should show in summary
+      expect(screen.getByText(/4:00pm/)).toBeTruthy();
     });
   });
 });
