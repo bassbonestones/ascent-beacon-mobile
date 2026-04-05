@@ -85,9 +85,14 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
           scheduled_for: scheduledFor,
         });
         setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
-        // For recurring tasks, don't decrement pending count as task stays pending
+        // For recurring tasks, show feedback and don't update counts (task stays pending)
         const task = tasks.find((t) => t.id === id);
-        if (!task?.is_recurring) {
+        if (task?.is_recurring) {
+          showAlert(
+            "Completed",
+            "Occurrence marked complete. Task will recur.",
+          );
+        } else {
           setPendingCount((prev) => Math.max(0, prev - 1));
           setCompletedCount((prev) => prev + 1);
         }

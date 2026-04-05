@@ -28,11 +28,6 @@ export function SkipReasonModal({
     setReason("");
   };
 
-  const handleSkipWithoutReason = () => {
-    onSkip(undefined);
-    setReason("");
-  };
-
   return (
     <Modal visible={visible} animationType="fade" transparent>
       <View style={modalStyles.overlay}>
@@ -53,34 +48,23 @@ export function SkipReasonModal({
 
           <View style={modalStyles.buttons}>
             <TouchableOpacity
-              style={modalStyles.skipButton}
-              onPress={handleSkipWithoutReason}
+              style={modalStyles.cancelButton}
+              onPress={onClose}
               accessibilityRole="button"
-              accessibilityLabel="Skip without reason"
+              accessibilityLabel="Cancel skip"
             >
-              <Text style={modalStyles.skipButtonText}>Skip</Text>
+              <Text style={modalStyles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={modalStyles.skipReasonButton}
+              style={modalStyles.skipButton}
               onPress={handleSkip}
               accessibilityRole="button"
-              accessibilityLabel="Skip with reason"
+              accessibilityLabel="Skip task"
             >
-              <Text style={modalStyles.skipReasonButtonText}>
-                Skip + Log Reason
-              </Text>
+              <Text style={modalStyles.skipButtonText}>Skip</Text>
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={modalStyles.cancelButton}
-            onPress={onClose}
-            accessibilityRole="button"
-            accessibilityLabel="Cancel skip"
-          >
-            <Text style={modalStyles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -131,39 +115,30 @@ const modalStyles = StyleSheet.create({
   buttons: {
     flexDirection: "row",
     gap: 12,
-    marginBottom: 12,
   },
-  skipButton: {
+  cancelButton: {
     flex: 1,
     backgroundColor: "#374151",
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
   },
-  skipButtonText: {
-    color: "#F9FAFB",
+  cancelButtonText: {
+    color: "#9CA3AF",
     fontSize: 14,
     fontWeight: "600",
   },
-  skipReasonButton: {
+  skipButton: {
     flex: 1,
-    backgroundColor: "#6B7280",
+    backgroundColor: "#6366F1",
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
   },
-  skipReasonButtonText: {
+  skipButtonText: {
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "600",
-  },
-  cancelButton: {
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  cancelButtonText: {
-    color: "#9CA3AF",
-    fontSize: 14,
   },
 });
 

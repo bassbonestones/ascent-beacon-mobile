@@ -26,16 +26,10 @@ describe("SkipReasonModal", () => {
     expect(screen.queryByText('Skip "Test Task"?')).toBeNull();
   });
 
-  it("shows skip without reason button", () => {
+  it("shows skip button", () => {
     render(<SkipReasonModal {...defaultProps} />);
-    expect(screen.getByLabelText("Skip without reason")).toBeTruthy();
+    expect(screen.getByLabelText("Skip task")).toBeTruthy();
     expect(screen.getByText("Skip")).toBeTruthy();
-  });
-
-  it("shows skip with reason button", () => {
-    render(<SkipReasonModal {...defaultProps} />);
-    expect(screen.getByLabelText("Skip with reason")).toBeTruthy();
-    expect(screen.getByText("Skip + Log Reason")).toBeTruthy();
   });
 
   it("shows cancel button", () => {
@@ -51,19 +45,19 @@ describe("SkipReasonModal", () => {
     ).toBeTruthy();
   });
 
-  it("calls onSkip with undefined when skip without reason pressed", () => {
+  it("calls onSkip with undefined when no reason provided", () => {
     render(<SkipReasonModal {...defaultProps} />);
-    fireEvent.press(screen.getByLabelText("Skip without reason"));
+    fireEvent.press(screen.getByLabelText("Skip task"));
     expect(defaultProps.onSkip).toHaveBeenCalledWith(undefined);
   });
 
-  it("calls onSkip with reason when skip with reason pressed", () => {
+  it("calls onSkip with reason when reason is provided", () => {
     render(<SkipReasonModal {...defaultProps} />);
     fireEvent.changeText(
       screen.getByPlaceholderText("Why are you skipping? (optional)"),
       "Too busy today",
     );
-    fireEvent.press(screen.getByLabelText("Skip with reason"));
+    fireEvent.press(screen.getByLabelText("Skip task"));
     expect(defaultProps.onSkip).toHaveBeenCalledWith("Too busy today");
   });
 
@@ -73,7 +67,7 @@ describe("SkipReasonModal", () => {
       screen.getByPlaceholderText("Why are you skipping? (optional)"),
       "   ",
     );
-    fireEvent.press(screen.getByLabelText("Skip with reason"));
+    fireEvent.press(screen.getByLabelText("Skip task"));
     expect(defaultProps.onSkip).toHaveBeenCalledWith(undefined);
   });
 
@@ -90,7 +84,7 @@ describe("SkipReasonModal", () => {
       screen.getByPlaceholderText("Why are you skipping? (optional)"),
       "Some reason",
     );
-    fireEvent.press(screen.getByLabelText("Skip with reason"));
+    fireEvent.press(screen.getByLabelText("Skip task"));
 
     // Verify skip was called with the reason
     expect(defaultProps.onSkip).toHaveBeenCalledWith("Some reason");

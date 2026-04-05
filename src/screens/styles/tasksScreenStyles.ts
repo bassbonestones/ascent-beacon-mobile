@@ -95,6 +95,7 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    position: "relative", // Required for absolute positioned children
   },
   taskHeader: {
     flexDirection: "row",
@@ -184,6 +185,32 @@ export const styles = StyleSheet.create({
   checkMark: {
     color: "#FFFFFF",
     fontWeight: "bold",
+  },
+  // New styles for non-nested button structure
+  taskCardPressable: {
+    flex: 1,
+  },
+  actionSpacer: {
+    width: 48, // Space for absolute positioned button
+  },
+  checkButtonAbsolute: {
+    position: "absolute",
+    right: 16,
+    top: 16,
+    padding: 8,
+    zIndex: 10,
+  },
+  checkCircleAbsolute: {
+    position: "absolute",
+    right: 24,
+    top: 24,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#374151",
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyState: {
     flex: 1,
