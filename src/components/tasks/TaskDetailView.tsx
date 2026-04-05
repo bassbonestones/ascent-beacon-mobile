@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import type { Task, TaskStatus } from "../../types";
 import { styles } from "../../screens/styles/tasksScreenStyles";
+import { parseAsUtc, getTimezoneAbbreviation } from "../../utils/taskSorting";
 
 interface TaskDetailViewProps {
   task: Task;
@@ -49,26 +50,72 @@ const formatDuration = (minutes: number): string => {
 };
 
 const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString("en-US", {
-    weekday: "short",
+  const date = parseAsUtc(dateString);
+  const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
+  const month = date.toLocaleDateString("en-US", { month: "short" });
+  const day = date.getDate();
+  const year = date.getFullYear();
+  return `${weekday}, ${month} ${day}, ${year}`;
+};
+
+const formatDateTime = (dateString: string): string => {
+  const date = parseAsUtc(dateString);
+  const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
+  const month = date.toLocaleDateString("en-US", { month: "short" });
+  const day = date.getDate();
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? "PM" : "AM";
+  const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+  const displayMinute = minutes.toString().padStart(2, "0");
+  const tz = getTimezoneAbbreviation(date);
+  return `${weekday}, ${month} ${day} at ${displayHour}:${displayMinute} ${ampm} ${tz}`;
+};
+
+/**
+ * Format time from HH:MM to 12-hour format.
+ */
+const formatTime12h = (time: string): string => {
+  const [hour, minute] = time.split(":").map(Number);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${displayHour}:${minute.toString().padStart(2, "0")} ${ampm}`;
+};
+
+/**
+ * Format YYYYMMDD date to readable format.
+ */
+const formatUntilDate = (untilStr: string): string => {
+  const dateOnly = untilStr.replace(/T.*$/, "");
+  const year = parseInt(dateOnly.slice(0, 4), 10);
+  const month = parseInt(dateOnly.slice(4, 6), 10) - 1;
+  const day = parseInt(dateOnly.slice(6, 8), 10);
+  const date = new Date(year, month, day);
+  return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
 };
 
-const formatDateTime = (dateString: string): string => {
-  return new Date(dateString).toLocaleString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-};
+interface RecurrenceInfo {
+  frequency: string;
+  days: string | null;
+  intradayMode: string | null;
+  intradayDetails: string | null;
+  endCondition: string | null;
+}
 
-const getRecurrenceDescription = (rrule: string | null): string => {
-  if (!rrule) return "Not set";
+const getRecurrenceInfo = (rrule: string | null): RecurrenceInfo => {
+  const defaultInfo: RecurrenceInfo = {
+    frequency: "Not set",
+    days: null,
+    intradayMode: null,
+    intradayDetails: null,
+    endCondition: null,
+  };
+
+  if (!rrule) return defaultInfo;
 
   const parts = rrule.split(";").reduce(
     (acc, part) => {
@@ -90,9 +137,11 @@ const getRecurrenceDescription = (rrule: string | null): string => {
   };
 
   const [singular, plural] = freqLabels[freq] || ["time", "times"];
-  let desc =
+  let frequency =
     interval === 1 ? `Every ${singular}` : `Every ${interval} ${plural}`;
 
+  // Days (for weekly)
+  let days: string | null = null;
   if (parts.BYDAY) {
     const dayMap: Record<string, string> = {
       MO: "Mon",
@@ -103,13 +152,73 @@ const getRecurrenceDescription = (rrule: string | null): string => {
       SA: "Sat",
       SU: "Sun",
     };
-    const days = parts.BYDAY.split(",")
+    days = parts.BYDAY.split(",")
       .map((d) => dayMap[d] || d)
       .join(", ");
-    desc += ` on ${days}`;
   }
 
-  return desc;
+  // Intraday mode
+  const intradayMode = parts["X-INTRADAY"] || "single";
+  let intradayModeLabel: string | null = null;
+  let intradayDetails: string | null = null;
+
+  switch (intradayMode) {
+    case "single":
+      // No special label needed, shown via scheduled_at
+      break;
+    case "anytime": {
+      const dailyOcc = parseInt(parts["X-DAILYOCC"] || "1", 10);
+      intradayModeLabel = `${dailyOcc}x per day`;
+      intradayDetails = "Complete anytime during the day";
+      break;
+    }
+    case "specific_times": {
+      const times = parts["X-TIMES"]?.split(",") || [];
+      intradayModeLabel = `${times.length} specific time${times.length > 1 ? "s" : ""}`;
+      if (times.length > 0) {
+        intradayDetails = times.map(formatTime12h).join(", ");
+      }
+      break;
+    }
+    case "interval": {
+      const intervalMin = parseInt(parts["X-INTERVALMIN"] || "30", 10);
+      const winStart = parts["X-WINSTART"] || "09:00";
+      const winEnd = parts["X-WINEND"] || "21:00";
+      const maxOcc = parts["X-DAILYOCC"]
+        ? parseInt(parts["X-DAILYOCC"], 10)
+        : null;
+      intradayModeLabel = `Every ${intervalMin} min`;
+      intradayDetails = `${formatTime12h(winStart)} - ${formatTime12h(winEnd)}`;
+      if (maxOcc) {
+        intradayDetails += ` (max ${maxOcc}x)`;
+      }
+      break;
+    }
+    case "window": {
+      const winStart = parts["X-WINSTART"] || "09:00";
+      const winEnd = parts["X-WINEND"] || "21:00";
+      intradayModeLabel = "Flexible window";
+      intradayDetails = `${formatTime12h(winStart)} - ${formatTime12h(winEnd)}`;
+      break;
+    }
+  }
+
+  // End condition
+  let endCondition: string | null = null;
+  if (parts.COUNT) {
+    const count = parseInt(parts.COUNT, 10);
+    endCondition = `Stops after ${count} day${count > 1 ? "s" : ""}`;
+  } else if (parts.UNTIL) {
+    endCondition = `Until ${formatUntilDate(parts.UNTIL)}`;
+  }
+
+  return {
+    frequency,
+    days,
+    intradayMode: intradayModeLabel,
+    intradayDetails,
+    endCondition,
+  };
 };
 
 export function TaskDetailView({
@@ -176,14 +285,52 @@ export function TaskDetailView({
             </View>
           )}
 
-          {task.is_recurring && (
-            <View style={styles.detailMetaRow}>
-              <Text style={styles.detailMetaLabel}>Recurrence</Text>
-              <Text style={styles.detailMetaValue}>
-                {getRecurrenceDescription(task.recurrence_rule)}
-              </Text>
-            </View>
-          )}
+          {task.is_recurring &&
+            (() => {
+              const info = getRecurrenceInfo(task.recurrence_rule);
+              return (
+                <>
+                  <View style={styles.detailMetaRow}>
+                    <Text style={styles.detailMetaLabel}>Repeats</Text>
+                    <Text style={styles.detailMetaValue}>{info.frequency}</Text>
+                  </View>
+
+                  {info.days && (
+                    <View style={styles.detailMetaRow}>
+                      <Text style={styles.detailMetaLabel}>On days</Text>
+                      <Text style={styles.detailMetaValue}>{info.days}</Text>
+                    </View>
+                  )}
+
+                  {info.intradayMode && (
+                    <View style={styles.detailMetaRow}>
+                      <Text style={styles.detailMetaLabel}>Times/day</Text>
+                      <Text style={styles.detailMetaValue}>
+                        {info.intradayMode}
+                      </Text>
+                    </View>
+                  )}
+
+                  {info.intradayDetails && (
+                    <View style={styles.detailMetaRow}>
+                      <Text style={styles.detailMetaLabel}>Schedule</Text>
+                      <Text style={styles.detailMetaValue}>
+                        {info.intradayDetails}
+                      </Text>
+                    </View>
+                  )}
+
+                  {info.endCondition && (
+                    <View style={styles.detailMetaRow}>
+                      <Text style={styles.detailMetaLabel}>Ends</Text>
+                      <Text style={styles.detailMetaValue}>
+                        {info.endCondition}
+                      </Text>
+                    </View>
+                  )}
+                </>
+              );
+            })()}
 
           {task.is_recurring && task.scheduling_mode && (
             <View style={styles.detailMetaRow}>

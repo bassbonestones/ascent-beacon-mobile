@@ -36,12 +36,9 @@ export function getTaskWindow(
   const windowStart = parts["X-WINSTART"];
   const windowEnd = parts["X-WINEND"];
 
-  // Only return window for "window" or "interval" intraday modes
-  if (
-    (intradayMode === "window" || intradayMode === "interval") &&
-    windowStart &&
-    windowEnd
-  ) {
+  // Only return window for "window" intraday mode (flexible time window)
+  // Interval mode generates specific times, so it shouldn't show as a window
+  if (intradayMode === "window" && windowStart && windowEnd) {
     return {
       start: windowStart,
       end: windowEnd,
@@ -69,7 +66,7 @@ export function getEffectiveStartTime(
   today: Date = new Date(),
 ): Date | null {
   if (task.scheduled_at) {
-    return new Date(task.scheduled_at);
+    return parseAsUtc(task.scheduled_at);
   }
 
   const window = getTaskWindow(task.recurrence_rule);
@@ -96,7 +93,7 @@ export function getTaskCategory(
   }
 
   if (task.scheduled_at) {
-    const scheduledDate = new Date(task.scheduled_at);
+    const scheduledDate = parseAsUtc(task.scheduled_at);
     if (scheduledDate < now) {
       return "overdue";
     }
@@ -174,7 +171,12 @@ export function sortTasksForTodayView(
  */
 export function isTaskForToday(task: Task, today: Date = new Date()): boolean {
   // Recurring tasks that are completed for today should not appear
-  if (task.is_recurring && task.completed_for_today) {
+  // BUT: virtual occurrences should NOT be filtered here - they have their own status
+  if (
+    task.is_recurring &&
+    task.completed_for_today &&
+    !task.isVirtualOccurrence
+  ) {
     return false;
   }
 
@@ -183,7 +185,7 @@ export function isTaskForToday(task: Task, today: Date = new Date()): boolean {
     return true;
   }
 
-  const scheduledDate = new Date(task.scheduled_at);
+  const scheduledDate = parseAsUtc(task.scheduled_at);
   const todayStart = new Date(today);
   todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date(today);
@@ -204,13 +206,64 @@ export function filterTasksForToday(
 }
 
 /**
- * Format time for display (e.g., "9:00 AM").
+ * Parse a datetime string, treating it as UTC if no timezone is specified.
+ * Backend may return datetime with "+00:00" offset or without timezone suffix.
  */
-export function formatTaskTime(scheduledAt: string | null): string | null {
+export function parseAsUtc(dateString: string): Date {
+  // If no timezone indicator, append Z to treat as UTC
+  if (
+    !dateString.includes("Z") &&
+    !dateString.includes("+") &&
+    !dateString.includes("-", 10)
+  ) {
+    return new Date(dateString + "Z");
+  }
+  return new Date(dateString);
+}
+
+/**
+ * Get timezone abbreviation for display (e.g., "EST", "PST").
+ * Falls back to offset format (e.g., "GMT-5") if abbreviation unavailable.
+ */
+export function getTimezoneAbbreviation(date: Date = new Date()): string {
+  // Try to get timezone abbreviation from toLocaleTimeString
+  const timeString = date.toLocaleTimeString("en-US", {
+    timeZoneName: "short",
+  });
+  const match = timeString.match(/\s([A-Z]{2,4})$/);
+  if (match) {
+    return match[1];
+  }
+  // Fallback: calculate GMT offset
+  const offset = -date.getTimezoneOffset();
+  const hours = Math.floor(Math.abs(offset) / 60);
+  const sign = offset >= 0 ? "+" : "-";
+  return `GMT${sign}${hours}`;
+}
+
+/**
+ * Format time for display (e.g., "9:00 AM EST").
+ * Uses manual formatting to avoid Hermes/React Native Intl issues.
+ * @param showTimezone - Whether to include timezone abbreviation (default: true)
+ */
+export function formatTaskTime(
+  scheduledAt: string | null,
+  showTimezone: boolean = true,
+): string | null {
   if (!scheduledAt) return null;
 
-  const date = new Date(scheduledAt);
-  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const date = parseAsUtc(scheduledAt);
+  const hours = date.getHours(); // Local hours (0-23)
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? "PM" : "AM";
+  const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+  const displayMinute = minutes.toString().padStart(2, "0");
+
+  const timeStr = `${displayHour}:${displayMinute} ${ampm}`;
+  if (showTimezone) {
+    return `${timeStr} ${getTimezoneAbbreviation(date)}`;
+  }
+  return timeStr;
 }
 
 /**
@@ -220,7 +273,7 @@ export function isTaskOverdue(task: Task, now: Date = new Date()): boolean {
   if (task.status !== "pending" || !task.scheduled_at) {
     return false;
   }
-  return new Date(task.scheduled_at) < now;
+  return parseAsUtc(task.scheduled_at) < now;
 }
 
 /**
@@ -233,7 +286,7 @@ export function groupTasksByDate(tasks: Task[]): Map<string, Task[]> {
   for (const task of tasks) {
     let dateKey: string;
     if (task.scheduled_at) {
-      const date = new Date(task.scheduled_at);
+      const date = parseAsUtc(task.scheduled_at);
       dateKey = date.toISOString().split("T")[0];
     } else if (task.virtualOccurrenceDate) {
       // Virtual occurrences without scheduled_at use virtualOccurrenceDate
@@ -315,7 +368,7 @@ export function filterTasksForUpcoming(
   return tasks.filter((task) => {
     // Check scheduled_at first
     if (task.scheduled_at) {
-      return new Date(task.scheduled_at) > todayEnd;
+      return parseAsUtc(task.scheduled_at) > todayEnd;
     }
 
     // For virtual occurrences without scheduled_at, check virtualOccurrenceDate
@@ -365,13 +418,38 @@ export function condenseRecurringTasks(tasks: Task[]): Task[] {
 }
 
 /**
- * Parse an RRULE string into its components.
+ * Intraday mode type.
  */
-function parseRRule(rrule: string): {
+type IntradayMode =
+  | "single"
+  | "anytime"
+  | "specific_times"
+  | "interval"
+  | "window";
+
+/**
+ * Parsed RRULE with intraday extensions.
+ */
+interface ParsedRRule {
   freq: "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
   interval: number;
   byDay: string[] | null;
-} {
+  // End conditions
+  count: number | null; // Total number of recurrences (null = no limit)
+  until: string | null; // End date in YYYYMMDD format (null = no limit)
+  // Intraday extensions
+  intradayMode: IntradayMode;
+  specificTimes: string[]; // For specific_times mode
+  intervalMinutes: number; // For interval mode
+  windowStart: string; // For interval/window modes
+  windowEnd: string;
+  dailyOccurrences: number; // For anytime mode
+}
+
+/**
+ * Parse an RRULE string into its components including intraday extensions.
+ */
+function parseRRule(rrule: string): ParsedRRule {
   const parts = rrule.split(";").reduce(
     (acc, part) => {
       const [key, value] = part.split("=");
@@ -385,6 +463,19 @@ function parseRRule(rrule: string): {
     freq: (parts.FREQ as "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY") || "DAILY",
     interval: parseInt(parts.INTERVAL || "1", 10),
     byDay: parts.BYDAY ? parts.BYDAY.split(",") : null,
+    // End conditions
+    count: parts.COUNT ? parseInt(parts.COUNT, 10) : null,
+    until: parts.UNTIL || null,
+    // Intraday extensions
+    intradayMode: (parts["X-INTRADAY"] as IntradayMode) || "single",
+    specificTimes: parts["X-TIMES"] ? parts["X-TIMES"].split(",") : [],
+    intervalMinutes: parseInt(parts["X-INTERVALMIN"] || "30", 10),
+    windowStart: parts["X-WINSTART"] || "09:00",
+    windowEnd: parts["X-WINEND"] || "21:00",
+    // Default to 0 (unlimited) - only limit if explicitly set
+    dailyOccurrences: parts["X-DAILYOCC"]
+      ? parseInt(parts["X-DAILYOCC"], 10)
+      : 0,
   };
 }
 
@@ -469,8 +560,98 @@ function getNextOccurrences(
 }
 
 /**
+ * Generate times for interval mode (every X minutes between start and end).
+ * Returns array of "HH:MM" strings.
+ */
+function generateIntervalTimes(
+  windowStart: string,
+  windowEnd: string,
+  intervalMinutes: number,
+  maxOccurrences?: number,
+): string[] {
+  const [startH, startM] = windowStart.split(":").map(Number);
+  const [endH, endM] = windowEnd.split(":").map(Number);
+  const startMinutes = startH * 60 + startM;
+  const endMinutes = endH * 60 + endM;
+
+  const times: string[] = [];
+  let currentMinutes = startMinutes;
+
+  while (currentMinutes <= endMinutes) {
+    if (maxOccurrences && times.length >= maxOccurrences) break;
+
+    const h = Math.floor(currentMinutes / 60);
+    const m = currentMinutes % 60;
+    times.push(
+      `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`,
+    );
+    currentMinutes += intervalMinutes;
+  }
+
+  return times;
+}
+
+/**
+ * Generate intraday occurrences for a single day.
+ * Returns array of { time: string | null, suffix: string } for each occurrence.
+ */
+function getIntradayOccurrences(
+  parsed: ParsedRRule,
+): { time: string | null; suffix: string }[] {
+  switch (parsed.intradayMode) {
+    case "single":
+      // Single time mode: one occurrence with no suffix
+      return [{ time: null, suffix: "" }];
+
+    case "anytime":
+      // X times per day with no specific time
+      // Default to 1 if not specified
+      const numOccurrences =
+        parsed.dailyOccurrences > 0 ? parsed.dailyOccurrences : 1;
+      return Array.from({ length: numOccurrences }, (_, i) => ({
+        time: null,
+        suffix: `__occ${i + 1}`,
+      }));
+
+    case "specific_times":
+      // One occurrence per specified time
+      if (parsed.specificTimes.length === 0) {
+        return [{ time: null, suffix: "" }];
+      }
+      return parsed.specificTimes.map((time) => ({
+        time,
+        suffix: `__${time.replace(":", "")}`,
+      }));
+
+    case "interval":
+      // Generate times from window and interval
+      const intervalTimes = generateIntervalTimes(
+        parsed.windowStart,
+        parsed.windowEnd,
+        parsed.intervalMinutes,
+        parsed.dailyOccurrences > 0 ? parsed.dailyOccurrences : undefined,
+      );
+      if (intervalTimes.length === 0) {
+        return [{ time: null, suffix: "" }];
+      }
+      return intervalTimes.map((time) => ({
+        time,
+        suffix: `__${time.replace(":", "")}`,
+      }));
+
+    case "window":
+      // Flexible window: one occurrence with no specific time
+      return [{ time: null, suffix: "" }];
+
+    default:
+      return [{ time: null, suffix: "" }];
+  }
+}
+
+/**
  * Generate future occurrences of recurring tasks for the Upcoming view.
  * Creates virtual task copies with unique IDs and an occurrence date.
+ * Handles intraday modes (multiple times per day, specific times, intervals).
  *
  * @param tasks - Array of tasks to process
  * @param startDate - Start date (typically today)
@@ -495,44 +676,129 @@ export function generateRecurringOccurrences(
       continue;
     }
 
-    // Add the original task
-    result.push(task);
+    // Parse the RRULE including intraday extensions
+    const parsed = parseRRule(task.recurrence_rule);
 
-    // For recurring tasks without scheduled_at, use today as the base date
-    // This allows unscheduled recurring tasks to show in upcoming
-    const baseDate = task.scheduled_at
-      ? new Date(task.scheduled_at)
-      : new Date(startDate);
+    // Get intraday occurrences for this task
+    const intradayOccs = getIntradayOccurrences(parsed);
 
-    // If no scheduled time, use start of day
-    if (!task.scheduled_at) {
-      baseDate.setHours(0, 0, 0, 0);
+    // Calculate effective end date based on UNTIL
+    let effectiveEndDate = endDate;
+    if (parsed.until) {
+      // Parse UNTIL date (format: YYYYMMDD or YYYYMMDDTHHMMSSZ)
+      const untilStr = parsed.until.replace(/T.*$/, ""); // Strip time part
+      const year = parseInt(untilStr.slice(0, 4), 10);
+      const month = parseInt(untilStr.slice(4, 6), 10) - 1;
+      const day = parseInt(untilStr.slice(6, 8), 10);
+      const untilDate = new Date(year, month, day, 23, 59, 59, 999);
+      if (untilDate < effectiveEndDate) {
+        effectiveEndDate = untilDate;
+      }
     }
 
-    // Generate future occurrences
-    const futureOccurrences = getNextOccurrences(
+    // Track how many days we've generated (for COUNT limit)
+    // For intraday modes, COUNT means "number of days", not individual occurrences
+    let daysGenerated = 0;
+    const maxDays = parsed.count; // null means no limit
+
+    // Check if today is within the recurrence limit
+    const todayWithinLimit = maxDays === null || daysGenerated < maxDays;
+    const todayWithinUntil = startDate <= effectiveEndDate;
+
+    // Track how many occurrences have been completed today
+    // (used to mark virtual occurrences as complete)
+    const completionsToday = task.completions_today || 0;
+
+    // For the original task, we need to add occurrences for TODAY
+    // (but only if it's a multi-occurrence mode AND within limits)
+    if (todayWithinLimit && todayWithinUntil) {
+      if (intradayOccs.length > 1 || intradayOccs[0].time !== null) {
+        // Multi-occurrence mode: create virtual tasks for today
+        const todayStr = startDate.toISOString().split("T")[0];
+        let occIndex = 0;
+        for (const occ of intradayOccs) {
+          let scheduledAt: string | null = null;
+          if (occ.time) {
+            const [h, m] = occ.time.split(":").map(Number);
+            const occDate = new Date(startDate);
+            occDate.setHours(h, m, 0, 0);
+            scheduledAt = occDate.toISOString();
+          }
+          // Mark occurrence as completed if within completions_today count
+          const isCompleted = occIndex < completionsToday;
+          const virtualTask: Task = {
+            ...task,
+            id: `${task.id}__${todayStr}${occ.suffix}`,
+            scheduled_at: scheduledAt,
+            status: isCompleted ? "completed" : "pending",
+            completed_for_today: isCompleted,
+            isVirtualOccurrence: true,
+            virtualOccurrenceDate: todayStr,
+            originalTaskId: task.id,
+          };
+          result.push(virtualTask);
+          occIndex++;
+        }
+        daysGenerated++;
+      } else {
+        // Single occurrence mode: add original task as-is
+        result.push(task);
+        daysGenerated++;
+      }
+    }
+
+    // For recurring tasks, use today as the base date for generating future days
+    const baseDate = new Date(startDate);
+    baseDate.setHours(0, 0, 0, 0);
+
+    // Generate future day occurrences
+    const futureDays = getNextOccurrences(
       task.recurrence_rule,
       baseDate,
-      daysAhead, // max occurrences to generate
-      endDate,
+      daysAhead * intradayOccs.length, // Account for multiple per day
+      effectiveEndDate,
     );
 
-    // Check if original task has a specific time (not just a date)
-    const originalHasTime = task.scheduled_at !== null;
+    for (const dayDate of futureDays) {
+      // Check if we've exceeded the COUNT limit
+      if (maxDays !== null && daysGenerated >= maxDays) {
+        break;
+      }
 
-    for (const occDate of futureOccurrences) {
-      // Create a virtual copy with a unique ID
-      // Only set scheduled_at if the original task had a specific time
-      const virtualTask: Task = {
-        ...task,
-        id: `${task.id}__${occDate.toISOString().split("T")[0]}`,
-        scheduled_at: originalHasTime ? occDate.toISOString() : null,
-        completed_for_today: false, // Future occurrences are not completed
-        isVirtualOccurrence: true,
-        virtualOccurrenceDate: occDate.toISOString().split("T")[0],
-        originalTaskId: task.id,
-      };
-      result.push(virtualTask);
+      const dayStr = dayDate.toISOString().split("T")[0];
+
+      // Create virtual tasks for each intraday occurrence
+      for (const occ of intradayOccs) {
+        let scheduledAt: string | null = null;
+        if (occ.time) {
+          const [h, m] = occ.time.split(":").map(Number);
+          const occDate = new Date(dayDate);
+          occDate.setHours(h, m, 0, 0);
+          scheduledAt = occDate.toISOString();
+        } else if (task.scheduled_at && parsed.intradayMode === "single") {
+          // For single mode with original scheduled time, preserve the time
+          const originalTime = parseAsUtc(task.scheduled_at);
+          dayDate.setHours(
+            originalTime.getHours(),
+            originalTime.getMinutes(),
+            originalTime.getSeconds(),
+            0,
+          );
+          scheduledAt = dayDate.toISOString();
+        }
+
+        const virtualTask: Task = {
+          ...task,
+          id: `${task.id}__${dayStr}${occ.suffix}`,
+          scheduled_at: scheduledAt,
+          completed_for_today: false,
+          isVirtualOccurrence: true,
+          virtualOccurrenceDate: dayStr,
+          originalTaskId: task.id,
+        };
+        result.push(virtualTask);
+      }
+      daysGenerated++;
     }
   }
 

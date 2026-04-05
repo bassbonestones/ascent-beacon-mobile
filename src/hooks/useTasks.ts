@@ -85,15 +85,17 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
         const updated = await api.completeTask(id, {
           scheduled_for: scheduledFor,
         });
-        setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
-        // For recurring tasks, show feedback and don't update counts (task stays pending)
-        const task = tasks.find((t) => t.id === id);
-        if (task?.is_recurring) {
+        // For recurring tasks, refetch to get updated completions_today
+        // This ensures virtual occurrences are regenerated with correct completion status
+        if (updated.is_recurring) {
+          await fetchTasks();
           showAlert(
             "Completed",
             "Occurrence marked complete. Task will recur.",
           );
         } else {
+          // Non-recurring: update in place
+          setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
           setPendingCount((prev) => Math.max(0, prev - 1));
           setCompletedCount((prev) => prev + 1);
         }
@@ -104,7 +106,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
         throw error;
       }
     },
-    [tasks],
+    [fetchTasks],
   );
 
   const skipTask = useCallback(
@@ -118,10 +120,12 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
           reason,
           scheduled_for: scheduledFor,
         });
-        setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
-        // For recurring tasks, don't decrement pending count as task stays pending
-        const task = tasks.find((t) => t.id === id);
-        if (!task?.is_recurring) {
+        // For recurring tasks, refetch to get updated completions_today
+        if (updated.is_recurring) {
+          await fetchTasks();
+        } else {
+          // Non-recurring: update in place
+          setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
           setPendingCount((prev) => Math.max(0, prev - 1));
         }
         return updated;
@@ -131,7 +135,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
         throw error;
       }
     },
-    [tasks],
+    [fetchTasks],
   );
 
   const reopenTask = useCallback(

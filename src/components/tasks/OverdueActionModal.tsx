@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, Modal, TouchableOpacity, StyleSheet } from "react-native";
 import type { Task } from "../../types";
+import { parseAsUtc } from "../../utils/taskSorting";
 
 interface OverdueActionModalProps {
   visible: boolean;
@@ -33,7 +34,7 @@ export function OverdueActionModal({
 
           {task.scheduled_at && (
             <Text style={modalStyles.dueInfo}>
-              Was due: {new Date(task.scheduled_at).toLocaleString()}
+              Was due: {parseAsUtc(task.scheduled_at).toLocaleString()}
             </Text>
           )}
 

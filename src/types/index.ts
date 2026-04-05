@@ -665,6 +665,8 @@ export interface Task {
   skip_reason: string | null;
   // For recurring tasks, indicates if completed for today
   completed_for_today?: boolean;
+  // For recurring tasks with multiple daily occurrences, count of completions today
+  completions_today?: number;
   // For virtual occurrences generated in Upcoming view
   isVirtualOccurrence?: boolean;
   virtualOccurrenceDate?: string; // YYYY-MM-DD format

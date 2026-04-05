@@ -138,7 +138,7 @@ export function TaskCard({
           )}
           {!task.is_lightning && task.duration_minutes > 0 && (
             <Text style={styles.taskDuration}>
-              {formatDuration(task.duration_minutes)}
+              ⏱️ {formatDuration(task.duration_minutes)}
             </Text>
           )}
         </View>

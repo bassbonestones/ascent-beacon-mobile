@@ -32,6 +32,7 @@ import {
   groupTasksByDate,
   formatDateHeader,
   generateRecurringOccurrences,
+  parseAsUtc,
 } from "../utils/taskSorting";
 
 interface TasksScreenProps {
@@ -59,6 +60,17 @@ export default function TasksScreen({
   // Form state (extracted to hook)
   const taskForm = useTaskForm();
 
+  // In Today view, fetch ALL tasks so we can generate virtual occurrences
+  // and then filter by status on the frontend. This allows recurring tasks
+  // with completions_today > 0 to show completed occurrences.
+  // In Upcoming view, use the status filter as before.
+  const apiStatusFilter =
+    listViewMode === "today"
+      ? undefined // Fetch all, filter on frontend
+      : statusFilter === "all"
+        ? undefined
+        : statusFilter;
+
   const {
     tasks,
     loading,
@@ -70,7 +82,7 @@ export default function TasksScreen({
     skipTask,
     reopenTask,
     deleteTask,
-  } = useTasks({ status: statusFilter === "all" ? undefined : statusFilter });
+  } = useTasks({ status: apiStatusFilter });
 
   const { goals, loading: goalsLoading } = useGoals({ parentOnly: true });
 
@@ -79,10 +91,48 @@ export default function TasksScreen({
 
   // Filter and sort tasks based on view mode
   const { sortedTasks, sections } = useMemo(() => {
+    console.log(
+      "[DEBUG] statusFilter:",
+      statusFilter,
+      "listViewMode:",
+      listViewMode,
+    );
+    console.log(
+      "[DEBUG] tasks from API:",
+      tasks.length,
+      tasks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        completions_today: t.completions_today,
+        recurrence_rule: t.recurrence_rule,
+      })),
+    );
+
     if (listViewMode === "today") {
-      // Today view: overdue → timed → todos (only for pending)
+      // Today view: overdue → timed → todos
+      // Generate intraday occurrences for multi-occurrence modes (X times/day, specific times, interval)
+      // Use daysAhead=0 to only generate for today
+      const withOccurrences = generateRecurringOccurrences(
+        tasks,
+        currentDate,
+        0, // Only today, no future days
+      );
+
+      console.log(
+        "[DEBUG] withOccurrences:",
+        withOccurrences.length,
+        withOccurrences.map((t) => ({
+          id: t.id,
+          title: t.title,
+          status: t.status,
+        })),
+      );
+
       if (statusFilter === "pending") {
-        let todayTasks = filterTasksForToday(tasks, currentDate);
+        let todayTasks = filterTasksForToday(withOccurrences, currentDate);
+        // Only show pending virtual occurrences
+        todayTasks = todayTasks.filter((t) => t.status === "pending");
         if (condenseRecurring) {
           todayTasks = condenseRecurringTasks(todayTasks);
         }
@@ -90,10 +140,24 @@ export default function TasksScreen({
           sortedTasks: sortTasksForTodayView(todayTasks, currentDate),
           sections: null,
         };
+      } else if (statusFilter === "completed") {
+        // Show only completed virtual occurrences for today
+        let completedTasks = filterTasksForToday(withOccurrences, currentDate);
+        console.log(
+          "[DEBUG] after filterTasksForToday:",
+          completedTasks.length,
+          completedTasks.map((t) => ({ id: t.id, status: t.status })),
+        );
+        completedTasks = completedTasks.filter((t) => t.status === "completed");
+        console.log("[DEBUG] after status filter:", completedTasks.length);
+        return {
+          sortedTasks: completedTasks,
+          sections: null,
+        };
       }
-      // For completed/all, no filtering or special sorting
+      // For "all", show all virtual occurrences for today
       return {
-        sortedTasks: tasks,
+        sortedTasks: filterTasksForToday(withOccurrences, currentDate),
         sections: null,
       };
     } else {
@@ -124,7 +188,7 @@ export default function TasksScreen({
           if (!t.scheduled_at) return false;
           const todayEnd = new Date(currentDate);
           todayEnd.setHours(23, 59, 59, 999);
-          return new Date(t.scheduled_at) > todayEnd;
+          return parseAsUtc(t.scheduled_at) > todayEnd;
         });
       }
 
@@ -200,7 +264,7 @@ export default function TasksScreen({
             // Parse the date and add the time from scheduled_at
             const occDate = new Date(task.virtualOccurrenceDate);
             if (task.scheduled_at) {
-              const time = new Date(task.scheduled_at);
+              const time = parseAsUtc(task.scheduled_at);
               occDate.setHours(
                 time.getHours(),
                 time.getMinutes(),
@@ -211,7 +275,7 @@ export default function TasksScreen({
             scheduledFor = occDate.toISOString();
           } else if (task.scheduled_at) {
             // Use current date (real or travel) with the task's scheduled time
-            const originalTime = new Date(task.scheduled_at);
+            const originalTime = parseAsUtc(task.scheduled_at);
             const today = getCurrentDate();
             today.setHours(
               originalTime.getHours(),
@@ -250,7 +314,7 @@ export default function TasksScreen({
           ) {
             const occDate = new Date(skipModalTask.virtualOccurrenceDate);
             if (skipModalTask.scheduled_at) {
-              const time = new Date(skipModalTask.scheduled_at);
+              const time = parseAsUtc(skipModalTask.scheduled_at);
               occDate.setHours(
                 time.getHours(),
                 time.getMinutes(),
@@ -260,7 +324,7 @@ export default function TasksScreen({
             }
             scheduledFor = occDate.toISOString();
           } else if (skipModalTask.scheduled_at) {
-            const originalTime = new Date(skipModalTask.scheduled_at);
+            const originalTime = parseAsUtc(skipModalTask.scheduled_at);
             const today = getCurrentDate();
             today.setHours(
               originalTime.getHours(),
@@ -306,7 +370,9 @@ export default function TasksScreen({
     async (task: Task) => {
       if (await showConfirm("Delete Task", `Delete "${task.title}"?`)) {
         try {
-          await deleteTask(task.id);
+          // Use originalTaskId for virtual occurrences, otherwise use task.id
+          const taskId = task.originalTaskId || task.id;
+          await deleteTask(taskId);
           setSelectedTask(null);
           setScreenMode("list");
         } catch {

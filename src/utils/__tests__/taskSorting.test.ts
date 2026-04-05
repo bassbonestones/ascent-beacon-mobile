@@ -40,6 +40,16 @@ const createMockTask = (overrides: Partial<Task> = {}): Task => ({
 describe("taskSorting", () => {
   const now = new Date("2024-06-15T12:00:00Z");
 
+  // Helper to get tomorrow's date in YYYYMMDD format (for UNTIL tests)
+  const getTomorrowDateStr = (): string => {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, "0");
+    const day = String(tomorrow.getDate()).padStart(2, "0");
+    return `${year}${month}${day}`;
+  };
+
   describe("getTaskCategory", () => {
     it("returns todo for unscheduled pending tasks", () => {
       const task = createMockTask({ scheduled_at: null, status: "pending" });
@@ -529,6 +539,213 @@ describe("taskSorting", () => {
       expect(scheduledTime.getUTCHours()).toBe(14);
       expect(scheduledTime.getUTCMinutes()).toBe(30);
     });
+
+    it("generates X occurrences per day for anytime mode", () => {
+      const task = createMockTask({
+        id: "anytime-task",
+        is_recurring: true,
+        recurrence_rule: "FREQ=DAILY;X-INTRADAY=anytime;X-DAILYOCC=3",
+        scheduled_at: null,
+      });
+
+      const result = generateRecurringOccurrences([task], now, 3);
+
+      // Should have 3 occurrences for today + 3 for each of 3 future days = 12 total
+      const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);
+      // Today: 3 occurrences + 3 future days * 3 = 12
+      expect(virtualOccurrences.length).toBe(12);
+
+      // Check IDs have occurrence suffix
+      const todayStr = now.toISOString().split("T")[0];
+      const todayOccs = virtualOccurrences.filter(
+        (t) => t.virtualOccurrenceDate === todayStr,
+      );
+      expect(todayOccs.length).toBe(3);
+      expect(todayOccs[0].id).toContain("__occ1");
+      expect(todayOccs[1].id).toContain("__occ2");
+      expect(todayOccs[2].id).toContain("__occ3");
+
+      // Should have no scheduled_at (anytime mode)
+      expect(todayOccs.every((t) => t.scheduled_at === null)).toBe(true);
+    });
+
+    it("marks X occurrences as completed based on completions_today", () => {
+      const task = createMockTask({
+        id: "anytime-task",
+        is_recurring: true,
+        recurrence_rule: "FREQ=DAILY;X-INTRADAY=anytime;X-DAILYOCC=3",
+        scheduled_at: null,
+        completions_today: 2, // 2 of 3 completed
+      });
+
+      const result = generateRecurringOccurrences([task], now, 0); // Only today
+
+      const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);
+      expect(virtualOccurrences.length).toBe(3);
+
+      // First 2 should be completed, last 1 should be pending
+      expect(virtualOccurrences[0].status).toBe("completed");
+      expect(virtualOccurrences[0].completed_for_today).toBe(true);
+      expect(virtualOccurrences[1].status).toBe("completed");
+      expect(virtualOccurrences[1].completed_for_today).toBe(true);
+      expect(virtualOccurrences[2].status).toBe("pending");
+      expect(virtualOccurrences[2].completed_for_today).toBe(false);
+    });
+
+    it("generates occurrences for each specific time", () => {
+      const task = createMockTask({
+        id: "specific-times-task",
+        is_recurring: true,
+        recurrence_rule:
+          "FREQ=DAILY;X-INTRADAY=specific_times;X-TIMES=09:00,14:00,18:00",
+        scheduled_at: null,
+      });
+
+      const result = generateRecurringOccurrences([task], now, 2);
+
+      const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);
+      // Today: 3 times + 2 future days * 3 = 9
+      expect(virtualOccurrences.length).toBe(9);
+
+      // Check specific times are in scheduled_at
+      const todayStr = now.toISOString().split("T")[0];
+      const todayOccs = virtualOccurrences.filter(
+        (t) => t.virtualOccurrenceDate === todayStr,
+      );
+      expect(todayOccs.length).toBe(3);
+
+      // Check IDs have time suffix
+      expect(todayOccs[0].id).toContain("__0900");
+      expect(todayOccs[1].id).toContain("__1400");
+      expect(todayOccs[2].id).toContain("__1800");
+
+      // Check scheduled_at has correct times
+      expect(todayOccs[0].scheduled_at).not.toBeNull();
+      const time1 = new Date(todayOccs[0].scheduled_at!);
+      expect(time1.getHours()).toBe(9);
+      expect(time1.getMinutes()).toBe(0);
+    });
+
+    it("generates interval occurrences from window", () => {
+      const task = createMockTask({
+        id: "interval-task",
+        is_recurring: true,
+        recurrence_rule:
+          "FREQ=DAILY;X-INTRADAY=interval;X-INTERVALMIN=60;X-WINSTART=09:00;X-WINEND=12:00",
+        scheduled_at: null,
+      });
+
+      const result = generateRecurringOccurrences([task], now, 1);
+
+      const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);
+      // Interval of 60 mins from 9-12 = 9:00, 10:00, 11:00, 12:00 = 4 times per day
+      // Today: 4 + 1 future day * 4 = 8
+      expect(virtualOccurrences.length).toBe(8);
+
+      const todayStr = now.toISOString().split("T")[0];
+      const todayOccs = virtualOccurrences.filter(
+        (t) => t.virtualOccurrenceDate === todayStr,
+      );
+      expect(todayOccs.length).toBe(4);
+
+      // Check times
+      expect(todayOccs[0].id).toContain("__0900");
+      expect(todayOccs[1].id).toContain("__1000");
+      expect(todayOccs[2].id).toContain("__1100");
+      expect(todayOccs[3].id).toContain("__1200");
+
+      // All should have scheduled_at
+      expect(todayOccs.every((t) => t.scheduled_at !== null)).toBe(true);
+    });
+
+    it("respects max daily occurrences for interval mode", () => {
+      const task = createMockTask({
+        id: "interval-limited-task",
+        is_recurring: true,
+        recurrence_rule:
+          "FREQ=DAILY;X-INTRADAY=interval;X-INTERVALMIN=30;X-WINSTART=09:00;X-WINEND=17:00;X-DAILYOCC=3",
+        scheduled_at: null,
+      });
+
+      const result = generateRecurringOccurrences([task], now, 1);
+
+      const todayStr = now.toISOString().split("T")[0];
+      const todayOccs = result.filter(
+        (t) => t.isVirtualOccurrence && t.virtualOccurrenceDate === todayStr,
+      );
+      // Limited to 3 even though window could fit many more
+      expect(todayOccs.length).toBe(3);
+    });
+
+    it("window mode creates one occurrence with no specific time", () => {
+      const task = createMockTask({
+        id: "window-task",
+        is_recurring: true,
+        recurrence_rule:
+          "FREQ=DAILY;X-INTRADAY=window;X-WINSTART=09:00;X-WINEND=17:00",
+        scheduled_at: null,
+      });
+
+      const result = generateRecurringOccurrences([task], now, 2);
+
+      // Window mode: single occurrence per day
+      // Today: original task (not virtual)
+      // Future: 2 virtual occurrences
+      const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);
+      expect(virtualOccurrences.length).toBe(2);
+
+      // Total should be 3 (1 original + 2 virtual)
+      expect(result.length).toBe(3);
+
+      // No specific scheduled_at (flexible window)
+      expect(virtualOccurrences.every((t) => t.scheduled_at === null)).toBe(
+        true,
+      );
+    });
+
+    it("respects COUNT limit for X times/day mode", () => {
+      const task = createMockTask({
+        id: "count-limited-task",
+        is_recurring: true,
+        // 2 times per day, but only for 2 days (COUNT=2 means 2 days here)
+        recurrence_rule: "FREQ=DAILY;X-INTRADAY=anytime;X-DAILYOCC=2;COUNT=2",
+        scheduled_at: null,
+      });
+
+      const result = generateRecurringOccurrences([task], now, 14);
+
+      // Should have: 2 occurrences for today + 2 occurrences for tomorrow = 4 total
+      const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);
+      expect(virtualOccurrences.length).toBe(4);
+
+      // Get unique days
+      const uniqueDays = new Set(
+        virtualOccurrences.map((t) => t.virtualOccurrenceDate),
+      );
+      expect(uniqueDays.size).toBe(2); // Only 2 days
+    });
+
+    it("respects UNTIL date limit", () => {
+      const task = createMockTask({
+        id: "until-limited-task",
+        is_recurring: true,
+        // Goes until tomorrow (YYYYMMDD format)
+        recurrence_rule: `FREQ=DAILY;X-INTRADAY=anytime;X-DAILYOCC=2;UNTIL=${getTomorrowDateStr()}`,
+        scheduled_at: null,
+      });
+
+      const result = generateRecurringOccurrences([task], now, 14);
+
+      // Should have: 2 occurrences for today + 2 occurrences for tomorrow = 4 total
+      const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);
+      expect(virtualOccurrences.length).toBe(4);
+
+      // Get unique days
+      const uniqueDays = new Set(
+        virtualOccurrences.map((t) => t.virtualOccurrenceDate),
+      );
+      expect(uniqueDays.size).toBe(2); // Only today and tomorrow
+    });
   });
 
   describe("getTaskWindow", () => {
@@ -555,15 +772,12 @@ describe("taskSorting", () => {
       });
     });
 
-    it("returns window for interval intraday mode", () => {
+    it("returns null for interval intraday mode (interval generates specific times)", () => {
       const result = getTaskWindow(
         "FREQ=DAILY;X-INTRADAY=interval;X-WINSTART=08:00;X-WINEND=12:00;X-INTERVALMIN=30",
       );
-      expect(result).toEqual({
-        start: "08:00",
-        end: "12:00",
-        intradayMode: "interval",
-      });
+      // Interval mode now generates specific times, not a flexible window
+      expect(result).toBeNull();
     });
   });
 

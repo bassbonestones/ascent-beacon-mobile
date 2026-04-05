@@ -72,7 +72,7 @@ export function RecurrencePicker({
     }
     onSave(buildRRule(state), schedulingMode, startDate, startTime);
     onClose();
-  }, [state, schedulingMode, onSave, onClose]);
+  }, [state, schedulingMode, startDate, startTime, onSave, onClose]);
 
   // Helper to compare "HH:MM" times
   const isTimeAfter = (t1: string, t2: string): boolean => {

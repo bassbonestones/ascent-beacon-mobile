@@ -164,7 +164,7 @@ describe("TaskCard", () => {
         onComplete={mockOnComplete}
       />,
     );
-    expect(screen.getByText("30m")).toBeTruthy();
+    expect(screen.getByText("⏱️ 30m")).toBeTruthy();
   });
 
   it("formats duration with hours", () => {
@@ -176,7 +176,7 @@ describe("TaskCard", () => {
         onComplete={mockOnComplete}
       />,
     );
-    expect(screen.getByText("1h 30m")).toBeTruthy();
+    expect(screen.getByText("⏱️ 1h 30m")).toBeTruthy();
   });
 
   it("formats duration with exact hours", () => {
@@ -188,7 +188,7 @@ describe("TaskCard", () => {
         onComplete={mockOnComplete}
       />,
     );
-    expect(screen.getByText("2h")).toBeTruthy();
+    expect(screen.getByText("⏱️ 2h")).toBeTruthy();
   });
 
   it("does not show duration for zero minutes non-lightning tasks", () => {
@@ -200,7 +200,7 @@ describe("TaskCard", () => {
         onComplete={mockOnComplete}
       />,
     );
-    expect(screen.queryByText(/🕐/)).toBeNull();
+    expect(screen.queryByText(/⏱️/)).toBeNull();
   });
 
   it("shows scheduled time when scheduled", () => {
