@@ -115,18 +115,16 @@ export function RecurrencePicker({
         )
       : 0;
 
-  // Auto-clamp dailyOccurrences if it exceeds the max possible when window/interval changes
+  // Auto-set dailyOccurrences to max when window/interval changes
+  // Always default to maximum so tasks fill the entire window
   useEffect(() => {
-    if (
-      maxPossibleOccurrences > 0 &&
-      state.dailyOccurrences > maxPossibleOccurrences
-    ) {
+    if (maxPossibleOccurrences > 0) {
       setState((p) => ({
         ...p,
         dailyOccurrences: maxPossibleOccurrences,
       }));
     }
-  }, [maxPossibleOccurrences, state.dailyOccurrences]);
+  }, [maxPossibleOccurrences]);
 
   const isValidWindow =
     state.intradayMode !== "interval" && state.intradayMode !== "window"

@@ -283,7 +283,7 @@ export function CreateTaskForm({
         onSave={onRecurrenceChange}
         initialRRule={recurrenceRule}
         initialSchedulingMode={schedulingMode}
-        taskDurationMinutes={parseInt(duration, 10) || 0}
+        taskDurationMinutes={isLightning ? 0 : parseInt(duration, 10) || 0}
         initialStartDate={scheduledDate}
         initialStartTime={scheduledTime}
       />
