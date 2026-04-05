@@ -320,6 +320,28 @@ describe("rruleUtils", () => {
       });
       expect(result).toContain("until [date]");
     });
+
+    it("includes start date when provided", () => {
+      const result = getFrequencyDescription(baseState, "2026-04-05");
+      expect(result).toBe("Every day, from Apr 5");
+    });
+
+    it("includes start date with until condition", () => {
+      const result = getFrequencyDescription(
+        {
+          ...baseState,
+          endCondition: "until",
+          until: "2026-04-15",
+        },
+        "2026-04-05",
+      );
+      expect(result).toBe("Every day, from Apr 5, until Apr 15, 2026");
+    });
+
+    it("handles null start date", () => {
+      const result = getFrequencyDescription(baseState, null);
+      expect(result).toBe("Every day");
+    });
   });
 
   describe("constants", () => {

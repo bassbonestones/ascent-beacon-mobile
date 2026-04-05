@@ -42,6 +42,8 @@ describe("CreateTaskForm", () => {
     schedulingMode: null,
     scheduledTime: null,
     onScheduledTimeChange: jest.fn(),
+    scheduledDate: null,
+    onScheduledDateChange: jest.fn(),
     onRecurrenceChange: jest.fn(),
     onSubmit: jest.fn(),
     onCancel: jest.fn(),

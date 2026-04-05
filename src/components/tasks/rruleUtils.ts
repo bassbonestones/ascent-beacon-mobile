@@ -138,7 +138,10 @@ export const buildRRule = (state: RecurrenceState): string => {
   return parts.join(";");
 };
 
-export const getFrequencyDescription = (state: RecurrenceState): string => {
+export const getFrequencyDescription = (
+  state: RecurrenceState,
+  startDate?: string | null,
+): string => {
   const freq = FREQUENCIES.find((f) => f.key === state.frequency);
   if (!freq) return "Custom";
 
@@ -189,7 +192,31 @@ export const getFrequencyDescription = (state: RecurrenceState): string => {
   if (state.endCondition === "count" && !hasMultipleDaily) {
     desc +=
       state.count > 0 ? `, ${state.count} times total` : `, X times total`;
-  } else if (state.endCondition === "until" && state.until) {
+  }
+
+  // Add start date if provided
+  if (startDate) {
+    const [sy, sm, sd] = startDate.split("-");
+    const startMonths = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    const startMonthIndex = parseInt(sm, 10) - 1;
+    const formattedStartDate = `${startMonths[startMonthIndex]} ${parseInt(sd, 10)}`;
+    desc += `, from ${formattedStartDate}`;
+  }
+
+  if (state.endCondition === "until" && state.until) {
     // Format date nicely
     const [y, m, d] = state.until.split("-");
     const months = [

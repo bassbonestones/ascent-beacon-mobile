@@ -49,6 +49,7 @@ export default function TasksScreen({
     null,
   );
   const [scheduledTime, setScheduledTime] = useState<string | null>(null);
+  const [scheduledDate, setScheduledDate] = useState<string | null>(null);
 
   const {
     tasks,
@@ -77,15 +78,29 @@ export default function TasksScreen({
     setRecurrenceRule("");
     setSchedulingMode(null);
     setScheduledTime(null);
+    setScheduledDate(null);
   }, []);
 
-  // Convert "HH:MM" time to ISO datetime (today's date + time)
-  const timeToIso = (time: string | null): string | undefined => {
+  // Convert date + time to ISO datetime
+  const dateTimeToIso = (
+    date: string | null,
+    time: string | null,
+  ): string | undefined => {
     if (!time) return undefined;
     const [hour, minute] = time.split(":").map(Number);
-    const date = new Date();
-    date.setHours(hour, minute, 0, 0);
-    return date.toISOString();
+
+    let targetDate: Date;
+    if (date) {
+      // Use selected date
+      const [year, month, day] = date.split("-").map(Number);
+      targetDate = new Date(year, month - 1, day, hour, minute, 0, 0);
+    } else {
+      // Default to today
+      targetDate = new Date();
+      targetDate.setHours(hour, minute, 0, 0);
+    }
+
+    return targetDate.toISOString();
   };
 
   const handleCreate = useCallback(async () => {
@@ -99,7 +114,7 @@ export default function TasksScreen({
         title: title.trim(),
         description: description.trim() || undefined,
         duration_minutes: isLightning ? 0 : parseInt(duration, 10) || 30,
-        scheduled_at: timeToIso(scheduledTime),
+        scheduled_at: dateTimeToIso(scheduledDate, scheduledTime),
         is_recurring: isRecurring,
         recurrence_rule: isRecurring ? recurrenceRule || undefined : undefined,
         scheduling_mode:
@@ -119,6 +134,8 @@ export default function TasksScreen({
     isRecurring,
     recurrenceRule,
     schedulingMode,
+    scheduledTime,
+    scheduledDate,
     createTask,
     resetForm,
   ]);
@@ -217,6 +234,8 @@ export default function TasksScreen({
         schedulingMode={schedulingMode}
         scheduledTime={scheduledTime}
         onScheduledTimeChange={setScheduledTime}
+        scheduledDate={scheduledDate}
+        onScheduledDateChange={setScheduledDate}
         onRecurrenceChange={handleRecurrenceChange}
         onSubmit={handleCreate}
         onCancel={() => {

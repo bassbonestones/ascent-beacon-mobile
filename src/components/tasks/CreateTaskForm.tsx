@@ -11,6 +11,7 @@ import type { Goal, SchedulingMode } from "../../types";
 import { styles } from "../../screens/styles/tasksScreenStyles";
 import { RecurrencePicker } from "./RecurrencePicker";
 import { TimePicker } from "./TimePicker";
+import { DatePicker } from "./DatePicker";
 import { getFrequencyDescription, parseRRule } from "./rruleUtils";
 
 interface CreateTaskFormProps {
@@ -33,13 +34,18 @@ interface CreateTaskFormProps {
   onRecurrenceChange: (rrule: string, mode: SchedulingMode) => void;
   scheduledTime: string | null;
   onScheduledTimeChange: (time: string | null) => void;
+  scheduledDate: string | null;
+  onScheduledDateChange: (date: string | null) => void;
   onSubmit: () => void;
   onCancel: () => void;
 }
 
-const getRecurrenceDescription = (rrule: string): string => {
+const getRecurrenceDescription = (
+  rrule: string,
+  startDate?: string | null,
+): string => {
   if (!rrule) return "Set schedule...";
-  return getFrequencyDescription(parseRRule(rrule));
+  return getFrequencyDescription(parseRRule(rrule), startDate);
 };
 
 export function CreateTaskForm({
@@ -62,6 +68,8 @@ export function CreateTaskForm({
   onRecurrenceChange,
   scheduledTime,
   onScheduledTimeChange,
+  scheduledDate,
+  onScheduledDateChange,
   onSubmit,
   onCancel,
 }: CreateTaskFormProps): React.ReactElement {
@@ -222,7 +230,7 @@ export function CreateTaskForm({
             accessibilityRole="button"
           >
             <Text style={styles.recurrenceButtonText}>
-              {getRecurrenceDescription(recurrenceRule)}
+              {getRecurrenceDescription(recurrenceRule, scheduledDate)}
             </Text>
             <Text style={styles.recurrenceButtonIcon}>→</Text>
           </TouchableOpacity>
@@ -240,11 +248,19 @@ export function CreateTaskForm({
 
         {/* Time Picker - only show for single-time mode (times configured in RecurrencePicker for other modes) */}
         {showExternalTimePicker && (
-          <TimePicker
-            value={scheduledTime}
-            onChange={onScheduledTimeChange}
-            label={isRecurring ? "Time of Day *" : "Scheduled Time (optional)"}
-          />
+          <>
+            <DatePicker
+              value={scheduledDate}
+              onChange={onScheduledDateChange}
+              label={isRecurring ? "Start Date" : "Date (optional)"}
+              placeholder="Today"
+            />
+            <TimePicker
+              value={scheduledTime}
+              onChange={onScheduledTimeChange}
+              label={isRecurring ? "Time of Day *" : "Time (optional)"}
+            />
+          </>
         )}
         {showExternalTimePicker && isRecurring && !scheduledTime && (
           <Text style={styles.timeWarning}>
@@ -273,6 +289,7 @@ export function CreateTaskForm({
         initialRRule={recurrenceRule}
         initialSchedulingMode={schedulingMode}
         taskDurationMinutes={parseInt(duration, 10) || 0}
+        startDate={scheduledDate}
       />
     </View>
   );

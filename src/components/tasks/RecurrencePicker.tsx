@@ -29,6 +29,7 @@ interface RecurrencePickerProps {
   initialRRule?: string;
   initialSchedulingMode?: SchedulingMode | null;
   taskDurationMinutes?: number;
+  startDate?: string | null; // Task's scheduled start date (YYYY-MM-DD)
 }
 
 export function RecurrencePicker({
@@ -38,6 +39,7 @@ export function RecurrencePicker({
   initialRRule,
   initialSchedulingMode,
   taskDurationMinutes = 0,
+  startDate,
 }: RecurrencePickerProps): React.ReactElement {
   const [state, setState] = useState<RecurrenceState>(() =>
     parseRRule(initialRRule),
@@ -644,6 +646,7 @@ export function RecurrencePicker({
                   setState((p) => ({ ...p, until: date || "" }))
                 }
                 label=""
+                minDate={startDate || undefined}
               />
             )}
 
@@ -651,7 +654,7 @@ export function RecurrencePicker({
             <View style={pickerStyles.preview}>
               <Text style={pickerStyles.previewLabel}>Summary:</Text>
               <Text style={pickerStyles.previewText}>
-                {getFrequencyDescription(state)}
+                {getFrequencyDescription(state, startDate)}
               </Text>
             </View>
           </ScrollView>
