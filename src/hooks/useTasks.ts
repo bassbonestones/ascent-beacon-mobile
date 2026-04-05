@@ -31,6 +31,14 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
         goal_id: options.goalId,
         status: options.status,
       });
+      console.log(
+        "[DEBUG] fetchTasks response:",
+        response.tasks.map((t) => ({
+          id: t.id,
+          title: t.title,
+          completions_today: t.completions_today,
+        })),
+      );
       setTasks(response.tasks);
       setPendingCount(response.pending_count);
       setCompletedCount(response.completed_count);
@@ -82,8 +90,18 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
   const completeTask = useCallback(
     async (id: string, scheduledFor?: string): Promise<Task> => {
       try {
+        console.log(
+          "[DEBUG] completeTask called with id:",
+          id,
+          "scheduledFor:",
+          scheduledFor,
+        );
         const updated = await api.completeTask(id, {
           scheduled_for: scheduledFor,
+        });
+        console.log("[DEBUG] completeTask API returned:", {
+          id: updated.id,
+          completions_today: updated.completions_today,
         });
         // For recurring tasks, refetch to get updated completions_today
         // This ensures virtual occurrences are regenerated with correct completion status

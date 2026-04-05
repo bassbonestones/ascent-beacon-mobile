@@ -91,24 +91,6 @@ export default function TasksScreen({
 
   // Filter and sort tasks based on view mode
   const { sortedTasks, sections } = useMemo(() => {
-    console.log(
-      "[DEBUG] statusFilter:",
-      statusFilter,
-      "listViewMode:",
-      listViewMode,
-    );
-    console.log(
-      "[DEBUG] tasks from API:",
-      tasks.length,
-      tasks.map((t) => ({
-        id: t.id,
-        title: t.title,
-        status: t.status,
-        completions_today: t.completions_today,
-        recurrence_rule: t.recurrence_rule,
-      })),
-    );
-
     if (listViewMode === "today") {
       // Today view: overdue → timed → todos
       // Generate intraday occurrences for multi-occurrence modes (X times/day, specific times, interval)
@@ -117,16 +99,6 @@ export default function TasksScreen({
         tasks,
         currentDate,
         0, // Only today, no future days
-      );
-
-      console.log(
-        "[DEBUG] withOccurrences:",
-        withOccurrences.length,
-        withOccurrences.map((t) => ({
-          id: t.id,
-          title: t.title,
-          status: t.status,
-        })),
       );
 
       if (statusFilter === "pending") {
@@ -143,13 +115,7 @@ export default function TasksScreen({
       } else if (statusFilter === "completed") {
         // Show only completed virtual occurrences for today
         let completedTasks = filterTasksForToday(withOccurrences, currentDate);
-        console.log(
-          "[DEBUG] after filterTasksForToday:",
-          completedTasks.length,
-          completedTasks.map((t) => ({ id: t.id, status: t.status })),
-        );
         completedTasks = completedTasks.filter((t) => t.status === "completed");
-        console.log("[DEBUG] after status filter:", completedTasks.length);
         return {
           sortedTasks: completedTasks,
           sections: null,
@@ -261,8 +227,12 @@ export default function TasksScreen({
         if (task.is_recurring) {
           // For virtual occurrences, use the virtual occurrence date
           if (task.isVirtualOccurrence && task.virtualOccurrenceDate) {
-            // Parse the date and add the time from scheduled_at
-            const occDate = new Date(task.virtualOccurrenceDate);
+            // Parse the date string as LOCAL date (not UTC)
+            // new Date("2026-04-05") creates UTC midnight which can be wrong day in local TZ
+            const [year, month, day] = task.virtualOccurrenceDate
+              .split("-")
+              .map(Number);
+            const occDate = new Date(year, month - 1, day);
             if (task.scheduled_at) {
               const time = parseAsUtc(task.scheduled_at);
               occDate.setHours(
@@ -312,7 +282,11 @@ export default function TasksScreen({
             skipModalTask.isVirtualOccurrence &&
             skipModalTask.virtualOccurrenceDate
           ) {
-            const occDate = new Date(skipModalTask.virtualOccurrenceDate);
+            // Parse the date string as LOCAL date (not UTC)
+            const [year, month, day] = skipModalTask.virtualOccurrenceDate
+              .split("-")
+              .map(Number);
+            const occDate = new Date(year, month - 1, day);
             if (skipModalTask.scheduled_at) {
               const time = parseAsUtc(skipModalTask.scheduled_at);
               occDate.setHours(
