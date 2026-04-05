@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">64.28% </span>
+                <span class="strong">58.33% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>9/14</span>
+                <span class='fraction'>7/12</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">69.38% </span>
+                <span class="strong">74.35% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>34/49</span>
+                <span class='fraction'>29/39</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">69.23% </span>
+                <span class="strong">63.63% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>9/13</span>
+                <span class='fraction'>7/11</span>
             </div>
         
             
@@ -397,7 +397,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -428,11 +436,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">35x</span>
-<span class="cline-any cline-yes">35x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">35x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">35x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">35x</span>
@@ -633,12 +636,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -680,7 +680,12 @@ interface CreateTaskFormProps {
   onRecurringToggle: () =&gt; void;
   recurrenceRule: string;
   schedulingMode: SchedulingMode | null;
-  onRecurrenceChange: (rrule: string, mode: SchedulingMode) =&gt; void;
+  onRecurrenceChange: (
+    rrule: string,
+    mode: SchedulingMode,
+    startDate: string | null,
+    startTime: string | null,
+  ) =&gt; void;
   scheduledTime: string | null;
   onScheduledTimeChange: (time: string | null) =&gt; void;
   scheduledDate: string | null;
@@ -689,9 +694,12 @@ interface CreateTaskFormProps {
   onCancel: () =&gt; void;
 }
 &nbsp;
-const getRecurrenceDescription = <span class="fstat-no" title="function not covered" >(r</span>rule: string): string =&gt; {
+const getRecurrenceDescription = <span class="fstat-no" title="function not covered" >(</span>
+  rrule: string,
+  startDate?: string | null,
+): string =&gt; {
 <span class="cstat-no" title="statement not covered" >  if (!rrule) <span class="cstat-no" title="statement not covered" >return "Set schedule...";</span></span>
-<span class="cstat-no" title="statement not covered" >  return getFrequencyDescription(parseRRule(rrule));</span>
+<span class="cstat-no" title="statement not covered" >  return getFrequencyDescription(parseRRule(rrule), startDate);</span>
 };
 &nbsp;
 export function CreateTaskForm({
@@ -721,11 +729,6 @@ export function CreateTaskForm({
 }: CreateTaskFormProps): React.ReactElement {
   const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
   const canSubmit = title.trim().length &gt; 0;
-&nbsp;
-  // Check if intra-day mode is "single" (or not set) - only then show external time picker
-  const parsedRule = parseRRule(recurrenceRule);
-  const showExternalTimePicker =
-    !isRecurring || <span class="branch-1 cbranch-no" title="branch not covered" >parsedRule.intradayMode === "single";</span>
 &nbsp;
   return (
     &lt;View style={styles.container}&gt;
@@ -876,7 +879,7 @@ export function CreateTaskForm({
             accessibilityRole="button"
           &gt;
             &lt;Text style={styles.recurrenceButtonText}&gt;
-              {getRecurrenceDescription(recurrenceRule)}
+              {getRecurrenceDescription(recurrenceRule, scheduledDate)}
             &lt;/Text&gt;
             &lt;Text style={styles.recurrenceButtonIcon}&gt;→&lt;/Text&gt;
           &lt;/TouchableOpacity&gt;
@@ -892,26 +895,21 @@ export function CreateTaskForm({
           &lt;/View&gt;
         )}
 &nbsp;
-        {/* Time Picker - only show for single-time mode (times configured in RecurrencePicker for other modes) */}
-        {showExternalTimePicker &amp;&amp; (
+        {/* Date &amp; Time - only show for non-recurring tasks */}
+        {!isRecurring &amp;&amp; (
           &lt;&gt;
             &lt;DatePicker
               value={scheduledDate}
               onChange={onScheduledDateChange}
-              label={isRecurring ? <span class="branch-0 cbranch-no" title="branch not covered" >"Start Date" </span>: "Date (optional)"}
+              label="Date (optional)"
               placeholder="Today"
             /&gt;
             &lt;TimePicker
               value={scheduledTime}
               onChange={onScheduledTimeChange}
-              label={isRecurring ? <span class="branch-0 cbranch-no" title="branch not covered" >"Time of Day *" </span>: "Time (optional)"}
+              label="Time (optional)"
             /&gt;
           &lt;/&gt;
-        )}
-        {showExternalTimePicker &amp;&amp; isRecurring &amp;&amp; <span class="branch-2 cbranch-no" title="branch not covered" >!scheduledTime </span>&amp;&amp; (
-<span class="branch-3 cbranch-no" title="branch not covered" >          &lt;Text style={styles.timeWarning}&gt;</span>
-            Set a time to enable the scheduling mode
-          &lt;/Text&gt;
         )}
 &nbsp;
         &lt;TouchableOpacity
@@ -935,6 +933,8 @@ export function CreateTaskForm({
         initialRRule={recurrenceRule}
         initialSchedulingMode={schedulingMode}
         taskDurationMinutes={parseInt(duration, 10) || 0}
+        initialStartDate={scheduledDate}
+        initialStartTime={scheduledTime}
       /&gt;
     &lt;/View&gt;
   );
@@ -946,7 +946,7 @@ export function CreateTaskForm({
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-05T00:00:15.360Z
+                at 2026-04-05T00:17:42.130Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

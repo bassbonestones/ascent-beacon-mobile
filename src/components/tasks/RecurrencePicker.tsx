@@ -25,11 +25,17 @@ import { TimePicker } from "./TimePicker";
 interface RecurrencePickerProps {
   visible: boolean;
   onClose: () => void;
-  onSave: (rrule: string, schedulingMode: SchedulingMode) => void;
+  onSave: (
+    rrule: string,
+    schedulingMode: SchedulingMode,
+    startDate: string | null,
+    startTime: string | null,
+  ) => void;
   initialRRule?: string;
   initialSchedulingMode?: SchedulingMode | null;
   taskDurationMinutes?: number;
-  startDate?: string | null; // Task's scheduled start date (YYYY-MM-DD)
+  initialStartDate?: string | null;
+  initialStartTime?: string | null;
 }
 
 export function RecurrencePicker({
@@ -39,13 +45,20 @@ export function RecurrencePicker({
   initialRRule,
   initialSchedulingMode,
   taskDurationMinutes = 0,
-  startDate,
+  initialStartDate,
+  initialStartTime,
 }: RecurrencePickerProps): React.ReactElement {
   const [state, setState] = useState<RecurrenceState>(() =>
     parseRRule(initialRRule),
   );
   const [schedulingMode, setSchedulingMode] = useState<SchedulingMode>(
     initialSchedulingMode || "floating",
+  );
+  const [startDate, setStartDate] = useState<string | null>(
+    initialStartDate || null,
+  );
+  const [startTime, setStartTime] = useState<string | null>(
+    initialStartTime || null,
   );
 
   const handleSave = useCallback(() => {
@@ -57,7 +70,7 @@ export function RecurrencePicker({
     if (state.endCondition === "until" && !state.until) {
       return; // Don't save without a date
     }
-    onSave(buildRRule(state), schedulingMode);
+    onSave(buildRRule(state), schedulingMode, startDate, startTime);
     onClose();
   }, [state, schedulingMode, onSave, onClose]);
 
@@ -229,9 +242,36 @@ export function RecurrencePicker({
           </View>
 
           <ScrollView style={pickerStyles.content}>
-            {/* Frequency */}
-            <Text style={pickerStyles.sectionTitle}>Repeat</Text>
-            <View style={pickerStyles.optionRow}>
+            {/* Start Date */}
+            <Text style={pickerStyles.sectionTitle}>Start Date</Text>
+            <DatePicker
+              value={startDate}
+              onChange={setStartDate}
+              placeholder="Today"
+            />
+
+            {/* Frequency & Interval combined */}
+            <Text style={pickerStyles.sectionTitle}>Repeats Every</Text>
+            <View style={pickerStyles.repeatRow}>
+              <TextInput
+                style={pickerStyles.intervalInput}
+                value={state.interval === 0 ? "" : String(state.interval)}
+                onChangeText={(v) => {
+                  const num = parseInt(v, 10);
+                  setState((p) => ({
+                    ...p,
+                    interval: isNaN(num) ? 0 : num,
+                  }));
+                }}
+                onBlur={() => {
+                  // Ensure minimum of 1 when leaving the field
+                  if (state.interval < 1) {
+                    setState((p) => ({ ...p, interval: 1 }));
+                  }
+                }}
+                keyboardType="numeric"
+                accessibilityLabel="Interval number"
+              />
               {FREQUENCIES.map((freq) => (
                 <TouchableOpacity
                   key={freq.key}
@@ -253,31 +293,10 @@ export function RecurrencePicker({
                         pickerStyles.optionTextActive,
                     ]}
                   >
-                    {freq.label}
+                    {state.interval <= 1 ? freq.label : freq.plural}
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
-
-            {/* Interval */}
-            <Text style={pickerStyles.sectionTitle}>Every</Text>
-            <View style={pickerStyles.intervalRow}>
-              <TextInput
-                style={pickerStyles.intervalInput}
-                value={String(state.interval)}
-                onChangeText={(v) =>
-                  setState((p) => ({ ...p, interval: parseInt(v, 10) || 1 }))
-                }
-                keyboardType="numeric"
-                accessibilityLabel="Interval number"
-              />
-              <Text style={pickerStyles.intervalLabel}>
-                {state.interval === 1
-                  ? FREQUENCIES.find(
-                      (f) => f.key === state.frequency,
-                    )?.label.toLowerCase()
-                  : FREQUENCIES.find((f) => f.key === state.frequency)?.plural}
-              </Text>
             </View>
 
             {/* Days of week (for weekly) */}
@@ -341,6 +360,18 @@ export function RecurrencePicker({
                 </TouchableOpacity>
               ))}
             </View>
+
+            {/* One time per day - show time picker */}
+            {state.intradayMode === "single" && (
+              <View style={pickerStyles.intradayConfig}>
+                <Text style={pickerStyles.configLabel}>At what time?</Text>
+                <TimePicker
+                  value={startTime}
+                  onChange={setStartTime}
+                  label=""
+                />
+              </View>
+            )}
 
             {/* Anytime mode - daily occurrences */}
             {state.intradayMode === "anytime" && (
@@ -557,34 +588,42 @@ export function RecurrencePicker({
               </View>
             )}
 
-            {/* Scheduling Mode */}
-            <Text style={pickerStyles.sectionTitle}>Time handling</Text>
-            <TouchableOpacity
-              style={[
-                pickerStyles.modeOption,
-                schedulingMode === "floating" && pickerStyles.modeOptionActive,
-              ]}
-              onPress={() => setSchedulingMode("floating")}
-              accessibilityRole="radio"
-            >
-              <Text style={pickerStyles.modeTitle}>🌍 Time-of-day</Text>
-              <Text style={pickerStyles.modeDesc}>
-                Adjusts to timezone (e.g. 7am where you are that day)
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                pickerStyles.modeOption,
-                schedulingMode === "fixed" && pickerStyles.modeOptionActive,
-              ]}
-              onPress={() => setSchedulingMode("fixed")}
-              accessibilityRole="radio"
-            >
-              <Text style={pickerStyles.modeTitle}>📍 Fixed time</Text>
-              <Text style={pickerStyles.modeDesc}>
-                Always at the exact time (e.g. 7am EST)
-              </Text>
-            </TouchableOpacity>
+            {/* Scheduling Mode - only show when specific times are involved */}
+            {(state.intradayMode === "single" && startTime) ||
+            state.intradayMode === "specific_times" ||
+            state.intradayMode === "interval" ||
+            state.intradayMode === "window" ? (
+              <>
+                <Text style={pickerStyles.sectionTitle}>Time handling</Text>
+                <TouchableOpacity
+                  style={[
+                    pickerStyles.modeOption,
+                    schedulingMode === "floating" &&
+                      pickerStyles.modeOptionActive,
+                  ]}
+                  onPress={() => setSchedulingMode("floating")}
+                  accessibilityRole="radio"
+                >
+                  <Text style={pickerStyles.modeTitle}>🌍 Time-of-day</Text>
+                  <Text style={pickerStyles.modeDesc}>
+                    Adjusts to timezone (e.g. 7am where you are that day)
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    pickerStyles.modeOption,
+                    schedulingMode === "fixed" && pickerStyles.modeOptionActive,
+                  ]}
+                  onPress={() => setSchedulingMode("fixed")}
+                  accessibilityRole="radio"
+                >
+                  <Text style={pickerStyles.modeTitle}>📍 Fixed time</Text>
+                  <Text style={pickerStyles.modeDesc}>
+                    Always at the exact time (e.g. 7am EST)
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : null}
 
             {/* End condition */}
             <Text style={pickerStyles.sectionTitle}>Ends</Text>

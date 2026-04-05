@@ -38,10 +38,10 @@ export const DAYS_OF_WEEK: { key: DayOfWeek; label: string }[] = [
 
 export const FREQUENCIES: { key: Frequency; label: string; plural: string }[] =
   [
-    { key: "DAILY", label: "Day", plural: "days" },
-    { key: "WEEKLY", label: "Week", plural: "weeks" },
-    { key: "MONTHLY", label: "Month", plural: "months" },
-    { key: "YEARLY", label: "Year", plural: "years" },
+    { key: "DAILY", label: "Day", plural: "Days" },
+    { key: "WEEKLY", label: "Week", plural: "Weeks" },
+    { key: "MONTHLY", label: "Month", plural: "Months" },
+    { key: "YEARLY", label: "Year", plural: "Years" },
   ];
 
 export const parseRRule = (rrule: string | undefined): RecurrenceState => {
@@ -148,7 +148,7 @@ export const getFrequencyDescription = (
   let desc =
     state.interval === 1
       ? `Every ${freq.label.toLowerCase()}`
-      : `Every ${state.interval} ${freq.plural}`;
+      : `Every ${state.interval} ${freq.plural.toLowerCase()}`;
 
   if (state.frequency === "WEEKLY" && state.byDay.length > 0) {
     const dayLabels = state.byDay

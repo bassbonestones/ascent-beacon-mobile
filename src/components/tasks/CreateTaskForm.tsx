@@ -31,7 +31,12 @@ interface CreateTaskFormProps {
   onRecurringToggle: () => void;
   recurrenceRule: string;
   schedulingMode: SchedulingMode | null;
-  onRecurrenceChange: (rrule: string, mode: SchedulingMode) => void;
+  onRecurrenceChange: (
+    rrule: string,
+    mode: SchedulingMode,
+    startDate: string | null,
+    startTime: string | null,
+  ) => void;
   scheduledTime: string | null;
   onScheduledTimeChange: (time: string | null) => void;
   scheduledDate: string | null;
@@ -75,11 +80,6 @@ export function CreateTaskForm({
 }: CreateTaskFormProps): React.ReactElement {
   const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
   const canSubmit = title.trim().length > 0;
-
-  // Check if intra-day mode is "single" (or not set) - only then show external time picker
-  const parsedRule = parseRRule(recurrenceRule);
-  const showExternalTimePicker =
-    !isRecurring || parsedRule.intradayMode === "single";
 
   return (
     <View style={styles.container}>
@@ -246,26 +246,21 @@ export function CreateTaskForm({
           </View>
         )}
 
-        {/* Time Picker - only show for single-time mode (times configured in RecurrencePicker for other modes) */}
-        {showExternalTimePicker && (
+        {/* Date & Time - only show for non-recurring tasks */}
+        {!isRecurring && (
           <>
             <DatePicker
               value={scheduledDate}
               onChange={onScheduledDateChange}
-              label={isRecurring ? "Start Date" : "Date (optional)"}
+              label="Date (optional)"
               placeholder="Today"
             />
             <TimePicker
               value={scheduledTime}
               onChange={onScheduledTimeChange}
-              label={isRecurring ? "Time of Day *" : "Time (optional)"}
+              label="Time (optional)"
             />
           </>
-        )}
-        {showExternalTimePicker && isRecurring && !scheduledTime && (
-          <Text style={styles.timeWarning}>
-            Set a time to enable the scheduling mode
-          </Text>
         )}
 
         <TouchableOpacity
@@ -289,7 +284,8 @@ export function CreateTaskForm({
         initialRRule={recurrenceRule}
         initialSchedulingMode={schedulingMode}
         taskDurationMinutes={parseInt(duration, 10) || 0}
-        startDate={scheduledDate}
+        initialStartDate={scheduledDate}
+        initialStartTime={scheduledTime}
       />
     </View>
   );

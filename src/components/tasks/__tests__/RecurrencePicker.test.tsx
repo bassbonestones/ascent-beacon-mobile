@@ -7,6 +7,8 @@ describe("RecurrencePicker", () => {
     visible: true,
     initialRRule: "",
     initialSchedulingMode: null as "floating" | "fixed" | null,
+    initialStartDate: null as string | null,
+    initialStartTime: null as string | null,
     onSave: jest.fn(),
     onClose: jest.fn(),
   };
@@ -18,12 +20,12 @@ describe("RecurrencePicker", () => {
   describe("rendering", () => {
     it("renders when visible", () => {
       render(<RecurrencePicker {...defaultProps} />);
-      expect(screen.getByText("Repeat")).toBeTruthy();
+      expect(screen.getByText("Repeats Every")).toBeTruthy();
     });
 
     it("does not display content when not visible", () => {
       render(<RecurrencePicker {...defaultProps} visible={false} />);
-      expect(screen.queryByText("Repeat")).toBeNull();
+      expect(screen.queryByText("Repeats Every")).toBeNull();
     });
 
     it("shows frequency options", () => {
@@ -36,7 +38,7 @@ describe("RecurrencePicker", () => {
 
     it("shows interval input", () => {
       render(<RecurrencePicker {...defaultProps} />);
-      expect(screen.getByText("Every")).toBeTruthy();
+      // "Repeats Every" title contains the interval input
       expect(screen.getByLabelText("Interval number")).toBeTruthy();
     });
 
@@ -50,8 +52,8 @@ describe("RecurrencePicker", () => {
   describe("frequency selection", () => {
     it("selects Day frequency by default", () => {
       render(<RecurrencePicker {...defaultProps} />);
-      // Day should be selected by default, shows "day" singular in interval label
-      expect(screen.getByText("day")).toBeTruthy();
+      // Day should be selected by default
+      expect(screen.getByText("Day")).toBeTruthy();
     });
 
     it("changes frequency when Week pressed", () => {
@@ -96,18 +98,25 @@ describe("RecurrencePicker", () => {
       expect(rule).toContain("INTERVAL=3");
     });
 
-    it("shows plural label when interval > 1", () => {
+    it("shows plural label on button when interval > 1", () => {
       render(<RecurrencePicker {...defaultProps} />);
       fireEvent.changeText(screen.getByLabelText("Interval number"), "2");
-      expect(screen.getByText("days")).toBeTruthy();
+      // Buttons should now show plural form (capitalized)
+      expect(screen.getByText("Days")).toBeTruthy();
     });
   });
 
   describe("scheduling mode", () => {
-    it("shows scheduling mode options", () => {
-      render(<RecurrencePicker {...defaultProps} />);
+    it("shows scheduling mode options when time is set", () => {
+      render(<RecurrencePicker {...defaultProps} initialStartTime="09:00" />);
       expect(screen.getByText("🌍 Time-of-day")).toBeTruthy();
       expect(screen.getByText("📍 Fixed time")).toBeTruthy();
+    });
+
+    it("hides scheduling mode when no time is set", () => {
+      render(<RecurrencePicker {...defaultProps} />);
+      expect(screen.queryByText("🌍 Time-of-day")).toBeNull();
+      expect(screen.queryByText("📍 Fixed time")).toBeNull();
     });
 
     it("defaults to time-of-day (floating)", () => {

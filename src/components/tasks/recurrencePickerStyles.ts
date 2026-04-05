@@ -40,12 +40,31 @@ export const recurrencePickerStyles = StyleSheet.create({
   content: {
     padding: 16,
   },
+  dateTimeRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 12,
+    marginBottom: 8,
+  },
+  dateTimeField: {
+    flex: 1,
+  },
+  timeWarning: {
+    color: "#F59E0B",
+    fontSize: 12,
+    marginBottom: 8,
+  },
   sectionTitle: {
     fontSize: 14,
     fontWeight: "600",
     color: "#9CA3AF",
     marginTop: 16,
     marginBottom: 8,
+  },
+  repeatRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   optionRow: {
     flexDirection: "row",

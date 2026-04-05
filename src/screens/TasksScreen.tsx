@@ -141,9 +141,16 @@ export default function TasksScreen({
   ]);
 
   const handleRecurrenceChange = useCallback(
-    (rrule: string, mode: SchedulingMode) => {
+    (
+      rrule: string,
+      mode: SchedulingMode,
+      startDate: string | null,
+      startTime: string | null,
+    ) => {
       setRecurrenceRule(rrule);
       setSchedulingMode(mode);
+      setScheduledDate(startDate);
+      setScheduledTime(startTime);
     },
     [],
   );
