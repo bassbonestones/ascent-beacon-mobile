@@ -8,6 +8,7 @@ import {
   Platform,
   ImageSourcePropType,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { User, RootStackParamList } from "../types";
 import { styles } from "./styles/dashboardScreenStyles";
@@ -16,7 +17,12 @@ interface Module {
   id: string;
   title: string;
   subtitle: string;
-  icon: ImageSourcePropType;
+  icon?: ImageSourcePropType;
+  iconSize?: "small" | "large";
+  vectorIcon?: {
+    name: keyof typeof MaterialCommunityIcons.glyphMap;
+    color: string;
+  };
   color: string;
   route: keyof RootStackParamList;
   disabled?: boolean;
@@ -66,7 +72,7 @@ export default function DashboardScreen({
       id: "goals",
       title: "Goals",
       subtitle: "Set your targets",
-      icon: require("../../assets/kite_vertical.png") as ImageSourcePropType,
+      vectorIcon: { name: "lighthouse-on", color: "#FF9800" },
       color: "#FF9800",
       route: "Goals",
     },
@@ -74,7 +80,8 @@ export default function DashboardScreen({
       id: "tasks",
       title: "Tasks",
       subtitle: "Take daily action",
-      icon: require("../../assets/AnchorIcon_Priorities.png") as ImageSourcePropType,
+      icon: require("../../assets/knot.png") as ImageSourcePropType,
+      iconSize: "small",
       color: "#00BCD4",
       route: "Tasks",
     },
@@ -82,7 +89,7 @@ export default function DashboardScreen({
       id: "habits",
       title: "Habit Tracker",
       subtitle: "Track your streaks",
-      icon: require("../../assets/AnchorIcon_Priorities.png") as ImageSourcePropType,
+      vectorIcon: { name: "chart-line", color: "#E91E63" },
       color: "#E91E63",
       route: "HabitTracker",
     },
@@ -170,11 +177,19 @@ export default function DashboardScreen({
                     { backgroundColor: module.color + "20" },
                   ]}
                 >
-                  <Image
-                    source={module.icon}
-                    style={styles.icon}
-                    resizeMode="contain"
-                  />
+                  {module.vectorIcon ? (
+                    <MaterialCommunityIcons
+                      name={module.vectorIcon.name}
+                      size={32}
+                      color={module.vectorIcon.color}
+                    />
+                  ) : (
+                    <Image
+                      source={module.icon!}
+                      style={module.iconSize === "small" ? styles.iconSmall : styles.icon}
+                      resizeMode="contain"
+                    />
+                  )}
                 </View>
                 <View style={styles.moduleTextContainer}>
                   <Text style={styles.moduleTitle}>{module.title}</Text>

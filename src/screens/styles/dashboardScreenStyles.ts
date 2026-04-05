@@ -18,6 +18,7 @@ interface DashboardStyles {
   moduleContent: ViewStyle;
   iconContainer: ViewStyle;
   icon: ImageStyle;
+  iconSmall: ImageStyle;
   moduleTextContainer: ViewStyle;
   moduleTitle: TextStyle;
   moduleSubtitle: TextStyle;
@@ -108,6 +109,10 @@ export const styles = StyleSheet.create<DashboardStyles>({
     marginRight: 16,
   },
   icon: {
+    width: 64,
+    height: 64,
+  },
+  iconSmall: {
     width: 32,
     height: 32,
   },
