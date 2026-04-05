@@ -708,6 +708,14 @@ export function generateRecurringOccurrences(
     // Track how many occurrences have been completed today
     // (used to mark virtual occurrences as complete)
     const completionsToday = task.completions_today || 0;
+    // For interval/specific_times modes, use actual completion times for matching
+    const completedTimesSet = new Set(
+      (task.completed_times_today || []).map((t) => {
+        // Parse as UTC (backend returns without Z suffix), then get LOCAL hours
+        const d = parseAsUtc(t);
+        return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+      }),
+    );
 
     // For the original task, we need to add occurrences for TODAY
     // (but only if it's a multi-occurrence mode AND within limits)
@@ -724,8 +732,16 @@ export function generateRecurringOccurrences(
             occDate.setHours(h, m, 0, 0);
             scheduledAt = occDate.toISOString();
           }
-          // Mark occurrence as completed if within completions_today count
-          const isCompleted = occIndex < completionsToday;
+          // Mark occurrence as completed if its time is in completed_times_today
+          // For timed occurrences, match by time; for anytime mode, use index fallback
+          let isCompleted = false;
+          if (occ.time && completedTimesSet.size > 0) {
+            // Match by time (HH:MM)
+            isCompleted = completedTimesSet.has(occ.time);
+          } else {
+            // Fallback for anytime mode: use index-based counting
+            isCompleted = occIndex < completionsToday;
+          }
           const virtualTask: Task = {
             ...task,
             id: `${task.id}__${todayStr}${occ.suffix}`,

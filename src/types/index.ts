@@ -667,6 +667,8 @@ export interface Task {
   completed_for_today?: boolean;
   // For recurring tasks with multiple daily occurrences, count of completions today
   completions_today?: number;
+  // For interval/specific_times modes, the actual ISO datetime strings of completions today
+  completed_times_today?: string[];
   // For virtual occurrences generated in Upcoming view
   isVirtualOccurrence?: boolean;
   virtualOccurrenceDate?: string; // YYYY-MM-DD format
@@ -714,6 +716,10 @@ export interface CompleteTaskRequest {
 export interface SkipTaskRequest {
   reason?: string | null;
   scheduled_for?: string | null; // For recurring tasks: which occurrence was skipped
+}
+
+export interface ReopenTaskRequest {
+  scheduled_for?: string | null; // For recurring tasks: which occurrence to undo
 }
 
 // Phase 4b: Task completion history (for recurring tasks)
@@ -812,7 +818,7 @@ export interface UseTasksReturn {
     reason?: string,
     scheduledFor?: string,
   ) => Promise<Task>;
-  reopenTask: (id: string) => Promise<Task>;
+  reopenTask: (id: string, scheduledFor?: string) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
 }
 

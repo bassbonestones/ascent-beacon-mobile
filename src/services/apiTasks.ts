@@ -5,6 +5,7 @@ import type {
   UpdateTaskRequest,
   CompleteTaskRequest,
   SkipTaskRequest,
+  ReopenTaskRequest,
   TodayTasksResponse,
   TaskRangeRequest,
   TaskRangeResponse,
@@ -32,7 +33,7 @@ export interface TasksMethods {
   // Status transitions
   completeTask(taskId: string, data?: CompleteTaskRequest): Promise<Task>;
   skipTask(taskId: string, data?: SkipTaskRequest): Promise<Task>;
-  reopenTask(taskId: string): Promise<Task>;
+  reopenTask(taskId: string, data?: ReopenTaskRequest): Promise<Task>;
 
   // Phase 4b: Views
   getTodayTasks(
@@ -132,9 +133,13 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
       });
     }
 
-    async reopenTask(taskId: string): Promise<Task> {
+    async reopenTask(
+      taskId: string,
+      data: ReopenTaskRequest = {},
+    ): Promise<Task> {
       return await this.request<Task>(`/tasks/${taskId}/reopen`, {
         method: "POST",
+        body: JSON.stringify(data),
       });
     }
 

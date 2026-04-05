@@ -260,6 +260,9 @@ export default function TasksScreen({
           }
         }
         await completeTask(taskId, scheduledFor);
+        // Close detail view after completing
+        setSelectedTask(null);
+        setScreenMode("list");
       } catch {
         // Error handled in hook
       }
@@ -313,7 +316,11 @@ export default function TasksScreen({
         }
         await skipTask(taskId, reason, scheduledFor);
         setSkipModalTask(null);
-        if (selectedTask?.id === skipModalTask.id) {
+        // Close detail view after skipping (check both real and virtual IDs)
+        if (
+          selectedTask?.id === skipModalTask.id ||
+          selectedTask?.originalTaskId === skipModalTask.originalTaskId
+        ) {
           setSelectedTask(null);
           setScreenMode("list");
         }
@@ -332,12 +339,53 @@ export default function TasksScreen({
   const handleReopen = useCallback(
     async (task: Task) => {
       try {
-        setSelectedTask(await reopenTask(task.id));
+        // Use originalTaskId for virtual occurrences
+        const taskId = task.originalTaskId || task.id;
+
+        // For recurring tasks, pass the scheduled_for to identify which completion to undo
+        let scheduledFor: string | undefined;
+        if (task.is_recurring) {
+          // For virtual occurrences, use the virtual occurrence date + scheduled time
+          if (task.isVirtualOccurrence && task.virtualOccurrenceDate) {
+            const [year, month, day] = task.virtualOccurrenceDate
+              .split("-")
+              .map(Number);
+            const occDate = new Date(year, month - 1, day);
+            if (task.scheduled_at) {
+              const time = parseAsUtc(task.scheduled_at);
+              occDate.setHours(
+                time.getHours(),
+                time.getMinutes(),
+                time.getSeconds(),
+                0,
+              );
+            }
+            scheduledFor = occDate.toISOString();
+          } else if (task.scheduled_at) {
+            // Use current date with the task's scheduled time
+            const originalTime = parseAsUtc(task.scheduled_at);
+            const today = getCurrentDate();
+            today.setHours(
+              originalTime.getHours(),
+              originalTime.getMinutes(),
+              originalTime.getSeconds(),
+              0,
+            );
+            scheduledFor = today.toISOString();
+          } else {
+            scheduledFor = getCurrentDate().toISOString();
+          }
+        }
+
+        await reopenTask(taskId, scheduledFor);
+        // Close detail view after reopening
+        setSelectedTask(null);
+        setScreenMode("list");
       } catch {
         // Error handled in hook
       }
     },
-    [reopenTask],
+    [reopenTask, getCurrentDate],
   );
 
   const handleDelete = useCallback(

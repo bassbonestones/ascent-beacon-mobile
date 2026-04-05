@@ -537,7 +537,7 @@ describe("TasksScreen", () => {
       fireEvent.press(screen.getByLabelText("Reopen task"));
 
       await waitFor(() => {
-        expect(reopenTask).toHaveBeenCalledWith("t-1");
+        expect(reopenTask).toHaveBeenCalledWith("t-1", undefined);
       });
     });
 

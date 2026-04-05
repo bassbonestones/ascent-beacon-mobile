@@ -139,16 +139,25 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
   );
 
   const reopenTask = useCallback(
-    async (id: string): Promise<Task> => {
+    async (id: string, scheduledFor?: string): Promise<Task> => {
       try {
         const task = tasks.find((t) => t.id === id);
         const wasCompleted = task?.status === "completed";
+        const isRecurring = task?.is_recurring;
 
-        const updated = await api.reopenTask(id);
-        setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
-        setPendingCount((prev) => prev + 1);
-        if (wasCompleted) {
-          setCompletedCount((prev) => Math.max(0, prev - 1));
+        const updated = await api.reopenTask(id, {
+          scheduled_for: scheduledFor,
+        });
+
+        // For recurring tasks, refetch to get updated completion counts
+        if (isRecurring) {
+          await fetchTasks();
+        } else {
+          setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+          setPendingCount((prev) => prev + 1);
+          if (wasCompleted) {
+            setCompletedCount((prev) => Math.max(0, prev - 1));
+          }
         }
         return updated;
       } catch (err) {
@@ -157,7 +166,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
         throw error;
       }
     },
-    [tasks],
+    [tasks, fetchTasks],
   );
 
   const deleteTask = useCallback(
