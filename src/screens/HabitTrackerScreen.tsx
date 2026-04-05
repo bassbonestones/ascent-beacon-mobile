@@ -18,6 +18,7 @@ import type {
 import api from "../services/api";
 import { styles } from "./styles/habitTrackerStyles";
 import { getRecurrenceShortLabel } from "../utils/recurrenceDescription";
+import { useTime } from "../context/TimeContext";
 
 interface HabitTrackerScreenProps {
   user: User;
@@ -36,6 +37,7 @@ interface HabitWithStats extends Task {
 export default function HabitTrackerScreen({
   navigation,
 }: HabitTrackerScreenProps): React.ReactElement {
+  const { getCurrentDate } = useTime();
   const [habits, setHabits] = useState<HabitWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,7 +66,7 @@ export default function HabitTrackerScreen({
   const fetchStatsForHabits = useCallback(async (habitsToFetch: Task[]) => {
     // Calculate date range: last 30 days
     // Use UTC dates to avoid timezone off-by-one errors
-    const today = new Date();
+    const today = getCurrentDate();
     const todayDate = new Date(
       Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()),
     );

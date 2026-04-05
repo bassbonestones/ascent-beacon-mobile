@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,9 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { User, RootStackParamList } from "../types";
 import { styles } from "./styles/dashboardScreenStyles";
+import { useTime } from "../context/TimeContext";
+import { TimeMachineModal } from "../components/TimeMachineModal";
+import { TimeTravelIndicator } from "../components/TimeTravelIndicator";
 
 interface Module {
   id: string;
@@ -40,6 +43,11 @@ export default function DashboardScreen({
   onLogout,
   navigation,
 }: DashboardScreenProps): React.ReactElement {
+  const { isTimeMachineEnabled, enableTimeMachine } = useTime();
+  const [showTimeMachine, setShowTimeMachine] = useState(false);
+  const tapCountRef = useRef(0);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const blurActiveElement = (): void => {
     if (Platform.OS !== "web" || typeof document === "undefined") {
       return;
@@ -50,6 +58,26 @@ export default function DashboardScreen({
       activeElement.blur();
     }
   };
+
+  // Triple-tap handler to enable time machine
+  const handleTitlePress = useCallback(() => {
+    tapCountRef.current += 1;
+
+    if (tapTimerRef.current) {
+      clearTimeout(tapTimerRef.current);
+    }
+
+    if (tapCountRef.current >= 3) {
+      // Triple tap detected
+      tapCountRef.current = 0;
+      enableTimeMachine();
+    } else {
+      // Reset after 500ms
+      tapTimerRef.current = setTimeout(() => {
+        tapCountRef.current = 0;
+      }, 500);
+    }
+  }, [enableTimeMachine]);
 
   const modules: Module[] = [
     {
@@ -106,6 +134,9 @@ export default function DashboardScreen({
 
   return (
     <View style={styles.container}>
+      {/* Time Travel Indicator */}
+      <TimeTravelIndicator onPress={() => setShowTimeMachine(true)} />
+
       {/* Header */}
       <View style={styles.header}>
         <View>
@@ -114,28 +145,45 @@ export default function DashboardScreen({
             {user?.display_name || user?.primary_email || "User"}
           </Text>
         </View>
-        <TouchableOpacity
-          onPress={() => {
-            blurActiveElement();
-            onLogout();
-          }}
-          style={styles.logoutButton}
-          accessibilityLabel="Logout"
-          accessibilityRole="button"
-        >
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {isTimeMachineEnabled && (
+            <TouchableOpacity
+              onPress={() => setShowTimeMachine(true)}
+              style={styles.gearButton}
+              accessibilityLabel="Open Time Machine"
+              accessibilityRole="button"
+            >
+              <MaterialCommunityIcons name="cog" size={24} color="#9C27B0" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={() => {
+              blurActiveElement();
+              onLogout();
+            }}
+            style={styles.logoutButton}
+            accessibilityLabel="Logout"
+            accessibilityRole="button"
+          >
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* App Title */}
-        <View style={styles.titleSection}>
+        {/* App Title - Triple tap to enable time machine */}
+        <TouchableOpacity
+          style={styles.titleSection}
+          onPress={handleTitlePress}
+          activeOpacity={1}
+          accessibilityLabel="Ascent Beacon"
+        >
           <Text style={styles.appTitle}>Ascent Beacon</Text>
           <Text style={styles.appSubtitle}>Navigate your climb</Text>
-        </View>
+        </TouchableOpacity>
 
         {/* Modules */}
         <View style={styles.modulesContainer}>
@@ -186,7 +234,11 @@ export default function DashboardScreen({
                   ) : (
                     <Image
                       source={module.icon!}
-                      style={module.iconSize === "small" ? styles.iconSmall : styles.icon}
+                      style={
+                        module.iconSize === "small"
+                          ? styles.iconSmall
+                          : styles.icon
+                      }
                       resizeMode="contain"
                     />
                   )}
@@ -211,6 +263,12 @@ export default function DashboardScreen({
           </Text>
         </View>
       </ScrollView>
+
+      {/* Time Machine Modal */}
+      <TimeMachineModal
+        visible={showTimeMachine}
+        onClose={() => setShowTimeMachine(false)}
+      />
     </View>
   );
 }

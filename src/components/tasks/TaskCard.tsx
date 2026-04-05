@@ -2,7 +2,11 @@ import React from "react";
 import { View, Text, Pressable, Platform } from "react-native";
 import type { Task } from "../../types";
 import { styles } from "../../screens/styles/tasksScreenStyles";
-import { isTaskOverdue, formatTaskTime } from "../../utils/taskSorting";
+import {
+  isTaskOverdue,
+  formatTaskTime,
+  getTaskWindow,
+} from "../../utils/taskSorting";
 
 interface TaskCardProps {
   task: Task;
@@ -32,6 +36,17 @@ const formatDuration = (minutes: number): string => {
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 };
 
+/**
+ * Format a time string (HH:MM) to 12-hour format.
+ */
+const formatTime12h = (time: string): string => {
+  const [hour, minute] = time.split(":");
+  const h = parseInt(hour, 10);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${displayHour}:${minute} ${ampm}`;
+};
+
 export function TaskCard({
   task,
   onPress,
@@ -41,6 +56,7 @@ export function TaskCard({
   const isPending = task.status === "pending";
   const overdue = isTaskOverdue(task);
   const scheduledTime = formatTaskTime(task.scheduled_at);
+  const taskWindow = getTaskWindow(task.recurrence_rule);
 
   const handleCompleteClick = React.useCallback(() => {
     onComplete(task);
@@ -102,6 +118,12 @@ export function TaskCard({
           {scheduledTime && (
             <Text style={[styles.taskTime, overdue && styles.taskTimeOverdue]}>
               🕐 {scheduledTime}
+            </Text>
+          )}
+          {!scheduledTime && taskWindow && (
+            <Text style={[styles.taskTime, styles.taskTimeFlexible]}>
+              🕐 {formatTime12h(taskWindow.start)} -{" "}
+              {formatTime12h(taskWindow.end)}
             </Text>
           )}
           {task.is_lightning && (

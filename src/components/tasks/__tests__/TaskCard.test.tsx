@@ -217,7 +217,7 @@ describe("TaskCard", () => {
   });
 
   it("does not show scheduled time when not scheduled", () => {
-    const task = createMockTask({ scheduled_at: null });
+    const task = createMockTask({ scheduled_at: null, recurrence_rule: null });
     render(
       <TaskCard
         task={task}
@@ -225,8 +225,25 @@ describe("TaskCard", () => {
         onComplete={mockOnComplete}
       />,
     );
-    // No time display for unscheduled tasks
+    // No time display for unscheduled tasks without window
     expect(screen.queryByText(/🕐 \d/)).toBeNull();
+  });
+
+  it("shows flexible window when task has window but no scheduled_at", () => {
+    const task = createMockTask({
+      scheduled_at: null,
+      recurrence_rule:
+        "FREQ=DAILY;X-INTRADAY=window;X-WINSTART=09:00;X-WINEND=17:00",
+    });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    // Shows window range like "9:00 AM - 5:00 PM"
+    expect(screen.getByText(/🕐.*9:00 AM.*5:00 PM/)).toBeTruthy();
   });
 
   it("calls onPress when card is pressed", () => {

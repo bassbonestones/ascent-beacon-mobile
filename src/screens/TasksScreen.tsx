@@ -3,14 +3,17 @@ import {
   View,
   Text,
   FlatList,
+  SectionList,
   TouchableOpacity,
   ActivityIndicator,
   Platform,
 } from "react-native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { Task, User, RootStackParamList, SchedulingMode } from "../types";
+import type { Task, User, RootStackParamList } from "../types";
 import { useTasks } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
+import { useTaskForm } from "../hooks/useTaskForm";
+import { useTime } from "../context/TimeContext";
 import { styles } from "./styles/tasksScreenStyles";
 import {
   TaskCard,
@@ -23,8 +26,12 @@ import { showAlert, showConfirm } from "../utils/alert";
 import {
   sortTasksForTodayView,
   filterTasksForToday,
+  filterTasksForUpcoming,
   isTaskOverdue,
   condenseRecurringTasks,
+  groupTasksByDate,
+  formatDateHeader,
+  generateRecurringOccurrences,
 } from "../utils/taskSorting";
 
 interface TasksScreenProps {
@@ -32,33 +39,25 @@ interface TasksScreenProps {
   navigation: NativeStackNavigationProp<RootStackParamList>;
 }
 
-type ViewMode = "list" | "create" | "detail";
+type ScreenMode = "list" | "create" | "detail";
+type ListViewMode = "today" | "upcoming";
 type StatusFilter = "all" | "pending" | "completed";
 
 export default function TasksScreen({
   user,
   navigation,
 }: TasksScreenProps): React.ReactElement {
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const { getCurrentDate } = useTime();
+  const [screenMode, setScreenMode] = useState<ScreenMode>("list");
+  const [listViewMode, setListViewMode] = useState<ListViewMode>("today");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
   const [skipModalTask, setSkipModalTask] = useState<Task | null>(null);
   const [overdueModalTask, setOverdueModalTask] = useState<Task | null>(null);
   const [condenseRecurring, setCondenseRecurring] = useState(false);
 
-  // Form state
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [goalId, setGoalId] = useState("");
-  const [duration, setDuration] = useState("30");
-  const [isLightning, setIsLightning] = useState(false);
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [recurrenceRule, setRecurrenceRule] = useState("");
-  const [schedulingMode, setSchedulingMode] = useState<SchedulingMode | null>(
-    null,
-  );
-  const [scheduledTime, setScheduledTime] = useState<string | null>(null);
-  const [scheduledDate, setScheduledDate] = useState<string | null>(null);
+  // Form state (extracted to hook)
+  const taskForm = useTaskForm();
 
   const {
     tasks,
@@ -75,122 +74,145 @@ export default function TasksScreen({
 
   const { goals, loading: goalsLoading } = useGoals({ parentOnly: true });
 
-  // Sort tasks for Today view: overdue → timed → todos
-  const sortedTasks = useMemo(() => {
-    if (statusFilter === "pending") {
-      let todayTasks = filterTasksForToday(tasks);
-      if (condenseRecurring) {
-        todayTasks = condenseRecurringTasks(todayTasks);
+  // Get current date for time-aware filtering
+  const currentDate = getCurrentDate();
+
+  // Filter and sort tasks based on view mode
+  const { sortedTasks, sections } = useMemo(() => {
+    if (listViewMode === "today") {
+      // Today view: overdue → timed → todos (only for pending)
+      if (statusFilter === "pending") {
+        let todayTasks = filterTasksForToday(tasks, currentDate);
+        if (condenseRecurring) {
+          todayTasks = condenseRecurringTasks(todayTasks);
+        }
+        return {
+          sortedTasks: sortTasksForTodayView(todayTasks, currentDate),
+          sections: null,
+        };
       }
-      return sortTasksForTodayView(todayTasks);
+      // For completed/all, no filtering or special sorting
+      return {
+        sortedTasks: tasks,
+        sections: null,
+      };
+    } else {
+      // Upcoming view: group by date
+      let upcomingTasks: Task[] = [];
+
+      if (statusFilter === "pending") {
+        // For recurring tasks, we need to generate future occurrences FIRST,
+        // then filter for upcoming. Otherwise today's recurring tasks get filtered out
+        // before we can generate their future occurrences.
+        if (!condenseRecurring) {
+          // Generate future occurrences for recurring tasks (includes originals)
+          const withOccurrences = generateRecurringOccurrences(
+            tasks,
+            currentDate,
+            14, // Show 14 days ahead
+          );
+          // Now filter to only show future dates (not today)
+          upcomingTasks = filterTasksForUpcoming(withOccurrences, currentDate);
+        } else {
+          // Condense mode: filter first, then condense
+          upcomingTasks = filterTasksForUpcoming(tasks, currentDate);
+          upcomingTasks = condenseRecurringTasks(upcomingTasks);
+        }
+      } else {
+        // For completed/all, still only show future tasks
+        upcomingTasks = tasks.filter((t) => {
+          if (!t.scheduled_at) return false;
+          const todayEnd = new Date(currentDate);
+          todayEnd.setHours(23, 59, 59, 999);
+          return new Date(t.scheduled_at) > todayEnd;
+        });
+      }
+
+      const grouped = groupTasksByDate(upcomingTasks);
+
+      // Convert to SectionList format, sorted by date
+      const dateKeys = Array.from(grouped.keys())
+        .filter((k) => k !== "no-date")
+        .sort();
+
+      const sectionData = dateKeys.map((dateKey) => ({
+        title: formatDateHeader(dateKey, currentDate),
+        dateKey,
+        data: grouped.get(dateKey) || [],
+      }));
+
+      return {
+        sortedTasks: upcomingTasks,
+        sections: sectionData,
+      };
     }
-    return tasks;
-  }, [tasks, statusFilter, condenseRecurring]);
+  }, [tasks, statusFilter, condenseRecurring, listViewMode, currentDate]);
 
   // Count overdue tasks
   const overdueCount = useMemo(() => {
-    return tasks.filter((t) => isTaskOverdue(t)).length;
-  }, [tasks]);
-
-  // No auto-selection - tasks can be unaligned (no goal)
-
-  const resetForm = useCallback(() => {
-    setTitle("");
-    setDescription("");
-    setGoalId(""); // Reset to unaligned
-    setDuration("30");
-    setIsLightning(false);
-    setIsRecurring(false);
-    setRecurrenceRule("");
-    setSchedulingMode(null);
-    setScheduledTime(null);
-    setScheduledDate(null);
-  }, []);
-
-  // Convert date + time to ISO datetime
-  const dateTimeToIso = (
-    date: string | null,
-    time: string | null,
-  ): string | undefined => {
-    if (!time) return undefined;
-    const [hour, minute] = time.split(":").map(Number);
-
-    let targetDate: Date;
-    if (date) {
-      // Use selected date
-      const [year, month, day] = date.split("-").map(Number);
-      targetDate = new Date(year, month - 1, day, hour, minute, 0, 0);
-    } else {
-      // Default to today
-      targetDate = new Date();
-      targetDate.setHours(hour, minute, 0, 0);
-    }
-
-    return targetDate.toISOString();
-  };
+    return tasks.filter((t) => isTaskOverdue(t, currentDate)).length;
+  }, [tasks, currentDate]);
 
   const handleCreate = useCallback(async () => {
-    if (!title.trim()) {
+    if (!taskForm.title.trim()) {
       showAlert("Error", "Please enter a task title");
       return;
     }
     try {
       await createTask({
-        goal_id: goalId || undefined,
-        title: title.trim(),
-        description: description.trim() || undefined,
-        duration_minutes: isLightning ? 0 : parseInt(duration, 10) || 30,
-        scheduled_at: dateTimeToIso(scheduledDate, scheduledTime),
-        is_recurring: isRecurring,
-        recurrence_rule: isRecurring ? recurrenceRule || undefined : undefined,
+        goal_id: taskForm.goalId || undefined,
+        title: taskForm.title.trim(),
+        description: taskForm.description.trim() || undefined,
+        duration_minutes: taskForm.isLightning
+          ? 0
+          : parseInt(taskForm.duration, 10) || 30,
+        scheduled_at: taskForm.dateTimeToIso(
+          taskForm.scheduledDate,
+          taskForm.scheduledTime,
+        ),
+        is_recurring: taskForm.isRecurring,
+        recurrence_rule: taskForm.isRecurring
+          ? taskForm.recurrenceRule || undefined
+          : undefined,
         scheduling_mode:
-          isRecurring && scheduledTime ? schedulingMode : undefined,
+          taskForm.isRecurring && taskForm.scheduledTime
+            ? taskForm.schedulingMode
+            : undefined,
       });
-      resetForm();
-      setViewMode("list");
+      taskForm.resetForm();
+      setScreenMode("list");
     } catch {
       // Error handled in hook
     }
-  }, [
-    title,
-    description,
-    goalId,
-    duration,
-    isLightning,
-    isRecurring,
-    recurrenceRule,
-    schedulingMode,
-    scheduledTime,
-    scheduledDate,
-    createTask,
-    resetForm,
-  ]);
-
-  const handleRecurrenceChange = useCallback(
-    (
-      rrule: string,
-      mode: SchedulingMode,
-      startDate: string | null,
-      startTime: string | null,
-    ) => {
-      setRecurrenceRule(rrule);
-      setSchedulingMode(mode);
-      setScheduledDate(startDate);
-      setScheduledTime(startTime);
-    },
-    [],
-  );
+  }, [taskForm, createTask]);
 
   const handleComplete = useCallback(
     async (task: Task) => {
       try {
-        // For recurring tasks, pass the current occurrence date
+        // Get the actual task ID (use originalTaskId for virtual occurrences)
+        const taskId = task.originalTaskId || task.id;
+
+        // For recurring tasks, pass the current occurrence date (or travel date)
         let scheduledFor: string | undefined;
         if (task.is_recurring) {
-          // Use today's date with the task's scheduled time
-          if (task.scheduled_at) {
+          // For virtual occurrences, use the virtual occurrence date
+          if (task.isVirtualOccurrence && task.virtualOccurrenceDate) {
+            // Parse the date and add the time from scheduled_at
+            const occDate = new Date(task.virtualOccurrenceDate);
+            if (task.scheduled_at) {
+              const time = new Date(task.scheduled_at);
+              occDate.setHours(
+                time.getHours(),
+                time.getMinutes(),
+                time.getSeconds(),
+                0,
+              );
+            }
+            scheduledFor = occDate.toISOString();
+          } else if (task.scheduled_at) {
+            // Use current date (real or travel) with the task's scheduled time
             const originalTime = new Date(task.scheduled_at);
-            const today = new Date();
+            const today = getCurrentDate();
             today.setHours(
               originalTime.getHours(),
               originalTime.getMinutes(),
@@ -199,28 +221,47 @@ export default function TasksScreen({
             );
             scheduledFor = today.toISOString();
           } else {
-            // No scheduled time, use now
-            scheduledFor = new Date().toISOString();
+            // No scheduled time, use current date
+            scheduledFor = getCurrentDate().toISOString();
           }
         }
-        await completeTask(task.id, scheduledFor);
+        await completeTask(taskId, scheduledFor);
       } catch {
         // Error handled in hook
       }
     },
-    [completeTask],
+    [completeTask, getCurrentDate],
   );
 
   const handleSkipWithReason = useCallback(
     async (reason?: string) => {
       if (!skipModalTask) return;
       try {
-        // For recurring tasks, pass the current occurrence date
+        // Get the actual task ID (use originalTaskId for virtual occurrences)
+        const taskId = skipModalTask.originalTaskId || skipModalTask.id;
+
+        // For recurring tasks, pass the current occurrence date (or travel date)
         let scheduledFor: string | undefined;
         if (skipModalTask.is_recurring) {
-          if (skipModalTask.scheduled_at) {
+          // For virtual occurrences, use the virtual occurrence date
+          if (
+            skipModalTask.isVirtualOccurrence &&
+            skipModalTask.virtualOccurrenceDate
+          ) {
+            const occDate = new Date(skipModalTask.virtualOccurrenceDate);
+            if (skipModalTask.scheduled_at) {
+              const time = new Date(skipModalTask.scheduled_at);
+              occDate.setHours(
+                time.getHours(),
+                time.getMinutes(),
+                time.getSeconds(),
+                0,
+              );
+            }
+            scheduledFor = occDate.toISOString();
+          } else if (skipModalTask.scheduled_at) {
             const originalTime = new Date(skipModalTask.scheduled_at);
-            const today = new Date();
+            const today = getCurrentDate();
             today.setHours(
               originalTime.getHours(),
               originalTime.getMinutes(),
@@ -229,20 +270,20 @@ export default function TasksScreen({
             );
             scheduledFor = today.toISOString();
           } else {
-            scheduledFor = new Date().toISOString();
+            scheduledFor = getCurrentDate().toISOString();
           }
         }
-        await skipTask(skipModalTask.id, reason, scheduledFor);
+        await skipTask(taskId, reason, scheduledFor);
         setSkipModalTask(null);
         if (selectedTask?.id === skipModalTask.id) {
           setSelectedTask(null);
-          setViewMode("list");
+          setScreenMode("list");
         }
       } catch {
         // Error handled in hook
       }
     },
-    [skipModalTask, skipTask, selectedTask],
+    [skipModalTask, skipTask, selectedTask, getCurrentDate],
   );
 
   const handleSkip = useCallback(async (task: Task) => {
@@ -267,7 +308,7 @@ export default function TasksScreen({
         try {
           await deleteTask(task.id);
           setSelectedTask(null);
-          setViewMode("list");
+          setScreenMode("list");
         } catch {
           // Error handled in hook
         }
@@ -282,47 +323,47 @@ export default function TasksScreen({
     }
   };
 
-  if (viewMode === "create") {
+  if (screenMode === "create") {
     return (
       <CreateTaskForm
         goals={goals}
         goalsLoading={goalsLoading}
-        selectedGoalId={goalId}
-        onGoalSelect={setGoalId}
-        title={title}
-        onTitleChange={setTitle}
-        description={description}
-        onDescriptionChange={setDescription}
-        isLightning={isLightning}
-        onLightningToggle={() => setIsLightning(!isLightning)}
-        duration={duration}
-        onDurationChange={setDuration}
-        isRecurring={isRecurring}
-        onRecurringToggle={() => setIsRecurring(!isRecurring)}
-        recurrenceRule={recurrenceRule}
-        schedulingMode={schedulingMode}
-        scheduledTime={scheduledTime}
-        onScheduledTimeChange={setScheduledTime}
-        scheduledDate={scheduledDate}
-        onScheduledDateChange={setScheduledDate}
-        onRecurrenceChange={handleRecurrenceChange}
+        selectedGoalId={taskForm.goalId}
+        onGoalSelect={taskForm.setGoalId}
+        title={taskForm.title}
+        onTitleChange={taskForm.setTitle}
+        description={taskForm.description}
+        onDescriptionChange={taskForm.setDescription}
+        isLightning={taskForm.isLightning}
+        onLightningToggle={taskForm.toggleLightning}
+        duration={taskForm.duration}
+        onDurationChange={taskForm.setDuration}
+        isRecurring={taskForm.isRecurring}
+        onRecurringToggle={taskForm.toggleRecurring}
+        recurrenceRule={taskForm.recurrenceRule}
+        schedulingMode={taskForm.schedulingMode}
+        scheduledTime={taskForm.scheduledTime}
+        onScheduledTimeChange={taskForm.setScheduledTime}
+        scheduledDate={taskForm.scheduledDate}
+        onScheduledDateChange={taskForm.setScheduledDate}
+        onRecurrenceChange={taskForm.handleRecurrenceChange}
         onSubmit={handleCreate}
         onCancel={() => {
-          resetForm();
-          setViewMode("list");
+          taskForm.resetForm();
+          setScreenMode("list");
         }}
       />
     );
   }
 
-  if (viewMode === "detail" && selectedTask) {
+  if (screenMode === "detail" && selectedTask) {
     return (
       <>
         <TaskDetailView
           task={selectedTask}
           onBack={() => {
             setSelectedTask(null);
-            setViewMode("list");
+            setScreenMode("list");
           }}
           onComplete={handleComplete}
           onSkip={handleSkip}
@@ -362,7 +403,7 @@ export default function TasksScreen({
         <Text style={styles.headerTitle}>Tasks</Text>
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => setViewMode("create")}
+          onPress={() => setScreenMode("create")}
           accessibilityLabel="Create new task"
           accessibilityRole="button"
         >
@@ -389,6 +430,29 @@ export default function TasksScreen({
         )}
       </View>
 
+      <View style={styles.viewModeRow}>
+        {(["today", "upcoming"] as ListViewMode[]).map((mode) => (
+          <TouchableOpacity
+            key={mode}
+            style={[
+              styles.viewModeToggle,
+              listViewMode === mode && styles.viewModeToggleActive,
+            ]}
+            onPress={() => setListViewMode(mode)}
+            accessibilityLabel={`Show ${mode} tasks`}
+          >
+            <Text
+              style={[
+                styles.viewModeToggleText,
+                listViewMode === mode && styles.viewModeToggleTextActive,
+              ]}
+            >
+              {mode.charAt(0).toUpperCase() + mode.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <View style={styles.filterRow}>
         {(["pending", "completed", "all"] as StatusFilter[]).map((filter) => (
           <TouchableOpacity
@@ -412,7 +476,7 @@ export default function TasksScreen({
         ))}
       </View>
 
-      {statusFilter === "pending" && (
+      {statusFilter === "pending" && listViewMode === "today" && (
         <TouchableOpacity
           style={styles.condenseToggle}
           onPress={() => setCondenseRecurring(!condenseRecurring)}
@@ -427,33 +491,63 @@ export default function TasksScreen({
 
       {loading ? (
         <ActivityIndicator size="large" style={styles.loader} />
-      ) : tasks.length === 0 ? (
+      ) : sortedTasks.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateTitle}>
-            {statusFilter === "pending"
-              ? "No pending tasks"
-              : statusFilter === "completed"
-                ? "No completed tasks"
-                : "No tasks yet"}
+            {listViewMode === "today"
+              ? statusFilter === "pending"
+                ? "No tasks for today"
+                : statusFilter === "completed"
+                  ? "No completed tasks today"
+                  : "No tasks today"
+              : statusFilter === "pending"
+                ? "No upcoming tasks"
+                : "No tasks scheduled"}
           </Text>
           <Text style={styles.emptyStateText}>
-            {statusFilter === "pending"
+            {listViewMode === "today"
               ? "Create a task to get started"
-              : "Complete some tasks to see them here"}
+              : "Schedule tasks with future dates to see them here"}
           </Text>
         </View>
-      ) : (
-        <FlatList
-          data={sortedTasks}
+      ) : listViewMode === "upcoming" && sections ? (
+        <SectionList
+          sections={sections}
+          extraData={tasks}
+          renderSectionHeader={({ section }) => (
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionHeaderText}>{section.title}</Text>
+            </View>
+          )}
           renderItem={({ item }) => (
             <TaskCard
               task={item}
               onPress={(t) => {
-                if (isTaskOverdue(t)) {
+                setSelectedTask(t);
+                setScreenMode("detail");
+              }}
+              onComplete={handleComplete}
+            />
+          )}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshing={loading}
+          onRefresh={refetch}
+          stickySectionHeadersEnabled={false}
+        />
+      ) : (
+        <FlatList
+          data={sortedTasks}
+          extraData={tasks}
+          renderItem={({ item }) => (
+            <TaskCard
+              task={item}
+              onPress={(t) => {
+                if (isTaskOverdue(t, currentDate)) {
                   setOverdueModalTask(t);
                 } else {
                   setSelectedTask(t);
-                  setViewMode("detail");
+                  setScreenMode("detail");
                 }
               }}
               onComplete={handleComplete}
@@ -467,7 +561,7 @@ export default function TasksScreen({
       )}
 
       <SkipReasonModal
-        visible={skipModalTask !== null && viewMode === "list"}
+        visible={skipModalTask !== null && screenMode === "list"}
         taskTitle={skipModalTask?.title || ""}
         onClose={() => setSkipModalTask(null)}
         onSkip={handleSkipWithReason}
@@ -484,7 +578,7 @@ export default function TasksScreen({
         onReschedule={(t) => {
           setOverdueModalTask(null);
           setSelectedTask(t);
-          setViewMode("detail");
+          setScreenMode("detail");
         }}
       />
     </View>

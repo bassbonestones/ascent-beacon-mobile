@@ -63,6 +63,47 @@ export const styles = StyleSheet.create({
   filterToggleTextActive: {
     color: "#60A5FA",
   },
+  viewModeRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1F2937",
+  },
+  viewModeToggle: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  viewModeToggleActive: {
+    borderBottomColor: "#3B82F6",
+  },
+  viewModeToggleText: {
+    color: "#6B7280",
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  viewModeToggleTextActive: {
+    color: "#F9FAFB",
+    fontWeight: "600",
+  },
+  sectionHeader: {
+    backgroundColor: "#111827",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  sectionHeaderText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#9CA3AF",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
   summaryRow: {
     flexDirection: "row",
     paddingHorizontal: 16,
@@ -162,6 +203,9 @@ export const styles = StyleSheet.create({
   },
   taskTimeOverdue: {
     color: "#EF4444",
+  },
+  taskTimeFlexible: {
+    color: "#8B5CF6", // Purple for flexible window tasks
   },
   taskCardOverdue: {
     borderLeftWidth: 4,

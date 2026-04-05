@@ -3,6 +3,8 @@ import { StyleSheet, ViewStyle, TextStyle, ImageStyle } from "react-native";
 interface DashboardStyles {
   container: ViewStyle;
   header: ViewStyle;
+  headerActions: ViewStyle;
+  gearButton: ViewStyle;
   greeting: TextStyle;
   userName: TextStyle;
   logoutButton: ViewStyle;
@@ -40,6 +42,14 @@ export const styles = StyleSheet.create<DashboardStyles>({
     paddingTop: 60,
     paddingBottom: 20,
     backgroundColor: "#fff",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  gearButton: {
+    padding: 8,
   },
   greeting: {
     fontSize: 14,

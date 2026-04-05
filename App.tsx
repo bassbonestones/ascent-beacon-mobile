@@ -20,6 +20,7 @@ LogBox.ignoreLogs([
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
+import { TimeProvider } from "./src/context/TimeContext";
 import LoginScreen from "./src/screens/LoginScreen";
 import DashboardScreen from "./src/screens/DashboardScreen";
 import AssistantScreen from "./src/screens/AssistantScreen";
@@ -118,9 +119,11 @@ export default function App(): React.ReactElement {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <NavigationContainer>
-          <AppNavigator />
-        </NavigationContainer>
+        <TimeProvider>
+          <NavigationContainer>
+            <AppNavigator />
+          </NavigationContainer>
+        </TimeProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

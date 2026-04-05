@@ -11,6 +11,7 @@ import type {
   TaskCompletionListResponse,
   TaskStatsResponse,
   CompletionHistoryResponse,
+  DeleteFutureCompletionsResponse,
 } from "../types";
 import type ApiServiceBase from "./apiBase";
 
@@ -56,6 +57,11 @@ export interface TasksMethods {
     start: string,
     end: string,
   ): Promise<CompletionHistoryResponse>;
+
+  // Time Machine
+  deleteFutureCompletions(
+    afterDate?: string,
+  ): Promise<DeleteFutureCompletionsResponse>;
 }
 
 export interface TasksListParams {
@@ -194,5 +200,18 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
       return await this.request<CompletionHistoryResponse>(
         `/tasks/${taskId}/history?${params}`,
       );
+    }
+
+    // Time Machine
+
+    async deleteFutureCompletions(
+      afterDate?: string,
+    ): Promise<DeleteFutureCompletionsResponse> {
+      const url = afterDate
+        ? `/tasks/completions/future?after_date=${afterDate}`
+        : "/tasks/completions/future";
+      return await this.request<DeleteFutureCompletionsResponse>(url, {
+        method: "DELETE",
+      });
     }
   };

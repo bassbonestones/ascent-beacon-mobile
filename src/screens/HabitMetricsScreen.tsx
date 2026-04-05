@@ -25,6 +25,7 @@ import {
   calculateTenDayChunkData,
   calculateMonthlyData,
 } from "../utils/habitMetricsHelpers";
+import { useTime } from "../context/TimeContext";
 
 type HabitMetricsScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, "HabitMetrics">;
@@ -56,6 +57,7 @@ export default function HabitMetricsScreen({
   route,
 }: HabitMetricsScreenProps): React.ReactElement {
   const { taskId, taskTitle } = route.params;
+  const { getCurrentDate } = useTime();
   const [timeSpan, setTimeSpan] = useState<TimeSpan>("month");
   const [stats, setStats] = useState<TaskStatsResponse | null>(null);
   const [history, setHistory] = useState<CompletionHistoryResponse | null>(
@@ -71,10 +73,10 @@ export default function HabitMetricsScreen({
 
       // Calculate date range for the selected time span
       // To avoid timezone-induced off-by-one errors, we:
-      // 1. Get today's date (date only, ignoring time)
+      // 1. Get current date (real or travel)
       // 2. Calculate start date as (today - N + 1) days
       // 3. Send as midnight UTC for start, end of day UTC for end
-      const today = new Date();
+      const today = getCurrentDate();
       const todayDate = new Date(
         Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()),
       );
@@ -102,7 +104,7 @@ export default function HabitMetricsScreen({
     } finally {
       setLoading(false);
     }
-  }, [taskId, timeSpan]);
+  }, [taskId, timeSpan, getCurrentDate]);
 
   useEffect(() => {
     fetchMetrics();
@@ -173,7 +175,7 @@ export default function HabitMetricsScreen({
   const renderLastCompleted = () => {
     if (!stats?.last_completed_at) return null;
     const lastDate = new Date(stats.last_completed_at);
-    const today = new Date();
+    const today = getCurrentDate();
     const diffDays = Math.floor(
       (today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24),
     );

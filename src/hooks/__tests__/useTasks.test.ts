@@ -121,13 +121,16 @@ describe("useTasks", () => {
   });
 
   describe("createTask", () => {
-    it("creates a task and adds to list", async () => {
+    it("creates a task and refetches list", async () => {
       const newTask = createMockTask("t3", "Task 3");
       mockedApi.createTask.mockResolvedValue(newTask);
 
       const { result } = renderHook(() => useTasks());
 
       await waitFor(() => expect(result.current.loading).toBe(false));
+
+      // Reset mock call count to track the refetch
+      mockedApi.getTasks.mockClear();
 
       await act(async () => {
         await result.current.createTask({
@@ -137,8 +140,14 @@ describe("useTasks", () => {
         });
       });
 
-      expect(result.current.tasks[0]).toEqual(newTask);
-      expect(result.current.pendingCount).toBe(3);
+      // Verify api.createTask was called
+      expect(mockedApi.createTask).toHaveBeenCalledWith({
+        goal_id: "goal-1",
+        title: "Task 3",
+        duration_minutes: 30,
+      });
+      // Verify a refetch was triggered
+      expect(mockedApi.getTasks).toHaveBeenCalled();
     });
   });
 

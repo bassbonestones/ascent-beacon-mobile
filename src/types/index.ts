@@ -663,6 +663,12 @@ export interface Task {
   // Phase 4b fields
   scheduling_mode: SchedulingMode | null;
   skip_reason: string | null;
+  // For recurring tasks, indicates if completed for today
+  completed_for_today?: boolean;
+  // For virtual occurrences generated in Upcoming view
+  isVirtualOccurrence?: boolean;
+  virtualOccurrenceDate?: string; // YYYY-MM-DD format
+  originalTaskId?: string; // The real task ID for API calls
 }
 
 export interface TaskListResponse {
@@ -757,6 +763,11 @@ export interface CompletionHistoryResponse {
   period: TaskStatsPeriod;
   days: DailyCompletionStatus[];
   summary: TaskStatsResponse;
+}
+
+// Time Machine types
+export interface DeleteFutureCompletionsResponse {
+  deletedCount: number;
 }
 
 // Phase 4b: Today view

@@ -8,6 +8,7 @@ import {
 import TasksScreen from "../TasksScreen";
 import { useTasks } from "../../hooks/useTasks";
 import { useGoals } from "../../hooks/useGoals";
+import { useTime } from "../../context/TimeContext";
 import type {
   Task,
   Goal,
@@ -20,11 +21,13 @@ import { showAlert, showConfirm } from "../../utils/alert";
 jest.mock("../../hooks/useTasks");
 jest.mock("../../hooks/useGoals");
 jest.mock("../../utils/alert");
+jest.mock("../../context/TimeContext");
 
 const mockedUseTasks = jest.mocked(useTasks);
 const mockedUseGoals = jest.mocked(useGoals);
 const mockedShowAlert = jest.mocked(showAlert);
 const mockedShowConfirm = jest.mocked(showConfirm);
+const mockedUseTime = jest.mocked(useTime);
 
 const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   id: "task-1",
@@ -113,6 +116,18 @@ describe("TasksScreen", () => {
     mockedUseTasks.mockReturnValue(defaultTasksHook);
     mockedUseGoals.mockReturnValue(defaultGoalsHook);
     mockedShowConfirm.mockResolvedValue(false);
+    mockedUseTime.mockReturnValue({
+      isTimeMachineEnabled: false,
+      isTimeTravelActive: false,
+      travelDate: null,
+      enableTimeMachine: jest.fn(),
+      disableTimeMachine: jest.fn(),
+      setTravelDate: jest.fn(),
+      resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      getCurrentDate: () => new Date(),
+      loading: false,
+    });
   });
 
   describe("List View", () => {
@@ -163,7 +178,7 @@ describe("TasksScreen", () => {
         tasks: [],
       });
       render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
-      expect(screen.getByText("No pending tasks")).toBeTruthy();
+      expect(screen.getByText("No tasks for today")).toBeTruthy();
       expect(screen.getByText("Create a task to get started")).toBeTruthy();
     });
 
@@ -174,7 +189,7 @@ describe("TasksScreen", () => {
       });
       render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
       fireEvent.press(screen.getByLabelText("Show completed tasks"));
-      expect(screen.getByText("No completed tasks")).toBeTruthy();
+      expect(screen.getByText("No completed tasks today")).toBeTruthy();
     });
 
     it("shows different empty state for all filter", () => {
@@ -184,7 +199,7 @@ describe("TasksScreen", () => {
       });
       render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
       fireEvent.press(screen.getByLabelText("Show all tasks"));
-      expect(screen.getByText("No tasks yet")).toBeTruthy();
+      expect(screen.getByText("No tasks today")).toBeTruthy();
     });
 
     it("renders task cards when tasks exist", () => {
@@ -215,7 +230,47 @@ describe("TasksScreen", () => {
       });
       render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
       // ActivityIndicator doesn't have a text label; just verify no empty state shown
-      expect(screen.queryByText("No pending tasks")).toBeNull();
+      expect(screen.queryByText("No tasks for today")).toBeNull();
+    });
+
+    it("renders view mode toggle buttons", () => {
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      expect(screen.getByLabelText("Show today tasks")).toBeTruthy();
+      expect(screen.getByLabelText("Show upcoming tasks")).toBeTruthy();
+    });
+
+    it("shows upcoming empty state when no upcoming tasks", () => {
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks: [],
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Show upcoming tasks"));
+      expect(screen.getByText("No upcoming tasks")).toBeTruthy();
+      expect(
+        screen.getByText("Schedule tasks with future dates to see them here"),
+      ).toBeTruthy();
+    });
+
+    it("groups upcoming tasks by date", () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(10, 0, 0, 0);
+      const tasks = [
+        createMockTask({
+          id: "1",
+          title: "Tomorrow Task",
+          scheduled_at: tomorrow.toISOString(),
+        }),
+      ];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks,
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Show upcoming tasks"));
+      expect(screen.getByText("Tomorrow")).toBeTruthy();
+      expect(screen.getByText("Tomorrow Task")).toBeTruthy();
     });
   });
 

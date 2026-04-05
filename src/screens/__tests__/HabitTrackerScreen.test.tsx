@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen, waitFor } from "@testing-library/react-native";
 import HabitTrackerScreen from "../HabitTrackerScreen";
 import api from "../../services/api";
+import { useTime } from "../../context/TimeContext";
 import type {
   User,
   Task,
@@ -10,6 +11,9 @@ import type {
 } from "../../types";
 
 jest.mock("../../services/api");
+jest.mock("../../context/TimeContext");
+
+const mockedUseTime = jest.mocked(useTime);
 
 const mockUser: User = {
   id: "user-1",
@@ -73,6 +77,18 @@ describe("HabitTrackerScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (api.getTasks as jest.Mock).mockResolvedValue(mockTaskListResponse);
+    mockedUseTime.mockReturnValue({
+      isTimeMachineEnabled: false,
+      isTimeTravelActive: false,
+      travelDate: null,
+      enableTimeMachine: jest.fn(),
+      disableTimeMachine: jest.fn(),
+      setTravelDate: jest.fn(),
+      resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      getCurrentDate: () => new Date(),
+      loading: false,
+    });
   });
 
   it("renders loading state initially", () => {

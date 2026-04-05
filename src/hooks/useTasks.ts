@@ -51,8 +51,9 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
     async (data: CreateTaskRequest): Promise<Task> => {
       try {
         const task = await api.createTask(data);
-        setTasks((prev) => [task, ...prev]);
-        setPendingCount((prev) => prev + 1);
+        // Refetch to get properly sorted list from server
+        // This ensures the UI shows tasks in the correct order immediately
+        await fetchTasks();
         return task;
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
@@ -60,7 +61,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
         throw error;
       }
     },
-    [],
+    [fetchTasks],
   );
 
   const updateTask = useCallback(

@@ -7,9 +7,13 @@ import {
 } from "@testing-library/react-native";
 import HabitMetricsScreen from "../HabitMetricsScreen";
 import api from "../../services/api";
+import { useTime } from "../../context/TimeContext";
 import type { TaskStatsResponse, CompletionHistoryResponse } from "../../types";
 
 jest.mock("../../services/api");
+jest.mock("../../context/TimeContext");
+
+const mockedUseTime = jest.mocked(useTime);
 
 const mockNavigation = {
   navigate: jest.fn(),
@@ -69,6 +73,18 @@ describe("HabitMetricsScreen", () => {
     jest.clearAllMocks();
     (api.getTaskStats as jest.Mock).mockResolvedValue(mockStats);
     (api.getCompletionHistory as jest.Mock).mockResolvedValue(mockHistory);
+    mockedUseTime.mockReturnValue({
+      isTimeMachineEnabled: false,
+      isTimeTravelActive: false,
+      travelDate: null,
+      enableTimeMachine: jest.fn(),
+      disableTimeMachine: jest.fn(),
+      setTravelDate: jest.fn(),
+      resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      getCurrentDate: () => new Date(),
+      loading: false,
+    });
   });
 
   it("renders loading state initially", () => {

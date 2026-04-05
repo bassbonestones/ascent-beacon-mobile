@@ -1,8 +1,13 @@
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
 import DashboardScreen from "../DashboardScreen";
+import { useTime } from "../../context/TimeContext";
 import type { User, RootStackParamList } from "../../types";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+
+jest.mock("../../context/TimeContext");
+
+const mockedUseTime = jest.mocked(useTime);
 
 // Mock the images
 jest.mock("../../../assets/NorthStarIcon_values.png", () => "values-icon.png");
@@ -14,6 +19,7 @@ jest.mock(
   "../../../assets/TwoCirclesIcon_Alignment.png",
   () => "alignment-icon.png",
 );
+jest.mock("../../../assets/knot.png", () => "knot-icon.png");
 
 // Helper to create a proper mock user
 const createMockUser = (overrides: Partial<User> = {}): User => ({
@@ -39,6 +45,18 @@ describe("DashboardScreen", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedUseTime.mockReturnValue({
+      isTimeMachineEnabled: false,
+      isTimeTravelActive: false,
+      travelDate: null,
+      enableTimeMachine: jest.fn(),
+      disableTimeMachine: jest.fn(),
+      setTravelDate: jest.fn(),
+      resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      getCurrentDate: () => new Date(),
+      loading: false,
+    });
   });
 
   it("renders welcome message", () => {
@@ -210,5 +228,73 @@ describe("DashboardScreen", () => {
       />,
     );
     expect(getByText(/Most stress isn't from doing too much/)).toBeTruthy();
+  });
+
+  it("does not show gear icon when time machine is disabled", () => {
+    const { queryByLabelText } = render(
+      <DashboardScreen
+        user={mockUser}
+        onLogout={mockOnLogout}
+        navigation={mockNavigation}
+      />,
+    );
+    expect(queryByLabelText("Open Time Machine")).toBeFalsy();
+  });
+
+  it("shows gear icon when time machine is enabled", () => {
+    mockedUseTime.mockReturnValue({
+      isTimeMachineEnabled: true,
+      isTimeTravelActive: false,
+      travelDate: null,
+      enableTimeMachine: jest.fn(),
+      disableTimeMachine: jest.fn(),
+      setTravelDate: jest.fn(),
+      resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      getCurrentDate: () => new Date(),
+      loading: false,
+    });
+
+    const { getByLabelText } = render(
+      <DashboardScreen
+        user={mockUser}
+        onLogout={mockOnLogout}
+        navigation={mockNavigation}
+      />,
+    );
+    expect(getByLabelText("Open Time Machine")).toBeTruthy();
+  });
+
+  it("enables time machine on triple tap of title", () => {
+    const mockEnableTimeMachine = jest.fn();
+    mockedUseTime.mockReturnValue({
+      isTimeMachineEnabled: false,
+      isTimeTravelActive: false,
+      travelDate: null,
+      enableTimeMachine: mockEnableTimeMachine,
+      disableTimeMachine: jest.fn(),
+      setTravelDate: jest.fn(),
+      resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      getCurrentDate: () => new Date(),
+      loading: false,
+    });
+
+    const { getByLabelText } = render(
+      <DashboardScreen
+        user={mockUser}
+        onLogout={mockOnLogout}
+        navigation={mockNavigation}
+      />,
+    );
+
+    const title = getByLabelText("Ascent Beacon");
+
+    // Triple tap
+    fireEvent.press(title);
+    fireEvent.press(title);
+    fireEvent.press(title);
+
+    expect(mockEnableTimeMachine).toHaveBeenCalled();
   });
 });
