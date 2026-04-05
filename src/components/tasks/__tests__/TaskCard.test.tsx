@@ -164,7 +164,7 @@ describe("TaskCard", () => {
         onComplete={mockOnComplete}
       />,
     );
-    expect(screen.getByText("🕐 30m")).toBeTruthy();
+    expect(screen.getByText("30m")).toBeTruthy();
   });
 
   it("formats duration with hours", () => {
@@ -176,7 +176,7 @@ describe("TaskCard", () => {
         onComplete={mockOnComplete}
       />,
     );
-    expect(screen.getByText("🕐 1h 30m")).toBeTruthy();
+    expect(screen.getByText("1h 30m")).toBeTruthy();
   });
 
   it("formats duration with exact hours", () => {
@@ -188,7 +188,7 @@ describe("TaskCard", () => {
         onComplete={mockOnComplete}
       />,
     );
-    expect(screen.getByText("🕐 2h")).toBeTruthy();
+    expect(screen.getByText("2h")).toBeTruthy();
   });
 
   it("does not show duration for zero minutes non-lightning tasks", () => {
@@ -203,7 +203,7 @@ describe("TaskCard", () => {
     expect(screen.queryByText(/🕐/)).toBeNull();
   });
 
-  it("shows scheduled date when scheduled", () => {
+  it("shows scheduled time when scheduled", () => {
     const task = createMockTask({ scheduled_at: "2024-06-15T10:00:00Z" });
     render(
       <TaskCard
@@ -212,10 +212,11 @@ describe("TaskCard", () => {
         onComplete={mockOnComplete}
       />,
     );
-    expect(screen.getByText(/📅/)).toBeTruthy();
+    // Shows time like "10:00 AM" or similar format
+    expect(screen.getByText(/🕐/)).toBeTruthy();
   });
 
-  it("does not show scheduled date when not scheduled", () => {
+  it("does not show scheduled time when not scheduled", () => {
     const task = createMockTask({ scheduled_at: null });
     render(
       <TaskCard
@@ -224,7 +225,8 @@ describe("TaskCard", () => {
         onComplete={mockOnComplete}
       />,
     );
-    expect(screen.queryByText(/📅/)).toBeNull();
+    // No time display for unscheduled tasks
+    expect(screen.queryByText(/🕐 \d/)).toBeNull();
   });
 
   it("calls onPress when card is pressed", () => {

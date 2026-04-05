@@ -455,6 +455,8 @@ export type RootStackParamList = {
   Priorities: undefined;
   Goals: undefined;
   Tasks: undefined;
+  HabitTracker: undefined;
+  HabitMetrics: { taskId: string; taskTitle: string };
   ValuePriorityLinks: { valueId: string; valueStatement: string };
   Assistant: { contextMode?: string };
   Alignment: undefined;
@@ -721,6 +723,40 @@ export interface TaskCompletionListResponse {
   total: number;
   completed_count: number;
   skipped_count: number;
+}
+
+// Phase 4c: Stats types
+export interface TaskStatsPeriod {
+  start: string; // ISO datetime
+  end: string; // ISO datetime
+}
+
+export interface TaskStatsResponse {
+  task_id: string;
+  period: TaskStatsPeriod;
+  total_expected: number;
+  total_completed: number;
+  total_skipped: number;
+  total_missed: number;
+  completion_rate: number; // 0.0 - 1.0
+  current_streak: number;
+  longest_streak: number;
+  last_completed_at: string | null;
+}
+
+export interface DailyCompletionStatus {
+  date: string; // YYYY-MM-DD
+  status: "completed" | "skipped" | "missed" | "partial";
+  expected: number;
+  completed: number;
+  skipped: number;
+}
+
+export interface CompletionHistoryResponse {
+  task_id: string;
+  period: TaskStatsPeriod;
+  days: DailyCompletionStatus[];
+  summary: TaskStatsResponse;
 }
 
 // Phase 4b: Today view

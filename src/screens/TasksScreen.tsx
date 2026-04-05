@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -17,8 +17,15 @@ import {
   TaskDetailView,
   CreateTaskForm,
   SkipReasonModal,
+  OverdueActionModal,
 } from "../components/tasks";
 import { showAlert, showConfirm } from "../utils/alert";
+import {
+  sortTasksForTodayView,
+  filterTasksForToday,
+  isTaskOverdue,
+  condenseRecurringTasks,
+} from "../utils/taskSorting";
 
 interface TasksScreenProps {
   user: User;
@@ -36,6 +43,8 @@ export default function TasksScreen({
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
   const [skipModalTask, setSkipModalTask] = useState<Task | null>(null);
+  const [overdueModalTask, setOverdueModalTask] = useState<Task | null>(null);
+  const [condenseRecurring, setCondenseRecurring] = useState(false);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -65,6 +74,23 @@ export default function TasksScreen({
   } = useTasks({ status: statusFilter === "all" ? undefined : statusFilter });
 
   const { goals, loading: goalsLoading } = useGoals({ parentOnly: true });
+
+  // Sort tasks for Today view: overdue → timed → todos
+  const sortedTasks = useMemo(() => {
+    if (statusFilter === "pending") {
+      let todayTasks = filterTasksForToday(tasks);
+      if (condenseRecurring) {
+        todayTasks = condenseRecurringTasks(todayTasks);
+      }
+      return sortTasksForTodayView(todayTasks);
+    }
+    return tasks;
+  }, [tasks, statusFilter, condenseRecurring]);
+
+  // Count overdue tasks
+  const overdueCount = useMemo(() => {
+    return tasks.filter((t) => isTaskOverdue(t)).length;
+  }, [tasks]);
 
   // No auto-selection - tasks can be unaligned (no goal)
 
@@ -158,7 +184,26 @@ export default function TasksScreen({
   const handleComplete = useCallback(
     async (task: Task) => {
       try {
-        await completeTask(task.id);
+        // For recurring tasks, pass the current occurrence date
+        let scheduledFor: string | undefined;
+        if (task.is_recurring) {
+          // Use today's date with the task's scheduled time
+          if (task.scheduled_at) {
+            const originalTime = new Date(task.scheduled_at);
+            const today = new Date();
+            today.setHours(
+              originalTime.getHours(),
+              originalTime.getMinutes(),
+              originalTime.getSeconds(),
+              0,
+            );
+            scheduledFor = today.toISOString();
+          } else {
+            // No scheduled time, use now
+            scheduledFor = new Date().toISOString();
+          }
+        }
+        await completeTask(task.id, scheduledFor);
       } catch {
         // Error handled in hook
       }
@@ -170,7 +215,24 @@ export default function TasksScreen({
     async (reason?: string) => {
       if (!skipModalTask) return;
       try {
-        await skipTask(skipModalTask.id, reason);
+        // For recurring tasks, pass the current occurrence date
+        let scheduledFor: string | undefined;
+        if (skipModalTask.is_recurring) {
+          if (skipModalTask.scheduled_at) {
+            const originalTime = new Date(skipModalTask.scheduled_at);
+            const today = new Date();
+            today.setHours(
+              originalTime.getHours(),
+              originalTime.getMinutes(),
+              originalTime.getSeconds(),
+              0,
+            );
+            scheduledFor = today.toISOString();
+          } else {
+            scheduledFor = new Date().toISOString();
+          }
+        }
+        await skipTask(skipModalTask.id, reason, scheduledFor);
         setSkipModalTask(null);
         if (selectedTask?.id === skipModalTask.id) {
           setSelectedTask(null);
@@ -266,6 +328,12 @@ export default function TasksScreen({
           onSkip={handleSkip}
           onReopen={handleReopen}
           onDelete={handleDelete}
+          onViewTracking={(task) => {
+            navigation.navigate("HabitMetrics", {
+              taskId: task.id,
+              taskTitle: task.title,
+            });
+          }}
         />
         <SkipReasonModal
           visible={skipModalTask !== null}
@@ -311,6 +379,14 @@ export default function TasksScreen({
           <Text style={styles.summaryCount}>{completedCount}</Text>
           <Text style={styles.summaryLabel}>completed</Text>
         </View>
+        {overdueCount > 0 && (
+          <View style={styles.summaryItem}>
+            <Text style={[styles.summaryCount, styles.overdueCount]}>
+              {overdueCount}
+            </Text>
+            <Text style={styles.summaryLabel}>overdue</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.filterRow}>
@@ -336,6 +412,19 @@ export default function TasksScreen({
         ))}
       </View>
 
+      {statusFilter === "pending" && (
+        <TouchableOpacity
+          style={styles.condenseToggle}
+          onPress={() => setCondenseRecurring(!condenseRecurring)}
+          accessibilityLabel="Condense recurring tasks"
+          accessibilityRole="switch"
+        >
+          <Text style={styles.condenseToggleText}>
+            {condenseRecurring ? "☑" : "☐"} Condense recurring
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {loading ? (
         <ActivityIndicator size="large" style={styles.loader} />
       ) : tasks.length === 0 ? (
@@ -355,13 +444,17 @@ export default function TasksScreen({
         </View>
       ) : (
         <FlatList
-          data={tasks}
+          data={sortedTasks}
           renderItem={({ item }) => (
             <TaskCard
               task={item}
               onPress={(t) => {
-                setSelectedTask(t);
-                setViewMode("detail");
+                if (isTaskOverdue(t)) {
+                  setOverdueModalTask(t);
+                } else {
+                  setSelectedTask(t);
+                  setViewMode("detail");
+                }
               }}
               onComplete={handleComplete}
             />
@@ -378,6 +471,21 @@ export default function TasksScreen({
         taskTitle={skipModalTask?.title || ""}
         onClose={() => setSkipModalTask(null)}
         onSkip={handleSkipWithReason}
+      />
+
+      <OverdueActionModal
+        visible={overdueModalTask !== null}
+        task={overdueModalTask}
+        onClose={() => setOverdueModalTask(null)}
+        onSkip={(t) => {
+          setOverdueModalTask(null);
+          setSkipModalTask(t);
+        }}
+        onReschedule={(t) => {
+          setOverdueModalTask(null);
+          setSelectedTask(t);
+          setViewMode("detail");
+        }}
       />
     </View>
   );

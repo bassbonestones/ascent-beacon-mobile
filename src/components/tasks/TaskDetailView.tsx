@@ -10,6 +10,7 @@ interface TaskDetailViewProps {
   onSkip: (task: Task) => void;
   onReopen: (task: Task) => void;
   onDelete: (task: Task) => void;
+  onViewTracking?: (task: Task) => void;
 }
 
 const getStatusLabel = (status: TaskStatus): string => {
@@ -118,6 +119,7 @@ export function TaskDetailView({
   onSkip,
   onReopen,
   onDelete,
+  onViewTracking,
 }: TaskDetailViewProps): React.ReactElement {
   const isPending = task.status === "pending";
   const isCompleted = task.status === "completed";
@@ -228,6 +230,17 @@ export function TaskDetailView({
         </View>
 
         <View style={styles.actionButtons}>
+          {task.is_recurring && onViewTracking && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.trackingButton]}
+              onPress={() => onViewTracking(task)}
+              accessibilityLabel="View habit tracking"
+              accessibilityRole="button"
+            >
+              <Text style={styles.actionButtonText}>📊 View Tracking</Text>
+            </TouchableOpacity>
+          )}
+
           {isPending && (
             <>
               <TouchableOpacity

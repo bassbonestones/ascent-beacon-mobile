@@ -79,6 +79,14 @@ export default function DashboardScreen({
       route: "Tasks",
     },
     {
+      id: "habits",
+      title: "Habit Tracker",
+      subtitle: "Track your streaks",
+      icon: require("../../assets/AnchorIcon_Priorities.png") as ImageSourcePropType,
+      color: "#E91E63",
+      route: "HabitTracker",
+    },
+    {
       id: "alignment",
       title: "Alignment",
       subtitle: "See your coherence",

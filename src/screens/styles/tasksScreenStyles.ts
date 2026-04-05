@@ -83,6 +83,17 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     color: "#9CA3AF",
   },
+  overdueCount: {
+    color: "#EF4444",
+  },
+  condenseToggle: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  condenseToggleText: {
+    fontSize: 14,
+    color: "#9CA3AF",
+  },
   loader: {
     marginTop: 40,
   },
@@ -143,6 +154,18 @@ export const styles = StyleSheet.create({
   taskScheduled: {
     fontSize: 13,
     color: "#6B7280",
+  },
+  taskTime: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#9CA3AF",
+  },
+  taskTimeOverdue: {
+    color: "#EF4444",
+  },
+  taskCardOverdue: {
+    borderLeftWidth: 4,
+    borderLeftColor: "#EF4444",
   },
   lightningBadge: {
     backgroundColor: "#FBBF24",
@@ -375,6 +398,9 @@ export const styles = StyleSheet.create({
   },
   completeButton: {
     backgroundColor: "#10B981",
+  },
+  trackingButton: {
+    backgroundColor: "#E91E63",
   },
   skipButton: {
     backgroundColor: "#6B7280",

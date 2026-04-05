@@ -9,6 +9,8 @@ import type {
   TaskRangeRequest,
   TaskRangeResponse,
   TaskCompletionListResponse,
+  TaskStatsResponse,
+  CompletionHistoryResponse,
 } from "../types";
 import type ApiServiceBase from "./apiBase";
 
@@ -42,6 +44,18 @@ export interface TasksMethods {
     limit?: number,
     offset?: number,
   ): Promise<TaskCompletionListResponse>;
+
+  // Phase 4c: Stats
+  getTaskStats(
+    taskId: string,
+    start: string,
+    end: string,
+  ): Promise<TaskStatsResponse>;
+  getCompletionHistory(
+    taskId: string,
+    start: string,
+    end: string,
+  ): Promise<CompletionHistoryResponse>;
 }
 
 export interface TasksListParams {
@@ -153,6 +167,32 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
       params.append("offset", offset.toString());
       return await this.request<TaskCompletionListResponse>(
         `/tasks/${taskId}/completions?${params}`,
+      );
+    }
+
+    async getTaskStats(
+      taskId: string,
+      start: string,
+      end: string,
+    ): Promise<TaskStatsResponse> {
+      const params = new URLSearchParams();
+      params.append("start", start);
+      params.append("end", end);
+      return await this.request<TaskStatsResponse>(
+        `/tasks/${taskId}/stats?${params}`,
+      );
+    }
+
+    async getCompletionHistory(
+      taskId: string,
+      start: string,
+      end: string,
+    ): Promise<CompletionHistoryResponse> {
+      const params = new URLSearchParams();
+      params.append("start", start);
+      params.append("end", end);
+      return await this.request<CompletionHistoryResponse>(
+        `/tasks/${taskId}/history?${params}`,
       );
     }
   };

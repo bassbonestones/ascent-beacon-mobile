@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, Pressable, Platform } from "react-native";
 import type { Task } from "../../types";
 import { styles } from "../../screens/styles/tasksScreenStyles";
+import { isTaskOverdue, formatTaskTime } from "../../utils/taskSorting";
 
 interface TaskCardProps {
   task: Task;
@@ -9,7 +10,8 @@ interface TaskCardProps {
   onComplete: (task: Task) => void;
 }
 
-const getStatusColor = (status: string): string => {
+const getStatusColor = (status: string, isOverdue: boolean): string => {
+  if (isOverdue) return "#EF4444"; // Red for overdue
   switch (status) {
     case "pending":
       return "#3B82F6";
@@ -37,13 +39,15 @@ export function TaskCard({
 }: TaskCardProps): React.ReactElement {
   const isCompleted = task.status === "completed";
   const isPending = task.status === "pending";
+  const overdue = isTaskOverdue(task);
+  const scheduledTime = formatTaskTime(task.scheduled_at);
 
   const handleCompleteClick = React.useCallback(() => {
     onComplete(task);
   }, [onComplete, task]);
 
   return (
-    <View style={styles.taskCard}>
+    <View style={[styles.taskCard, overdue && styles.taskCardOverdue]}>
       {/* Main card content - pressable for navigation */}
       <Pressable
         style={styles.taskCardPressable}
@@ -80,11 +84,13 @@ export function TaskCard({
           <View
             style={[
               styles.statusBadge,
-              { backgroundColor: getStatusColor(task.status) },
+              { backgroundColor: getStatusColor(task.status, overdue) },
             ]}
           >
             <Text style={styles.statusText}>
-              {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+              {overdue
+                ? "Overdue"
+                : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
             </Text>
           </View>
 
@@ -93,6 +99,11 @@ export function TaskCard({
         </View>
 
         <View style={styles.taskMeta}>
+          {scheduledTime && (
+            <Text style={[styles.taskTime, overdue && styles.taskTimeOverdue]}>
+              🕐 {scheduledTime}
+            </Text>
+          )}
           {task.is_lightning && (
             <View style={styles.lightningBadge}>
               <Text style={styles.lightningText}>⚡ Quick</Text>
@@ -105,12 +116,7 @@ export function TaskCard({
           )}
           {!task.is_lightning && task.duration_minutes > 0 && (
             <Text style={styles.taskDuration}>
-              🕐 {formatDuration(task.duration_minutes)}
-            </Text>
-          )}
-          {task.scheduled_at && (
-            <Text style={styles.taskScheduled}>
-              📅 {new Date(task.scheduled_at).toLocaleDateString()}
+              {formatDuration(task.duration_minutes)}
             </Text>
           )}
         </View>

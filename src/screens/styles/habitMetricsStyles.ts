@@ -1,0 +1,248 @@
+import { StyleSheet } from "react-native";
+
+export const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F5F7FA",
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F5F7FA",
+    padding: 20,
+  },
+  header: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  backButton: {
+    paddingVertical: 4,
+    paddingRight: 12,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: "#2196F3",
+    fontWeight: "500",
+  },
+  habitTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#1a1a2e",
+  },
+  lastCompleted: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  lastCompletedLabel: {
+    fontSize: 14,
+    color: "#666",
+    marginRight: 8,
+  },
+  lastCompletedValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#2196F3",
+  },
+  timeSpanPicker: {
+    flexDirection: "row",
+    padding: 16,
+    gap: 8,
+  },
+  timeSpanButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+  },
+  timeSpanButtonActive: {
+    backgroundColor: "#2196F3",
+    borderColor: "#2196F3",
+  },
+  timeSpanText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#666",
+  },
+  timeSpanTextActive: {
+    color: "#fff",
+  },
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    padding: 8,
+  },
+  statsCard: {
+    width: "50%",
+    padding: 8,
+  },
+  statsValue: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#1a1a2e",
+    backgroundColor: "#fff",
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    textAlign: "center",
+  },
+  statsLabel: {
+    fontSize: 12,
+    color: "#666",
+    backgroundColor: "#fff",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    textAlign: "center",
+    borderTopWidth: 1,
+    borderTopColor: "#F0F0F0",
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1a1a2e",
+    marginBottom: 16,
+  },
+  calendarContainer: {
+    backgroundColor: "#fff",
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+  },
+  weekdayHeaders: {
+    flexDirection: "row",
+    marginBottom: 8,
+  },
+  weekdayHeader: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#999",
+  },
+  weekRow: {
+    flexDirection: "row",
+    marginBottom: 4,
+  },
+  dayCell: {
+    flex: 1,
+    aspectRatio: 1,
+    margin: 2,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F5F5F5",
+  },
+  dayNumber: {
+    fontSize: 10,
+    color: "#666",
+  },
+  dayIcon: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  legend: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 16,
+    gap: 16,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 4,
+  },
+  legendText: {
+    fontSize: 10,
+    color: "#666",
+  },
+  chartContainer: {
+    backgroundColor: "#fff",
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+  },
+  barChart: {
+    flexDirection: "row",
+  },
+  yAxis: {
+    width: 40,
+    justifyContent: "space-between",
+    paddingBottom: 38,
+    height: 158,
+  },
+  yAxisLabel: {
+    fontSize: 10,
+    color: "#999",
+    textAlign: "right",
+  },
+  barsContainer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    paddingRight: 16,
+  },
+  barColumn: {
+    alignItems: "center",
+    width: 54,
+    marginHorizontal: 2,
+  },
+  barWrapper: {
+    height: 120,
+    justifyContent: "flex-end",
+    width: "100%",
+    alignItems: "center",
+  },
+  bar: {
+    borderRadius: 4,
+    minHeight: 4,
+  },
+  barLabel: {
+    fontSize: 11,
+    color: "#666",
+    marginTop: 6,
+    height: 36,
+    textAlign: "center",
+    lineHeight: 16,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#666",
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#F44336",
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: "#2196F3",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+});

@@ -363,7 +363,8 @@ describe("TasksScreen", () => {
       fireEvent.press(screen.getByLabelText("Task: Complete Me"));
       fireEvent.press(screen.getByLabelText("Complete task"));
       await waitFor(() => {
-        expect(completeTask).toHaveBeenCalledWith("t-1");
+        // Non-recurring task passes undefined for scheduledFor
+        expect(completeTask).toHaveBeenCalledWith("t-1", undefined);
       });
     });
 
@@ -385,11 +386,12 @@ describe("TasksScreen", () => {
         expect(screen.getByText('Skip "Skip Me"?')).toBeTruthy();
       });
 
-      // Press Skip button in modal
-      fireEvent.press(screen.getByLabelText("Skip without reason"));
+      // Press Skip button in modal (the second one with this label)
+      fireEvent.press(screen.getAllByLabelText("Skip task")[1]);
 
       await waitFor(() => {
-        expect(skipTask).toHaveBeenCalledWith("t-1", undefined);
+        // Non-recurring task passes undefined for both reason and scheduledFor
+        expect(skipTask).toHaveBeenCalledWith("t-1", undefined, undefined);
       });
     });
 
@@ -416,10 +418,16 @@ describe("TasksScreen", () => {
         screen.getByPlaceholderText("Why are you skipping? (optional)"),
         "Too busy today",
       );
-      fireEvent.press(screen.getByLabelText("Skip with reason"));
+      // The button in the skip reason modal is also labeled "Skip task"
+      fireEvent.press(screen.getAllByLabelText("Skip task")[1]);
 
       await waitFor(() => {
-        expect(skipTask).toHaveBeenCalledWith("t-1", "Too busy today");
+        // Non-recurring task passes undefined for scheduledFor (3rd arg)
+        expect(skipTask).toHaveBeenCalledWith(
+          "t-1",
+          "Too busy today",
+          undefined,
+        );
       });
     });
 
@@ -461,10 +469,15 @@ describe("TasksScreen", () => {
       mockedUseTasks.mockReturnValue({
         ...defaultTasksHook,
         tasks,
+        completedCount: 1,
         reopenTask,
       });
 
       render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+
+      // Switch to completed filter to see completed tasks
+      fireEvent.press(screen.getByLabelText("Show completed tasks"));
+
       fireEvent.press(screen.getByLabelText("Task: Reopen Me"));
       fireEvent.press(screen.getByLabelText("Reopen task"));
 
@@ -511,7 +524,8 @@ describe("TasksScreen", () => {
       fireEvent.press(screen.getByLabelText("Complete task: Quick Complete"));
 
       await waitFor(() => {
-        expect(completeTask).toHaveBeenCalledWith("t-1");
+        // Non-recurring task passes undefined for scheduledFor
+        expect(completeTask).toHaveBeenCalledWith("t-1", undefined);
       });
     });
   });
