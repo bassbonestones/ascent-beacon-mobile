@@ -672,6 +672,9 @@ export interface Task {
   completions_today?: number;
   // For interval/specific_times modes, the actual ISO datetime strings of completions today
   completed_times_today?: string[];
+  // For recurring tasks, completions indexed by date (YYYY-MM-DD) -> list of completion timestamps
+  // Used for Upcoming view to track which future occurrences are completed
+  completions_by_date?: Record<string, string[]>;
   // For virtual occurrences generated in Upcoming view
   isVirtualOccurrence?: boolean;
   virtualOccurrenceDate?: string; // YYYY-MM-DD format

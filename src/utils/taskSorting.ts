@@ -884,7 +884,20 @@ export function generateRecurringOccurrences(
 
       const dayStr = dayDate.toISOString().split("T")[0];
 
+      // Check if there are completions for this future date
+      const completionsForDay = task.completions_by_date?.[dayStr] || [];
+      const completionsCountForDay = completionsForDay.length;
+
+      // Build a set of completed times for this day (for timed occurrences)
+      const completedTimesForDaySet = new Set(
+        completionsForDay.map((t) => {
+          const d = parseAsUtc(t);
+          return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+        }),
+      );
+
       // Create virtual tasks for each intraday occurrence
+      let occIndex = 0;
       for (const occ of intradayOccs) {
         let scheduledAt: string | null = null;
         if (occ.time) {
@@ -904,16 +917,41 @@ export function generateRecurringOccurrences(
           scheduledAt = dayDate.toISOString();
         }
 
+        // Determine if this occurrence is completed
+        let isCompleted = false;
+        let completedAt: string | null = null;
+        if (occ.time && completedTimesForDaySet.size > 0) {
+          // For timed occurrences, match by time
+          isCompleted = completedTimesForDaySet.has(occ.time);
+          if (isCompleted) {
+            const matchingTime = completionsForDay.find((t) => {
+              const d = parseAsUtc(t);
+              const timeStr = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+              return timeStr === occ.time;
+            });
+            completedAt = matchingTime || scheduledAt;
+          }
+        } else {
+          // For anytime mode, use index-based counting
+          isCompleted = occIndex < completionsCountForDay;
+          if (isCompleted && completionsForDay[occIndex]) {
+            completedAt = completionsForDay[occIndex];
+          }
+        }
+
         const virtualTask: Task = {
           ...task,
           id: `${task.id}__${dayStr}${occ.suffix}`,
           scheduled_at: scheduledAt,
-          completed_for_today: false,
+          status: isCompleted ? "completed" : "pending",
+          completed_at: completedAt,
+          completed_for_today: isCompleted, // Mark as done for this day
           isVirtualOccurrence: true,
           virtualOccurrenceDate: dayStr,
           originalTaskId: task.id,
         };
         result.push(virtualTask);
+        occIndex++;
       }
       daysGenerated++;
     }
