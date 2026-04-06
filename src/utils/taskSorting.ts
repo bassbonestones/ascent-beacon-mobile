@@ -244,17 +244,38 @@ export function getTimezoneAbbreviation(date: Date = new Date()): string {
 /**
  * Format time for display (e.g., "9:00 AM EST").
  * Uses manual formatting to avoid Hermes/React Native Intl issues.
+ * @param scheduledAt - ISO datetime string
+ * @param schedulingMode - If 'date_only', returns null (no time to show)
  * @param showTimezone - Whether to include timezone abbreviation (default: true)
  */
 export function formatTaskTime(
   scheduledAt: string | null,
+  schedulingMode?: string | null,
   showTimezone: boolean = true,
 ): string | null {
   if (!scheduledAt) return null;
+  // 'date_only' means the user only set a date, not a specific time
+  if (schedulingMode === "date_only") return null;
 
   const date = parseAsUtc(scheduledAt);
   const hours = date.getHours(); // Local hours (0-23)
   const minutes = date.getMinutes();
+  const seconds = date.getSeconds();
+  const ms = date.getMilliseconds();
+
+  // Heuristic: if time is exactly midnight and no scheduling_mode is set,
+  // this is likely a date-only task (created before scheduling_mode was added)
+  // Very few people schedule tasks at exactly 12:00:00.000 AM
+  if (
+    !schedulingMode &&
+    hours === 0 &&
+    minutes === 0 &&
+    seconds === 0 &&
+    ms === 0
+  ) {
+    return null;
+  }
+
   const ampm = hours >= 12 ? "PM" : "AM";
   const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
   const displayMinute = minutes.toString().padStart(2, "0");
@@ -300,6 +321,50 @@ export function groupTasksByDate(tasks: Task[]): Map<string, Task[]> {
       groups.set(dateKey, []);
     }
     groups.get(dateKey)!.push(task);
+  }
+
+  // Sort tasks within each date group:
+  // 1. Timed tasks first (by time), then date-only tasks (by creation date)
+  for (const [, groupTasks] of groups) {
+    groupTasks.sort((a, b) => {
+      // Helper to check if a task has a specific time set
+      const hasSpecificTime = (task: Task): boolean => {
+        if (task.scheduling_mode === "date_only") return false;
+        if (!task.scheduled_at) return false;
+        // Heuristic: midnight with no scheduling_mode = likely date-only (legacy)
+        if (!task.scheduling_mode) {
+          const date = parseAsUtc(task.scheduled_at);
+          if (
+            date.getHours() === 0 &&
+            date.getMinutes() === 0 &&
+            date.getSeconds() === 0 &&
+            date.getMilliseconds() === 0
+          ) {
+            return false;
+          }
+        }
+        return true;
+      };
+
+      const aHasTime = hasSpecificTime(a);
+      const bHasTime = hasSpecificTime(b);
+
+      // Timed tasks come before date-only tasks
+      if (aHasTime && !bHasTime) return -1;
+      if (!aHasTime && bHasTime) return 1;
+
+      // Both have times: sort by scheduled time
+      if (aHasTime && bHasTime) {
+        const aTime = parseAsUtc(a.scheduled_at!).getTime();
+        const bTime = parseAsUtc(b.scheduled_at!).getTime();
+        return aTime - bTime;
+      }
+
+      // Neither has time: sort by creation date (newest first)
+      return (
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    });
   }
 
   return groups;
@@ -717,9 +782,18 @@ export function generateRecurringOccurrences(
       }),
     );
 
+    // Check if today is a valid day for this recurrence rule
+    // For WEEKLY with BYDAY, only show on matching days
+    const todayDayOfWeek = startDate.getDay(); // 0=Sun, 1=Mon, etc.
+    let todayMatchesRule = true;
+    if (parsed.freq === "WEEKLY" && parsed.byDay && parsed.byDay.length > 0) {
+      const validDays = parsed.byDay.map(dayAbbrevToNumber);
+      todayMatchesRule = validDays.includes(todayDayOfWeek);
+    }
+
     // For the original task, we need to add occurrences for TODAY
-    // (but only if it's a multi-occurrence mode AND within limits)
-    if (todayWithinLimit && todayWithinUntil) {
+    // (but only if it's a multi-occurrence mode AND within limits AND matches rule)
+    if (todayWithinLimit && todayWithinUntil && todayMatchesRule) {
       if (intradayOccs.length > 1 || intradayOccs[0].time !== null) {
         // Multi-occurrence mode: create virtual tasks for today
         const todayStr = startDate.toISOString().split("T")[0];
@@ -772,8 +846,20 @@ export function generateRecurringOccurrences(
         }
         daysGenerated++;
       } else {
-        // Single occurrence mode: add original task as-is
-        result.push(task);
+        // Single occurrence mode: create a virtual task for today with correct status
+        // based on completed_for_today (the original task stays status="pending")
+        const todayStr = startDate.toISOString().split("T")[0];
+        const isCompleted = completionsToday > 0 || task.completed_for_today;
+        const virtualTask: Task = {
+          ...task,
+          id: `${task.id}__${todayStr}`,
+          status: isCompleted ? "completed" : "pending",
+          completed_for_today: isCompleted,
+          isVirtualOccurrence: true,
+          virtualOccurrenceDate: todayStr,
+          originalTaskId: task.id,
+        };
+        result.push(virtualTask);
         daysGenerated++;
       }
     }

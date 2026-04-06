@@ -412,14 +412,12 @@ describe("taskSorting", () => {
 
       const result = generateRecurringOccurrences([task], now, 7);
 
-      // Original + 7 future occurrences
-      expect(result.length).toBeGreaterThan(1);
-      expect(result[0].id).toBe("daily-task");
-      expect(result[0].isVirtualOccurrence).toBeUndefined();
+      // Today virtual + 7 future occurrences = 8 total
+      expect(result.length).toBe(8);
 
-      // Check virtual occurrences
+      // All should be virtual occurrences (including today)
       const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);
-      expect(virtualOccurrences.length).toBeGreaterThan(0);
+      expect(virtualOccurrences.length).toBe(8);
       expect(virtualOccurrences[0].originalTaskId).toBe("daily-task");
       expect(virtualOccurrences[0].virtualOccurrenceDate).toBeTruthy();
     });
@@ -689,12 +687,11 @@ describe("taskSorting", () => {
       const result = generateRecurringOccurrences([task], now, 2);
 
       // Window mode: single occurrence per day
-      // Today: original task (not virtual)
-      // Future: 2 virtual occurrences
+      // Today + 2 future = 3 virtual occurrences
       const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);
-      expect(virtualOccurrences.length).toBe(2);
+      expect(virtualOccurrences.length).toBe(3);
 
-      // Total should be 3 (1 original + 2 virtual)
+      // Total should be 3 (all virtual)
       expect(result.length).toBe(3);
 
       // No specific scheduled_at (flexible window)

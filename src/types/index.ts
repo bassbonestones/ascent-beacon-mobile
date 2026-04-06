@@ -635,7 +635,10 @@ export interface UseGoalsReturn {
 
 export type TaskStatus = "pending" | "completed" | "skipped";
 
-export type SchedulingMode = "floating" | "fixed";
+// 'floating' = time-of-day (adjusts with timezone)
+// 'fixed' = fixed time (timezone-locked)
+// 'date_only' = only date is set, no specific time
+export type SchedulingMode = "floating" | "fixed" | "date_only";
 
 export interface TaskGoalInfo {
   id: string;

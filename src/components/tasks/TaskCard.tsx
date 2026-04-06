@@ -55,7 +55,7 @@ export function TaskCard({
   const isCompleted = task.status === "completed";
   const isPending = task.status === "pending";
   const overdue = isTaskOverdue(task);
-  const scheduledTime = formatTaskTime(task.scheduled_at);
+  const scheduledTime = formatTaskTime(task.scheduled_at, task.scheduling_mode);
   const taskWindow = getTaskWindow(task.recurrence_rule);
 
   const handleCompleteClick = React.useCallback(() => {

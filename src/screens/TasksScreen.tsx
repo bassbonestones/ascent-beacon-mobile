@@ -9,7 +9,7 @@ import {
   Platform,
 } from "react-native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { Task, User, RootStackParamList } from "../types";
+import type { Task, User, RootStackParamList, SchedulingMode } from "../types";
 import { useTasks } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
 import { useTaskForm } from "../hooks/useTaskForm";
@@ -72,8 +72,13 @@ export default function TasksScreen({
         ? undefined
         : statusFilter;
 
-  // In Today view, we need to include completed tasks to show in "Completed" filter
-  const apiIncludeCompleted = listViewMode === "today";
+  // Include completed tasks when:
+  // - Today view (to show in "Completed" filter)
+  // - Upcoming view with "all" or "completed" filter
+  const apiIncludeCompleted =
+    listViewMode === "today" ||
+    statusFilter === "all" ||
+    statusFilter === "completed";
 
   const {
     tasks,
@@ -113,13 +118,24 @@ export default function TasksScreen({
         // Get today's LOCAL date as YYYY-MM-DD string for comparison
         const todayDateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
 
+        // Helper to check if task is "done" for Today view purposes
+        // Recurring tasks stay status="pending" but have completed_for_today=true
+        const isDoneForToday = (t: Task): boolean => {
+          return (
+            t.status === "completed" ||
+            (t.is_recurring && t.completed_for_today === true)
+          );
+        };
+
         // Calculate Today view counts
         const todayPending = filterTasksForToday(
           withOccurrences,
           currentDate,
-        ).filter((t) => t.status === "pending").length;
+        ).filter(
+          (t) => t.status === "pending" && !t.completed_for_today,
+        ).length;
         const todayCompleted = withOccurrences.filter((t) => {
-          if (t.status !== "completed") return false;
+          if (!isDoneForToday(t)) return false;
           const completionTimestamp = t.completed_at || t.updated_at;
           if (completionTimestamp) {
             const completedDate = parseAsUtc(completionTimestamp);
@@ -149,9 +165,16 @@ export default function TasksScreen({
           };
         } else if (statusFilter === "completed") {
           // Show completed tasks that are relevant to today
+          // Includes both status="completed" and recurring tasks with completed_for_today
 
           const completedTasks = withOccurrences.filter((t) => {
-            if (t.status !== "completed") return false;
+            // Must be done for today (either completed status or recurring with completed_for_today)
+            if (!isDoneForToday(t)) return false;
+
+            // Recurring tasks with completed_for_today: always show in Today completed
+            if (t.is_recurring && t.completed_for_today) {
+              return true;
+            }
 
             // Check if completed today (use completed_at or fall back to updated_at)
             // Compare LOCAL dates (not UTC) since user cares about their local day
@@ -196,9 +219,7 @@ export default function TasksScreen({
         // Upcoming view: group by date
         let upcomingTasks: Task[] = [];
 
-        // Calculate counts for future dates only
-        const todayEnd = new Date(currentDate);
-        todayEnd.setHours(23, 59, 59, 999);
+        // Calculate counts for Upcoming view (future dates only)
 
         // Generate occurrences for counting (always need this for accurate counts)
         const allWithOccurrences = generateRecurringOccurrences(
@@ -213,40 +234,33 @@ export default function TasksScreen({
         const upcomingPending = allUpcoming.filter(
           (t) => t.status === "pending",
         ).length;
-        const upcomingCompleted = tasks.filter((t) => {
-          if (t.status !== "completed") return false;
-          if (!t.scheduled_at) return false;
-          return parseAsUtc(t.scheduled_at) > todayEnd;
-        }).length;
+        const upcomingCompleted = allUpcoming.filter(
+          (t) => t.status === "completed",
+        ).length;
 
         if (statusFilter === "pending") {
           // For recurring tasks, we need to generate future occurrences FIRST,
           // then filter for upcoming. Otherwise today's recurring tasks get filtered out
           // before we can generate their future occurrences.
           if (!condenseRecurring) {
-            // Now filter to only show future dates (not today)
-            upcomingTasks = allUpcoming;
+            // Now filter to only show future dates (not today) AND pending status
+            upcomingTasks = allUpcoming.filter((t) => t.status === "pending");
           } else {
             // Condense mode: filter first, then condense
-            upcomingTasks = filterTasksForUpcoming(tasks, currentDate);
+            upcomingTasks = filterTasksForUpcoming(tasks, currentDate).filter(
+              (t) => t.status === "pending",
+            );
             upcomingTasks = condenseRecurringTasks(upcomingTasks);
           }
         } else {
           // For completed/all status in Upcoming view:
-          // Only show tasks scheduled for FUTURE dates (after today)
+          // Use allUpcoming which includes virtual recurring occurrences
           if (statusFilter === "completed") {
-            // Show completed tasks that were scheduled for future dates
-            upcomingTasks = tasks.filter((t) => {
-              if (t.status !== "completed") return false;
-              if (!t.scheduled_at) return false;
-              return parseAsUtc(t.scheduled_at) > todayEnd;
-            });
+            // Show completed tasks scheduled for future dates
+            upcomingTasks = allUpcoming.filter((t) => t.status === "completed");
           } else {
-            // "all" - show future pending tasks + future completed tasks
-            upcomingTasks = tasks.filter((t) => {
-              if (!t.scheduled_at) return false;
-              return parseAsUtc(t.scheduled_at) > todayEnd;
-            });
+            // "all" - show all future tasks (pending + completed)
+            upcomingTasks = allUpcoming;
           }
         }
 
@@ -283,6 +297,17 @@ export default function TasksScreen({
       return;
     }
     try {
+      // Determine scheduling_mode:
+      // - 'date_only': date is set but no specific time
+      // - For recurring with time: use user's choice (floating/fixed)
+      // - Otherwise: undefined
+      let schedulingMode: SchedulingMode | undefined;
+      if (taskForm.scheduledDate && !taskForm.scheduledTime) {
+        schedulingMode = "date_only";
+      } else if (taskForm.isRecurring && taskForm.scheduledTime) {
+        schedulingMode = taskForm.schedulingMode || undefined;
+      }
+
       await createTask({
         goal_id: taskForm.goalId || undefined,
         title: taskForm.title.trim(),
@@ -298,10 +323,7 @@ export default function TasksScreen({
         recurrence_rule: taskForm.isRecurring
           ? taskForm.recurrenceRule || undefined
           : undefined,
-        scheduling_mode:
-          taskForm.isRecurring && taskForm.scheduledTime
-            ? taskForm.schedulingMode
-            : undefined,
+        scheduling_mode: schedulingMode,
       });
       taskForm.resetForm();
       setScreenMode("list");
@@ -330,6 +352,14 @@ export default function TasksScreen({
       return;
     }
     try {
+      // Determine scheduling_mode (same logic as create)
+      let schedulingMode: SchedulingMode | undefined;
+      if (taskForm.scheduledDate && !taskForm.scheduledTime) {
+        schedulingMode = "date_only";
+      } else if (taskForm.isRecurring && taskForm.scheduledTime) {
+        schedulingMode = taskForm.schedulingMode || undefined;
+      }
+
       await updateTask(editingTask.id, {
         goal_id: taskForm.goalId || undefined,
         title: taskForm.title.trim(),
@@ -345,10 +375,7 @@ export default function TasksScreen({
         recurrence_rule: taskForm.isRecurring
           ? taskForm.recurrenceRule || undefined
           : undefined,
-        scheduling_mode:
-          taskForm.isRecurring && taskForm.scheduledTime
-            ? taskForm.schedulingMode
-            : undefined,
+        scheduling_mode: schedulingMode,
       });
       taskForm.resetForm();
       setEditingTask(null);

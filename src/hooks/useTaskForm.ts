@@ -133,14 +133,24 @@ export function useTaskForm(): UseTaskFormReturn {
   // Convert date + time to ISO datetime
   const dateTimeToIso = useCallback(
     (date: string | null, time: string | null): string | undefined => {
-      if (!time) return undefined;
-      const [hour, minute] = time.split(":").map(Number);
+      // If no date and no time, no scheduled_at
+      if (!date && !time) return undefined;
 
       let targetDate: Date;
       if (date) {
         const [year, month, day] = date.split("-").map(Number);
-        targetDate = new Date(year, month - 1, day, hour, minute, 0, 0);
+        if (time) {
+          // Date + time: schedule at that specific datetime
+          const [hour, minute] = time.split(":").map(Number);
+          targetDate = new Date(year, month - 1, day, hour, minute, 0, 0);
+        } else {
+          // Date only: schedule at start of day (midnight local time)
+          // This ensures the task shows up in that day's view
+          targetDate = new Date(year, month - 1, day, 0, 0, 0, 0);
+        }
       } else {
+        // Time only (no date): use today's date
+        const [hour, minute] = time!.split(":").map(Number);
         targetDate = new Date();
         targetDate.setHours(hour, minute, 0, 0);
       }

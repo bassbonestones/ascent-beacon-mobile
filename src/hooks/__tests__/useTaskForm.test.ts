@@ -207,12 +207,27 @@ describe("useTaskForm", () => {
   });
 
   describe("dateTimeToIso", () => {
-    it("returns undefined when time is null", () => {
+    it("returns undefined when both date and time are null", () => {
+      const { result } = renderHook(() => useTaskForm());
+
+      const iso = result.current.dateTimeToIso(null, null);
+
+      expect(iso).toBeUndefined();
+    });
+
+    it("returns start of day when date is provided but time is null", () => {
       const { result } = renderHook(() => useTaskForm());
 
       const iso = result.current.dateTimeToIso("2026-04-05", null);
 
-      expect(iso).toBeUndefined();
+      expect(iso).toBeDefined();
+      // Should be midnight local time on that date
+      const date = new Date(iso!);
+      expect(date.getFullYear()).toBe(2026);
+      expect(date.getMonth()).toBe(3); // April = 3 (0-indexed)
+      expect(date.getDate()).toBe(5);
+      expect(date.getHours()).toBe(0);
+      expect(date.getMinutes()).toBe(0);
     });
 
     it("returns ISO string when date and time are provided", () => {

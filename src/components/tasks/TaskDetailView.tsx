@@ -74,6 +74,44 @@ const formatDateTime = (dateString: string): string => {
 };
 
 /**
+ * Format datetime based on scheduling_mode.
+ * If 'date_only', shows just the date without time.
+ */
+const formatScheduledAt = (
+  dateString: string,
+  schedulingMode?: string | null,
+): string => {
+  const date = parseAsUtc(dateString);
+
+  // Check if this should be shown as date-only
+  const isDateOnly =
+    schedulingMode === "date_only" ||
+    // Heuristic: midnight with no scheduling_mode = likely date-only
+    (!schedulingMode &&
+      date.getHours() === 0 &&
+      date.getMinutes() === 0 &&
+      date.getSeconds() === 0 &&
+      date.getMilliseconds() === 0);
+
+  const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
+  const month = date.toLocaleDateString("en-US", { month: "short" });
+  const day = date.getDate();
+
+  if (isDateOnly) {
+    const year = date.getFullYear();
+    return `${weekday}, ${month} ${day}, ${year}`;
+  }
+
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? "PM" : "AM";
+  const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+  const displayMinute = minutes.toString().padStart(2, "0");
+  const tz = getTimezoneAbbreviation(date);
+  return `${weekday}, ${month} ${day} at ${displayHour}:${displayMinute} ${ampm} ${tz}`;
+};
+
+/**
  * Format time from HH:MM to 12-hour format.
  */
 const formatTime12h = (time: string): string => {
@@ -349,7 +387,7 @@ export function TaskDetailView({
             <View style={styles.detailMetaRow}>
               <Text style={styles.detailMetaLabel}>Scheduled</Text>
               <Text style={styles.detailMetaValue}>
-                {formatDateTime(task.scheduled_at)}
+                {formatScheduledAt(task.scheduled_at, task.scheduling_mode)}
               </Text>
             </View>
           )}
