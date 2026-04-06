@@ -11,6 +11,7 @@ import type {
 export interface UseTasksOptions {
   goalId?: string;
   status?: string;
+  includeCompleted?: boolean;
 }
 
 /**
@@ -30,6 +31,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
       const response = await api.getTasks({
         goal_id: options.goalId,
         status: options.status,
+        include_completed: options.includeCompleted,
       });
       setTasks(response.tasks);
       setPendingCount(response.pending_count);
@@ -41,7 +43,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
     } finally {
       setLoading(false);
     }
-  }, [options.goalId, options.status]);
+  }, [options.goalId, options.status, options.includeCompleted]);
 
   useEffect(() => {
     fetchTasks();

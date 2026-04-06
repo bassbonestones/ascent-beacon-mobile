@@ -252,4 +252,48 @@ describe("CreateTaskForm", () => {
       screen.getByRole("radio", { name: "Select goal: Radio Goal" }),
     ).toBeTruthy();
   });
+
+  describe("edit mode", () => {
+    it("shows Edit Task header when isEditMode is true", () => {
+      render(<CreateTaskForm {...defaultProps} isEditMode={true} />);
+      expect(screen.getByText("Edit Task")).toBeTruthy();
+      expect(screen.queryByText("New Task")).toBeNull();
+    });
+
+    it("shows New Task header when isEditMode is false", () => {
+      render(<CreateTaskForm {...defaultProps} isEditMode={false} />);
+      expect(screen.getByText("New Task")).toBeTruthy();
+      expect(screen.queryByText("Edit Task")).toBeNull();
+    });
+
+    it("shows Save Changes button when isEditMode is true", () => {
+      render(
+        <CreateTaskForm {...defaultProps} title="Test" isEditMode={true} />,
+      );
+      expect(screen.getByText("Save Changes")).toBeTruthy();
+      expect(screen.queryByText("Create Task")).toBeNull();
+    });
+
+    it("shows Create Task button when isEditMode is false", () => {
+      render(
+        <CreateTaskForm {...defaultProps} title="Test" isEditMode={false} />,
+      );
+      expect(screen.getByText("Create Task")).toBeTruthy();
+      expect(screen.queryByText("Save Changes")).toBeNull();
+    });
+
+    it("has correct accessibility label in edit mode", () => {
+      render(
+        <CreateTaskForm {...defaultProps} title="Test" isEditMode={true} />,
+      );
+      expect(screen.getByLabelText("Save changes")).toBeTruthy();
+    });
+
+    it("has correct accessibility label in create mode", () => {
+      render(
+        <CreateTaskForm {...defaultProps} title="Test" isEditMode={false} />,
+      );
+      expect(screen.getByLabelText("Create task")).toBeTruthy();
+    });
+  });
 });

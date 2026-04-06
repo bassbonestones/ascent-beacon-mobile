@@ -33,6 +33,7 @@ describe("TaskDetailView", () => {
     onSkip: jest.fn(),
     onReopen: jest.fn(),
     onDelete: jest.fn(),
+    onEdit: jest.fn(),
   };
 
   beforeEach(() => {
@@ -264,10 +265,36 @@ describe("TaskDetailView", () => {
     });
   });
 
+  describe("edit functionality", () => {
+    it("renders edit button", () => {
+      render(<TaskDetailView {...defaultProps} />);
+      expect(screen.getByLabelText("Edit task")).toBeTruthy();
+    });
+
+    it("calls onEdit when edit button is pressed", () => {
+      render(<TaskDetailView {...defaultProps} />);
+      fireEvent.press(screen.getByLabelText("Edit task"));
+      expect(defaultProps.onEdit).toHaveBeenCalledWith(defaultProps.task);
+    });
+
+    it("shows edit button for pending tasks", () => {
+      const task = createMockTask({ status: "pending" });
+      render(<TaskDetailView {...defaultProps} task={task} />);
+      expect(screen.getByText("✏️ Edit Task")).toBeTruthy();
+    });
+
+    it("shows edit button for completed tasks", () => {
+      const task = createMockTask({ status: "completed" });
+      render(<TaskDetailView {...defaultProps} task={task} />);
+      expect(screen.getByText("✏️ Edit Task")).toBeTruthy();
+    });
+  });
+
   it("has proper button accessibility roles", () => {
     const task = createMockTask({ status: "pending" });
     render(<TaskDetailView {...defaultProps} task={task} />);
     expect(screen.getByRole("button", { name: "Back to tasks" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Edit task" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Complete task" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Skip task" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Delete task" })).toBeTruthy();

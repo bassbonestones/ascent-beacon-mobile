@@ -11,6 +11,7 @@ interface TaskDetailViewProps {
   onSkip: (task: Task) => void;
   onReopen: (task: Task) => void;
   onDelete: (task: Task) => void;
+  onEdit: (task: Task) => void;
   onViewTracking?: (task: Task) => void;
 }
 
@@ -228,6 +229,7 @@ export function TaskDetailView({
   onSkip,
   onReopen,
   onDelete,
+  onEdit,
   onViewTracking,
 }: TaskDetailViewProps): React.ReactElement {
   const isPending = task.status === "pending";
@@ -387,6 +389,15 @@ export function TaskDetailView({
               <Text style={styles.actionButtonText}>📊 View Tracking</Text>
             </TouchableOpacity>
           )}
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.editButton]}
+            onPress={() => onEdit(task)}
+            accessibilityLabel="Edit task"
+            accessibilityRole="button"
+          >
+            <Text style={styles.actionButtonText}>✏️ Edit Task</Text>
+          </TouchableOpacity>
 
           {isPending && (
             <>

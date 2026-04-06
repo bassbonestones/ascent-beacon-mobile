@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">45.94% </span>
+                <span class="strong">46.15% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>17/37</span>
+                <span class='fraction'>18/39</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">52.94% </span>
+                <span class="strong">55% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>9/17</span>
+                <span class='fraction'>11/20</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">45.94% </span>
+                <span class="strong">46.15% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>17/37</span>
+                <span class='fraction'>18/39</span>
             </div>
         
             
@@ -278,7 +278,22 @@
 <a name='L213'></a><a href='#L213'>213</a>
 <a name='L214'></a><a href='#L214'>214</a>
 <a name='L215'></a><a href='#L215'>215</a>
-<a name='L216'></a><a href='#L216'>216</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -363,6 +378,9 @@
 <span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-yes">4x</span>
@@ -411,7 +429,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -500,6 +522,7 @@
   UpdateTaskRequest,
   CompleteTaskRequest,
   SkipTaskRequest,
+  ReopenTaskRequest,
   TodayTasksResponse,
   TaskRangeRequest,
   TaskRangeResponse,
@@ -527,7 +550,7 @@ export interface TasksMethods {
   // Status transitions
   completeTask(taskId: string, data?: CompleteTaskRequest): Promise&lt;Task&gt;;
   skipTask(taskId: string, data?: SkipTaskRequest): Promise&lt;Task&gt;;
-  reopenTask(taskId: string): Promise&lt;Task&gt;;
+  reopenTask(taskId: string, data?: ReopenTaskRequest): Promise&lt;Task&gt;;
 &nbsp;
   // Phase 4b: Views
   getTodayTasks(
@@ -554,12 +577,15 @@ export interface TasksMethods {
   ): Promise&lt;CompletionHistoryResponse&gt;;
 &nbsp;
   // Time Machine
-  deleteFutureCompletions(afterDate?: string): Promise&lt;DeleteFutureCompletionsResponse&gt;;
+  deleteFutureCompletions(
+    afterDate?: string,
+  ): Promise&lt;DeleteFutureCompletionsResponse&gt;;
 }
 &nbsp;
 export interface TasksListParams {
   goal_id?: string;
   status?: string;
+  include_completed?: boolean;
 }
 &nbsp;
 /**
@@ -577,6 +603,9 @@ export const tasksMethods = &lt;TBase extends Constructor&lt;ApiServiceBase&gt;&
       }
       if (params.status) {
         searchParams.append("status", params.status);
+      }
+      <span class="missing-if-branch" title="if path not taken" >I</span>if (params.include_completed) {
+<span class="cstat-no" title="statement not covered" >        searchParams.append("include_completed", "true");</span>
       }
 &nbsp;
       const queryString = searchParams.toString();
@@ -625,9 +654,13 @@ export const tasksMethods = &lt;TBase extends Constructor&lt;ApiServiceBase&gt;&
       });
     }
 &nbsp;
-    async reopenTask(taskId: string): Promise&lt;Task&gt; {
+    async reopenTask(
+      taskId: string,
+      data: ReopenTaskRequest = {},
+    ): Promise&lt;Task&gt; {
       return await this.request&lt;Task&gt;(`/tasks/${taskId}/reopen`, {
         method: "POST",
+        body: JSON.stringify(data),
       });
     }
 &nbsp;
@@ -715,7 +748,7 @@ export const tasksMethods = &lt;TBase extends Constructor&lt;ApiServiceBase&gt;&
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-05T06:06:40.595Z
+                at 2026-04-06T03:18:09.262Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

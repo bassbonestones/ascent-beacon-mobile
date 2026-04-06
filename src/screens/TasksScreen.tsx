@@ -40,7 +40,7 @@ interface TasksScreenProps {
   navigation: NativeStackNavigationProp<RootStackParamList>;
 }
 
-type ScreenMode = "list" | "create" | "detail";
+type ScreenMode = "list" | "create" | "detail" | "edit";
 type ListViewMode = "today" | "upcoming";
 type StatusFilter = "all" | "pending" | "completed";
 
@@ -52,6 +52,7 @@ export default function TasksScreen({
   const [screenMode, setScreenMode] = useState<ScreenMode>("list");
   const [listViewMode, setListViewMode] = useState<ListViewMode>("today");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
   const [skipModalTask, setSkipModalTask] = useState<Task | null>(null);
   const [overdueModalTask, setOverdueModalTask] = useState<Task | null>(null);
@@ -71,6 +72,9 @@ export default function TasksScreen({
         ? undefined
         : statusFilter;
 
+  // In Today view, we need to include completed tasks to show in "Completed" filter
+  const apiIncludeCompleted = listViewMode === "today";
+
   const {
     tasks,
     loading,
@@ -78,11 +82,15 @@ export default function TasksScreen({
     completedCount,
     refetch,
     createTask,
+    updateTask,
     completeTask,
     skipTask,
     reopenTask,
     deleteTask,
-  } = useTasks({ status: apiStatusFilter });
+  } = useTasks({
+    status: apiStatusFilter,
+    includeCompleted: apiIncludeCompleted,
+  });
 
   const { goals, loading: goalsLoading } = useGoals({ parentOnly: true });
 
@@ -90,93 +98,179 @@ export default function TasksScreen({
   const currentDate = getCurrentDate();
 
   // Filter and sort tasks based on view mode
-  const { sortedTasks, sections } = useMemo(() => {
-    if (listViewMode === "today") {
-      // Today view: overdue → timed → todos
-      // Generate intraday occurrences for multi-occurrence modes (X times/day, specific times, interval)
-      // Use daysAhead=0 to only generate for today
-      const withOccurrences = generateRecurringOccurrences(
-        tasks,
-        currentDate,
-        0, // Only today, no future days
-      );
+  const { sortedTasks, sections, viewPendingCount, viewCompletedCount } =
+    useMemo(() => {
+      if (listViewMode === "today") {
+        // Today view: overdue → timed → todos
+        // Generate intraday occurrences for multi-occurrence modes (X times/day, specific times, interval)
+        // Use daysAhead=0 to only generate for today
+        const withOccurrences = generateRecurringOccurrences(
+          tasks,
+          currentDate,
+          0, // Only today, no future days
+        );
 
-      if (statusFilter === "pending") {
-        let todayTasks = filterTasksForToday(withOccurrences, currentDate);
-        // Only show pending virtual occurrences
-        todayTasks = todayTasks.filter((t) => t.status === "pending");
-        if (condenseRecurring) {
-          todayTasks = condenseRecurringTasks(todayTasks);
-        }
-        return {
-          sortedTasks: sortTasksForTodayView(todayTasks, currentDate),
-          sections: null,
-        };
-      } else if (statusFilter === "completed") {
-        // Show only completed virtual occurrences for today
-        let completedTasks = filterTasksForToday(withOccurrences, currentDate);
-        completedTasks = completedTasks.filter((t) => t.status === "completed");
-        return {
-          sortedTasks: completedTasks,
-          sections: null,
-        };
-      }
-      // For "all", show all virtual occurrences for today
-      return {
-        sortedTasks: filterTasksForToday(withOccurrences, currentDate),
-        sections: null,
-      };
-    } else {
-      // Upcoming view: group by date
-      let upcomingTasks: Task[] = [];
+        // Get today's LOCAL date as YYYY-MM-DD string for comparison
+        const todayDateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
 
-      if (statusFilter === "pending") {
-        // For recurring tasks, we need to generate future occurrences FIRST,
-        // then filter for upcoming. Otherwise today's recurring tasks get filtered out
-        // before we can generate their future occurrences.
-        if (!condenseRecurring) {
-          // Generate future occurrences for recurring tasks (includes originals)
-          const withOccurrences = generateRecurringOccurrences(
-            tasks,
-            currentDate,
-            14, // Show 14 days ahead
-          );
-          // Now filter to only show future dates (not today)
-          upcomingTasks = filterTasksForUpcoming(withOccurrences, currentDate);
-        } else {
-          // Condense mode: filter first, then condense
-          upcomingTasks = filterTasksForUpcoming(tasks, currentDate);
-          upcomingTasks = condenseRecurringTasks(upcomingTasks);
+        // Calculate Today view counts
+        const todayPending = filterTasksForToday(
+          withOccurrences,
+          currentDate,
+        ).filter((t) => t.status === "pending").length;
+        const todayCompleted = withOccurrences.filter((t) => {
+          if (t.status !== "completed") return false;
+          const completionTimestamp = t.completed_at || t.updated_at;
+          if (completionTimestamp) {
+            const completedDate = parseAsUtc(completionTimestamp);
+            const completedDateStr = `${completedDate.getFullYear()}-${String(completedDate.getMonth() + 1).padStart(2, "0")}-${String(completedDate.getDate()).padStart(2, "0")}`;
+            if (completedDateStr === todayDateStr) return true;
+          }
+          if (t.scheduled_at) {
+            const scheduledDate = parseAsUtc(t.scheduled_at);
+            const scheduledDateStr = `${scheduledDate.getFullYear()}-${String(scheduledDate.getMonth() + 1).padStart(2, "0")}-${String(scheduledDate.getDate()).padStart(2, "0")}`;
+            if (scheduledDateStr === todayDateStr) return true;
+          }
+          return false;
+        }).length;
+
+        if (statusFilter === "pending") {
+          let todayTasks = filterTasksForToday(withOccurrences, currentDate);
+          // Only show pending virtual occurrences
+          todayTasks = todayTasks.filter((t) => t.status === "pending");
+          if (condenseRecurring) {
+            todayTasks = condenseRecurringTasks(todayTasks);
+          }
+          return {
+            sortedTasks: sortTasksForTodayView(todayTasks, currentDate),
+            sections: null,
+            viewPendingCount: todayPending,
+            viewCompletedCount: todayCompleted,
+          };
+        } else if (statusFilter === "completed") {
+          // Show completed tasks that are relevant to today
+
+          const completedTasks = withOccurrences.filter((t) => {
+            if (t.status !== "completed") return false;
+
+            // Check if completed today (use completed_at or fall back to updated_at)
+            // Compare LOCAL dates (not UTC) since user cares about their local day
+            const completionTimestamp = t.completed_at || t.updated_at;
+            if (completionTimestamp) {
+              const completedDate = parseAsUtc(completionTimestamp);
+              // Get LOCAL date string from the completion timestamp
+              const completedDateStr = `${completedDate.getFullYear()}-${String(completedDate.getMonth() + 1).padStart(2, "0")}-${String(completedDate.getDate()).padStart(2, "0")}`;
+              if (completedDateStr === todayDateStr) {
+                return true;
+              }
+            }
+
+            // Also include if scheduled for today (LOCAL date)
+            if (t.scheduled_at) {
+              const scheduledDate = parseAsUtc(t.scheduled_at);
+              const scheduledDateStr = `${scheduledDate.getFullYear()}-${String(scheduledDate.getMonth() + 1).padStart(2, "0")}-${String(scheduledDate.getDate()).padStart(2, "0")}`;
+              if (scheduledDateStr === todayDateStr) {
+                return true;
+              }
+            }
+
+            // Fallback: include if no timestamps but is completed
+            return !completionTimestamp && !t.scheduled_at;
+          });
+
+          return {
+            sortedTasks: completedTasks,
+            sections: null,
+            viewPendingCount: todayPending,
+            viewCompletedCount: todayCompleted,
+          };
         }
+        // For "all", show all virtual occurrences for today
+        return {
+          sortedTasks: filterTasksForToday(withOccurrences, currentDate),
+          sections: null,
+          viewPendingCount: todayPending,
+          viewCompletedCount: todayCompleted,
+        };
       } else {
-        // For completed/all, still only show future tasks
-        upcomingTasks = tasks.filter((t) => {
+        // Upcoming view: group by date
+        let upcomingTasks: Task[] = [];
+
+        // Calculate counts for future dates only
+        const todayEnd = new Date(currentDate);
+        todayEnd.setHours(23, 59, 59, 999);
+
+        // Generate occurrences for counting (always need this for accurate counts)
+        const allWithOccurrences = generateRecurringOccurrences(
+          tasks,
+          currentDate,
+          14,
+        );
+        const allUpcoming = filterTasksForUpcoming(
+          allWithOccurrences,
+          currentDate,
+        );
+        const upcomingPending = allUpcoming.filter(
+          (t) => t.status === "pending",
+        ).length;
+        const upcomingCompleted = tasks.filter((t) => {
+          if (t.status !== "completed") return false;
           if (!t.scheduled_at) return false;
-          const todayEnd = new Date(currentDate);
-          todayEnd.setHours(23, 59, 59, 999);
           return parseAsUtc(t.scheduled_at) > todayEnd;
-        });
+        }).length;
+
+        if (statusFilter === "pending") {
+          // For recurring tasks, we need to generate future occurrences FIRST,
+          // then filter for upcoming. Otherwise today's recurring tasks get filtered out
+          // before we can generate their future occurrences.
+          if (!condenseRecurring) {
+            // Now filter to only show future dates (not today)
+            upcomingTasks = allUpcoming;
+          } else {
+            // Condense mode: filter first, then condense
+            upcomingTasks = filterTasksForUpcoming(tasks, currentDate);
+            upcomingTasks = condenseRecurringTasks(upcomingTasks);
+          }
+        } else {
+          // For completed/all status in Upcoming view:
+          // Only show tasks scheduled for FUTURE dates (after today)
+          if (statusFilter === "completed") {
+            // Show completed tasks that were scheduled for future dates
+            upcomingTasks = tasks.filter((t) => {
+              if (t.status !== "completed") return false;
+              if (!t.scheduled_at) return false;
+              return parseAsUtc(t.scheduled_at) > todayEnd;
+            });
+          } else {
+            // "all" - show future pending tasks + future completed tasks
+            upcomingTasks = tasks.filter((t) => {
+              if (!t.scheduled_at) return false;
+              return parseAsUtc(t.scheduled_at) > todayEnd;
+            });
+          }
+        }
+
+        const grouped = groupTasksByDate(upcomingTasks);
+
+        // Convert to SectionList format, sorted by date
+        const dateKeys = Array.from(grouped.keys())
+          .filter((k) => k !== "no-date")
+          .sort();
+
+        const sectionData = dateKeys.map((dateKey) => ({
+          title: formatDateHeader(dateKey, currentDate),
+          dateKey,
+          data: grouped.get(dateKey) || [],
+        }));
+
+        return {
+          sortedTasks: upcomingTasks,
+          sections: sectionData,
+          viewPendingCount: upcomingPending,
+          viewCompletedCount: upcomingCompleted,
+        };
       }
-
-      const grouped = groupTasksByDate(upcomingTasks);
-
-      // Convert to SectionList format, sorted by date
-      const dateKeys = Array.from(grouped.keys())
-        .filter((k) => k !== "no-date")
-        .sort();
-
-      const sectionData = dateKeys.map((dateKey) => ({
-        title: formatDateHeader(dateKey, currentDate),
-        dateKey,
-        data: grouped.get(dateKey) || [],
-      }));
-
-      return {
-        sortedTasks: upcomingTasks,
-        sections: sectionData,
-      };
-    }
-  }, [tasks, statusFilter, condenseRecurring, listViewMode, currentDate]);
+    }, [tasks, statusFilter, condenseRecurring, listViewMode, currentDate]);
 
   // Count overdue tasks
   const overdueCount = useMemo(() => {
@@ -215,6 +309,55 @@ export default function TasksScreen({
       // Error handled in hook
     }
   }, [taskForm, createTask]);
+
+  const handleEdit = useCallback(
+    (task: Task) => {
+      // For virtual occurrences, we want to edit the original task
+      const taskToEdit = task.originalTaskId
+        ? tasks.find((t) => t.id === task.originalTaskId) || task
+        : task;
+      setEditingTask(taskToEdit);
+      taskForm.populateForm(taskToEdit);
+      setScreenMode("edit");
+    },
+    [tasks, taskForm],
+  );
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingTask) return;
+    if (!taskForm.title.trim()) {
+      showAlert("Error", "Please enter a task title");
+      return;
+    }
+    try {
+      await updateTask(editingTask.id, {
+        goal_id: taskForm.goalId || undefined,
+        title: taskForm.title.trim(),
+        description: taskForm.description.trim() || undefined,
+        duration_minutes: taskForm.isLightning
+          ? 0
+          : parseInt(taskForm.duration, 10) || 30,
+        scheduled_at: taskForm.dateTimeToIso(
+          taskForm.scheduledDate,
+          taskForm.scheduledTime,
+        ),
+        is_recurring: taskForm.isRecurring,
+        recurrence_rule: taskForm.isRecurring
+          ? taskForm.recurrenceRule || undefined
+          : undefined,
+        scheduling_mode:
+          taskForm.isRecurring && taskForm.scheduledTime
+            ? taskForm.schedulingMode
+            : undefined,
+      });
+      taskForm.resetForm();
+      setEditingTask(null);
+      setSelectedTask(null);
+      setScreenMode("list");
+    } catch {
+      // Error handled in hook
+    }
+  }, [editingTask, taskForm, updateTask]);
 
   const handleComplete = useCallback(
     async (task: Task) => {
@@ -444,6 +587,41 @@ export default function TasksScreen({
     );
   }
 
+  if (screenMode === "edit") {
+    return (
+      <CreateTaskForm
+        goals={goals}
+        goalsLoading={goalsLoading}
+        selectedGoalId={taskForm.goalId}
+        onGoalSelect={taskForm.setGoalId}
+        title={taskForm.title}
+        onTitleChange={taskForm.setTitle}
+        description={taskForm.description}
+        onDescriptionChange={taskForm.setDescription}
+        isLightning={taskForm.isLightning}
+        onLightningToggle={taskForm.toggleLightning}
+        duration={taskForm.duration}
+        onDurationChange={taskForm.setDuration}
+        isRecurring={taskForm.isRecurring}
+        onRecurringToggle={taskForm.toggleRecurring}
+        recurrenceRule={taskForm.recurrenceRule}
+        schedulingMode={taskForm.schedulingMode}
+        scheduledTime={taskForm.scheduledTime}
+        onScheduledTimeChange={taskForm.setScheduledTime}
+        scheduledDate={taskForm.scheduledDate}
+        onScheduledDateChange={taskForm.setScheduledDate}
+        onRecurrenceChange={taskForm.handleRecurrenceChange}
+        onSubmit={handleSaveEdit}
+        onCancel={() => {
+          taskForm.resetForm();
+          setEditingTask(null);
+          setScreenMode("list");
+        }}
+        isEditMode={true}
+      />
+    );
+  }
+
   if (screenMode === "detail" && selectedTask) {
     return (
       <>
@@ -457,6 +635,7 @@ export default function TasksScreen({
           onSkip={handleSkip}
           onReopen={handleReopen}
           onDelete={handleDelete}
+          onEdit={handleEdit}
           onViewTracking={(task) => {
             navigation.navigate("HabitMetrics", {
               taskId: task.id,
@@ -501,11 +680,11 @@ export default function TasksScreen({
 
       <View style={styles.summaryRow}>
         <View style={styles.summaryItem}>
-          <Text style={styles.summaryCount}>{pendingCount}</Text>
+          <Text style={styles.summaryCount}>{viewPendingCount}</Text>
           <Text style={styles.summaryLabel}>pending</Text>
         </View>
         <View style={styles.summaryItem}>
-          <Text style={styles.summaryCount}>{completedCount}</Text>
+          <Text style={styles.summaryCount}>{viewCompletedCount}</Text>
           <Text style={styles.summaryLabel}>completed</Text>
         </View>
         {overdueCount > 0 && (

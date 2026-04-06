@@ -174,6 +174,7 @@ describe("apiTasks", () => {
       await api.reopenTask("t1");
       expect(api.request).toHaveBeenCalledWith("/tasks/t1/reopen", {
         method: "POST",
+        body: "{}",
       });
     });
   });

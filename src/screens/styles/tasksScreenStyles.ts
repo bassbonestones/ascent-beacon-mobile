@@ -446,6 +446,9 @@ export const styles = StyleSheet.create({
   trackingButton: {
     backgroundColor: "#E91E63",
   },
+  editButton: {
+    backgroundColor: "#6366F1",
+  },
   skipButton: {
     backgroundColor: "#6B7280",
   },

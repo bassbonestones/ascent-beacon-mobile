@@ -152,9 +152,20 @@ describe("TasksScreen", () => {
       expect(screen.getByLabelText("Create new task")).toBeTruthy();
     });
 
-    it("shows pending and completed counts", () => {
+    it("shows pending and completed counts based on tasks", () => {
+      const pendingTasks = Array.from({ length: 5 }, (_, i) =>
+        createMockTask({ id: `pending-${i}`, status: "pending" }),
+      );
+      const completedTasks = Array.from({ length: 10 }, (_, i) =>
+        createMockTask({
+          id: `completed-${i}`,
+          status: "completed",
+          completed_at: new Date().toISOString(),
+        }),
+      );
       mockedUseTasks.mockReturnValue({
         ...defaultTasksHook,
+        tasks: [...pendingTasks, ...completedTasks],
         pendingCount: 5,
         completedCount: 10,
       });
@@ -519,7 +530,12 @@ describe("TasksScreen", () => {
         .fn()
         .mockResolvedValue(createMockTask({ status: "pending" }));
       const tasks = [
-        createMockTask({ id: "t-1", title: "Reopen Me", status: "completed" }),
+        createMockTask({
+          id: "t-1",
+          title: "Reopen Me",
+          status: "completed",
+          completed_at: new Date().toISOString(),
+        }),
       ];
       mockedUseTasks.mockReturnValue({
         ...defaultTasksHook,

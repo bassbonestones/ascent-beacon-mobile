@@ -68,6 +68,7 @@ export interface TasksMethods {
 export interface TasksListParams {
   goal_id?: string;
   status?: string;
+  include_completed?: boolean;
 }
 
 /**
@@ -85,6 +86,9 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
       }
       if (params.status) {
         searchParams.append("status", params.status);
+      }
+      if (params.include_completed) {
+        searchParams.append("include_completed", "true");
       }
 
       const queryString = searchParams.toString();

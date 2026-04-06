@@ -43,6 +43,7 @@ interface CreateTaskFormProps {
   onScheduledDateChange: (date: string | null) => void;
   onSubmit: () => void;
   onCancel: () => void;
+  isEditMode?: boolean;
 }
 
 const getRecurrenceDescription = (
@@ -77,6 +78,7 @@ export function CreateTaskForm({
   onScheduledDateChange,
   onSubmit,
   onCancel,
+  isEditMode = false,
 }: CreateTaskFormProps): React.ReactElement {
   const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
   const canSubmit = title.trim().length > 0;
@@ -92,7 +94,9 @@ export function CreateTaskForm({
         >
           <Text style={styles.backButtonText}>← Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>New Task</Text>
+        <Text style={styles.headerTitle}>
+          {isEditMode ? "Edit Task" : "New Task"}
+        </Text>
         <View style={{ width: 60 }} />
       </View>
 
@@ -270,10 +274,12 @@ export function CreateTaskForm({
           ]}
           onPress={onSubmit}
           disabled={!canSubmit}
-          accessibilityLabel="Create task"
+          accessibilityLabel={isEditMode ? "Save changes" : "Create task"}
           accessibilityRole="button"
         >
-          <Text style={styles.submitButtonText}>Create Task</Text>
+          <Text style={styles.submitButtonText}>
+            {isEditMode ? "Save Changes" : "Create Task"}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
 

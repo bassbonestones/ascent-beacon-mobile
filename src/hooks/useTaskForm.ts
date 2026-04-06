@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
-import type { SchedulingMode } from "../types";
+import type { SchedulingMode, Task } from "../types";
+import { parseAsUtc } from "../utils/taskSorting";
 
 export interface UseTaskFormReturn {
   // Form values
@@ -28,6 +29,7 @@ export interface UseTaskFormReturn {
 
   // Actions
   resetForm: () => void;
+  populateForm: (task: Task) => void;
   toggleLightning: () => void;
   toggleRecurring: () => void;
   handleRecurrenceChange: (
@@ -70,6 +72,39 @@ export function useTaskForm(): UseTaskFormReturn {
     setSchedulingMode(null);
     setScheduledTime(null);
     setScheduledDate(null);
+  }, []);
+
+  /**
+   * Populate form with values from an existing task for editing.
+   */
+  const populateForm = useCallback((task: Task) => {
+    setTitle(task.title);
+    setDescription(task.description || "");
+    setGoalId(task.goal_id || "");
+    // Use nullish coalescing to preserve 0 for lightning tasks
+    setDuration(String(task.duration_minutes ?? 30));
+    setIsLightning(task.duration_minutes === 0);
+    setIsRecurring(task.is_recurring || false);
+    setRecurrenceRule(task.recurrence_rule || "");
+    setSchedulingMode(task.scheduling_mode || null);
+
+    // Extract date and time from scheduled_at
+    // Use parseAsUtc to properly handle UTC timestamps from the backend
+    // and convert to local time for display
+    if (task.scheduled_at) {
+      const date = parseAsUtc(task.scheduled_at);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      setScheduledDate(`${year}-${month}-${day}`);
+
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      setScheduledTime(`${hours}:${minutes}`);
+    } else {
+      setScheduledDate(null);
+      setScheduledTime(null);
+    }
   }, []);
 
   const toggleLightning = useCallback(() => {
@@ -137,6 +172,7 @@ export function useTaskForm(): UseTaskFormReturn {
     setScheduledTime,
     setScheduledDate,
     resetForm,
+    populateForm,
     toggleLightning,
     toggleRecurring,
     handleRecurrenceChange,

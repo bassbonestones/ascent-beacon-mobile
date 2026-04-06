@@ -735,18 +735,33 @@ export function generateRecurringOccurrences(
           // Mark occurrence as completed if its time is in completed_times_today
           // For timed occurrences, match by time; for anytime mode, use index fallback
           let isCompleted = false;
+          let completedAt: string | null = null;
           if (occ.time && completedTimesSet.size > 0) {
             // Match by time (HH:MM)
             isCompleted = completedTimesSet.has(occ.time);
+            // Find the actual completion time from completed_times_today
+            if (isCompleted && task.completed_times_today) {
+              const matchingTime = task.completed_times_today.find((t) => {
+                const d = parseAsUtc(t);
+                const timeStr = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+                return timeStr === occ.time;
+              });
+              completedAt = matchingTime || scheduledAt;
+            }
           } else {
             // Fallback for anytime mode: use index-based counting
             isCompleted = occIndex < completionsToday;
+            // For anytime mode, use scheduled time or current time
+            if (isCompleted) {
+              completedAt = scheduledAt || startDate.toISOString();
+            }
           }
           const virtualTask: Task = {
             ...task,
             id: `${task.id}__${todayStr}${occ.suffix}`,
             scheduled_at: scheduledAt,
             status: isCompleted ? "completed" : "pending",
+            completed_at: completedAt,
             completed_for_today: isCompleted,
             isVirtualOccurrence: true,
             virtualOccurrenceDate: todayStr,
