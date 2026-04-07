@@ -109,6 +109,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     gap: 16,
+    alignItems: "center",
   },
   summaryItem: {
     flexDirection: "row",
@@ -128,12 +129,25 @@ export const styles = StyleSheet.create({
     color: "#EF4444",
   },
   condenseToggle: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    marginLeft: "auto",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#6B7280",
+    backgroundColor: "transparent",
+  },
+  condenseToggleActive: {
+    backgroundColor: "#10B981",
+    borderColor: "#10B981",
   },
   condenseToggleText: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#9CA3AF",
+    fontWeight: "500",
+  },
+  condenseToggleTextActive: {
+    color: "#FFFFFF",
   },
   loader: {
     marginTop: 40,

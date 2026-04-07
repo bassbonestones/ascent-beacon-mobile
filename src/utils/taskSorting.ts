@@ -457,14 +457,14 @@ export function filterTasksForUpcoming(
   tasks: Task[],
   today: Date = new Date(),
 ): Task[] {
-  const todayStart = new Date(today);
-  todayStart.setHours(0, 0, 0, 0);
   const todayDateStr = toLocalDateString(today);
 
   return tasks.filter((task) => {
-    // Check scheduled_at first
+    // Check scheduled_at first - compare LOCAL dates to avoid timezone issues
     if (task.scheduled_at) {
-      return parseAsUtc(task.scheduled_at) >= todayStart;
+      const scheduledDate = parseAsUtc(task.scheduled_at);
+      const scheduledDateStr = toLocalDateString(scheduledDate);
+      return scheduledDateStr >= todayDateStr;
     }
 
     // For virtual occurrences without scheduled_at, check virtualOccurrenceDate

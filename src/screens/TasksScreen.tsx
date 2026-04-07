@@ -859,27 +859,47 @@ export default function TasksScreen({
         </TouchableOpacity>
       </View>
 
-      {/* Only show counts for Today view - Upcoming counts are arbitrary based on loaded range */}
-      {listViewMode === "today" && (
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryCount}>{viewPendingCount}</Text>
-            <Text style={styles.summaryLabel}>pending</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryCount}>{viewCompletedCount}</Text>
-            <Text style={styles.summaryLabel}>completed</Text>
-          </View>
-          {overdueCount > 0 && (
+      {/* Summary row: counts for Today view, condense toggle for both views */}
+      <View style={styles.summaryRow}>
+        {listViewMode === "today" && (
+          <>
             <View style={styles.summaryItem}>
-              <Text style={[styles.summaryCount, styles.overdueCount]}>
-                {overdueCount}
-              </Text>
-              <Text style={styles.summaryLabel}>overdue</Text>
+              <Text style={styles.summaryCount}>{viewPendingCount}</Text>
+              <Text style={styles.summaryLabel}>pending</Text>
             </View>
-          )}
-        </View>
-      )}
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryCount}>{viewCompletedCount}</Text>
+              <Text style={styles.summaryLabel}>completed</Text>
+            </View>
+            {overdueCount > 0 && (
+              <View style={styles.summaryItem}>
+                <Text style={[styles.summaryCount, styles.overdueCount]}>
+                  {overdueCount}
+                </Text>
+                <Text style={styles.summaryLabel}>overdue</Text>
+              </View>
+            )}
+          </>
+        )}
+        <TouchableOpacity
+          style={[
+            styles.condenseToggle,
+            condenseRecurring && styles.condenseToggleActive,
+          ]}
+          onPress={() => setCondenseRecurring(!condenseRecurring)}
+          accessibilityLabel="Condense recurring tasks"
+          accessibilityRole="switch"
+        >
+          <Text
+            style={[
+              styles.condenseToggleText,
+              condenseRecurring && styles.condenseToggleTextActive,
+            ]}
+          >
+            Condense
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.viewModeRow}>
         {(["today", "upcoming"] as ListViewMode[]).map((mode) => (
@@ -928,19 +948,6 @@ export default function TasksScreen({
           ),
         )}
       </View>
-
-      {statusFilter === "pending" && listViewMode === "today" && (
-        <TouchableOpacity
-          style={styles.condenseToggle}
-          onPress={() => setCondenseRecurring(!condenseRecurring)}
-          accessibilityLabel="Condense recurring tasks"
-          accessibilityRole="switch"
-        >
-          <Text style={styles.condenseToggleText}>
-            {condenseRecurring ? "☑" : "☐"} Condense recurring
-          </Text>
-        </TouchableOpacity>
-      )}
 
       {loading && !loadingMore ? (
         <ActivityIndicator size="large" style={styles.loader} />
