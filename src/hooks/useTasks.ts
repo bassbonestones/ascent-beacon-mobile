@@ -13,6 +13,7 @@ export interface UseTasksOptions {
   goalId?: string;
   status?: string;
   includeCompleted?: boolean;
+  daysAhead?: number; // How many days ahead to load completion data (default: 14)
 }
 
 /**
@@ -37,6 +38,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
         status: options.status,
         include_completed: options.includeCompleted,
         client_today: clientToday,
+        days_ahead: options.daysAhead,
       });
       setTasks(response.tasks);
       setPendingCount(response.pending_count);
@@ -48,7 +50,12 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
     } finally {
       setLoading(false);
     }
-  }, [options.goalId, options.status, options.includeCompleted]);
+  }, [
+    options.goalId,
+    options.status,
+    options.includeCompleted,
+    options.daysAhead,
+  ]);
 
   useEffect(() => {
     fetchTasks();

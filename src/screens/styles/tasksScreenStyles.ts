@@ -540,4 +540,13 @@ export const styles = StyleSheet.create({
     color: "#F9FAFB",
     fontWeight: "500",
   },
+  listFooter: {
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  listFooterText: {
+    color: "#9CA3AF",
+    fontSize: 14,
+  },
 });

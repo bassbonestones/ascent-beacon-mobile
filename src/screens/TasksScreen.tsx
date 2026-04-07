@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -59,6 +65,20 @@ export default function TasksScreen({
   const [overdueModalTask, setOverdueModalTask] = useState<Task | null>(null);
   const [condenseRecurring, setCondenseRecurring] = useState(false);
 
+  // Pagination state for Upcoming view
+  const INITIAL_DAYS_AHEAD = 14;
+  const LOAD_MORE_DAYS = 7;
+  const MAX_DAYS_AHEAD = 365; // Used for completed/skipped which load all
+  const [daysAhead, setDaysAhead] = useState(INITIAL_DAYS_AHEAD);
+  const [loadingMore, setLoadingMore] = useState(false);
+  // Track if current load is a "load more" (not initial/refresh) to avoid scroll reset
+  const isLoadingMoreRef = useRef(false);
+
+  // Reset daysAhead when view mode or filter changes
+  useEffect(() => {
+    setDaysAhead(INITIAL_DAYS_AHEAD);
+  }, [listViewMode, statusFilter]);
+
   // Form state (extracted to hook)
   const taskForm = useTaskForm();
 
@@ -87,6 +107,17 @@ export default function TasksScreen({
     statusFilter === "completed" ||
     statusFilter === "skipped";
 
+  // Calculate effective days ahead for API call:
+  // - Today view: use default (doesn't affect Today filtering)
+  // - Upcoming + completed/skipped: load all (365 days) since these are finite
+  // - Upcoming + pending/all: use paginated daysAhead
+  const effectiveDaysAhead =
+    listViewMode === "today"
+      ? INITIAL_DAYS_AHEAD
+      : statusFilter === "completed" || statusFilter === "skipped"
+        ? MAX_DAYS_AHEAD
+        : daysAhead;
+
   const {
     tasks,
     loading,
@@ -102,6 +133,7 @@ export default function TasksScreen({
   } = useTasks({
     status: apiStatusFilter,
     includeCompleted: apiIncludeCompleted,
+    daysAhead: effectiveDaysAhead,
   });
 
   const { goals, loading: goalsLoading } = useGoals({ parentOnly: true });
@@ -275,11 +307,13 @@ export default function TasksScreen({
 
         // Calculate counts for Upcoming view (today and future dates)
 
-        // Generate occurrences for counting (always need this for accurate counts)
+        // Generate occurrences based on effectiveDaysAhead
+        // For pending/all: uses paginated daysAhead (14, 21, 28, etc.)
+        // For completed/skipped: uses MAX_DAYS_AHEAD to load all
         const allWithOccurrences = generateRecurringOccurrences(
           tasks,
           currentDate,
-          14,
+          effectiveDaysAhead,
         );
         const allUpcoming = filterTasksForUpcoming(
           allWithOccurrences,
@@ -338,12 +372,43 @@ export default function TasksScreen({
           viewCompletedCount: upcomingCompleted,
         };
       }
-    }, [tasks, statusFilter, condenseRecurring, listViewMode, currentDate]);
+    }, [
+      tasks,
+      statusFilter,
+      condenseRecurring,
+      listViewMode,
+      currentDate,
+      effectiveDaysAhead,
+    ]);
 
   // Count overdue tasks
   const overdueCount = useMemo(() => {
     return tasks.filter((t) => isTaskOverdue(t, currentDate)).length;
   }, [tasks, currentDate]);
+
+  // Handle loading more tasks when scrolling to bottom (Upcoming view only)
+  // Only applies to pending/all filters - completed/skipped load all at once
+  const canLoadMore =
+    listViewMode === "upcoming" &&
+    (statusFilter === "pending" || statusFilter === "all") &&
+    daysAhead < MAX_DAYS_AHEAD;
+
+  const handleLoadMore = useCallback(() => {
+    if (!canLoadMore || loadingMore || loading) return;
+
+    // Mark that this is a "load more" operation (not refresh)
+    isLoadingMoreRef.current = true;
+    setLoadingMore(true);
+    setDaysAhead((prev) => Math.min(prev + LOAD_MORE_DAYS, MAX_DAYS_AHEAD));
+  }, [canLoadMore, loadingMore, loading]);
+
+  // Reset loadingMore when loading completes
+  useEffect(() => {
+    if (!loading && isLoadingMoreRef.current) {
+      setLoadingMore(false);
+      isLoadingMoreRef.current = false;
+    }
+  }, [loading]);
 
   const handleCreate = useCallback(async () => {
     if (!taskForm.title.trim()) {
@@ -794,24 +859,27 @@ export default function TasksScreen({
         </TouchableOpacity>
       </View>
 
-      <View style={styles.summaryRow}>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryCount}>{viewPendingCount}</Text>
-          <Text style={styles.summaryLabel}>pending</Text>
-        </View>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryCount}>{viewCompletedCount}</Text>
-          <Text style={styles.summaryLabel}>completed</Text>
-        </View>
-        {overdueCount > 0 && (
+      {/* Only show counts for Today view - Upcoming counts are arbitrary based on loaded range */}
+      {listViewMode === "today" && (
+        <View style={styles.summaryRow}>
           <View style={styles.summaryItem}>
-            <Text style={[styles.summaryCount, styles.overdueCount]}>
-              {overdueCount}
-            </Text>
-            <Text style={styles.summaryLabel}>overdue</Text>
+            <Text style={styles.summaryCount}>{viewPendingCount}</Text>
+            <Text style={styles.summaryLabel}>pending</Text>
           </View>
-        )}
-      </View>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryCount}>{viewCompletedCount}</Text>
+            <Text style={styles.summaryLabel}>completed</Text>
+          </View>
+          {overdueCount > 0 && (
+            <View style={styles.summaryItem}>
+              <Text style={[styles.summaryCount, styles.overdueCount]}>
+                {overdueCount}
+              </Text>
+              <Text style={styles.summaryLabel}>overdue</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       <View style={styles.viewModeRow}>
         {(["today", "upcoming"] as ListViewMode[]).map((mode) => (
@@ -874,7 +942,7 @@ export default function TasksScreen({
         </TouchableOpacity>
       )}
 
-      {loading ? (
+      {loading && !loadingMore ? (
         <ActivityIndicator size="large" style={styles.loader} />
       ) : sortedTasks.length === 0 ? (
         <View style={styles.emptyState}>
@@ -916,9 +984,21 @@ export default function TasksScreen({
           )}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          refreshing={loading}
+          refreshing={loading && !loadingMore}
           onRefresh={refetch}
           stickySectionHeadersEnabled={false}
+          onEndReached={canLoadMore ? handleLoadMore : undefined}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            <View style={styles.listFooter}>
+              {loadingMore ? (
+                <ActivityIndicator size="small" color="#6200ee" />
+              ) : !canLoadMore &&
+                (statusFilter === "pending" || statusFilter === "all") ? (
+                <Text style={styles.listFooterText}>All tasks loaded</Text>
+              ) : null}
+            </View>
+          }
         />
       ) : (
         <FlatList
@@ -940,7 +1020,7 @@ export default function TasksScreen({
           )}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          refreshing={loading}
+          refreshing={loading && !loadingMore}
           onRefresh={refetch}
         />
       )}

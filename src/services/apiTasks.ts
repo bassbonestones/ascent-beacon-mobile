@@ -70,6 +70,7 @@ export interface TasksListParams {
   status?: string;
   include_completed?: boolean;
   client_today?: string; // Client's local date as YYYY-MM-DD
+  days_ahead?: number; // How many days ahead to load completion data (default: 14)
 }
 
 /**
@@ -93,6 +94,9 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
       }
       if (params.client_today) {
         searchParams.append("client_today", params.client_today);
+      }
+      if (params.days_ahead !== undefined) {
+        searchParams.append("days_ahead", String(params.days_ahead));
       }
 
       const queryString = searchParams.toString();

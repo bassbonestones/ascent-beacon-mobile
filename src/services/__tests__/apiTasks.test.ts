@@ -64,6 +64,41 @@ describe("apiTasks", () => {
         "/tasks?goal_id=g1&status=completed",
       );
     });
+
+    it("should add days_ahead param", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({
+        tasks: [],
+        total: 0,
+        pending_count: 0,
+        completed_count: 0,
+      });
+      await api.getTasks({ days_ahead: 28 });
+      expect(api.request).toHaveBeenCalledWith("/tasks?days_ahead=28");
+    });
+
+    it("should add include_completed param", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({
+        tasks: [],
+        total: 0,
+        pending_count: 0,
+        completed_count: 0,
+      });
+      await api.getTasks({ include_completed: true });
+      expect(api.request).toHaveBeenCalledWith("/tasks?include_completed=true");
+    });
+
+    it("should add client_today param", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({
+        tasks: [],
+        total: 0,
+        pending_count: 0,
+        completed_count: 0,
+      });
+      await api.getTasks({ client_today: "2026-04-07" });
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks?client_today=2026-04-07",
+      );
+    });
   });
 
   describe("getTask", () => {
@@ -176,6 +211,98 @@ describe("apiTasks", () => {
         method: "POST",
         body: "{}",
       });
+    });
+  });
+
+  describe("getTodayTasks", () => {
+    it("should call request with timezone param", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ tasks: [] });
+      await api.getTodayTasks("America/New_York");
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/view/today?timezone=America%2FNew_York",
+      );
+    });
+
+    it("should add include_completed param when true", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ tasks: [] });
+      await api.getTodayTasks("UTC", true);
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/view/today?timezone=UTC&include_completed=true",
+      );
+    });
+  });
+
+  describe("getTasksInRange", () => {
+    it("should call request with POST and range data", async () => {
+      const rangeRequest = {
+        start_date: "2026-04-01",
+        end_date: "2026-04-30",
+      };
+      (api.request as jest.Mock).mockResolvedValueOnce({ tasks: [] });
+      await api.getTasksInRange(rangeRequest);
+      expect(api.request).toHaveBeenCalledWith("/tasks/view/range", {
+        method: "POST",
+        body: JSON.stringify(rangeRequest),
+      });
+    });
+  });
+
+  describe("getTaskCompletions", () => {
+    it("should call request with limit and offset params", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ completions: [] });
+      await api.getTaskCompletions("t1", 25, 10);
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/t1/completions?limit=25&offset=10",
+      );
+    });
+
+    it("should use default limit and offset", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ completions: [] });
+      await api.getTaskCompletions("t1");
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/t1/completions?limit=50&offset=0",
+      );
+    });
+  });
+
+  describe("getTaskStats", () => {
+    it("should call request with date range params", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ stats: {} });
+      await api.getTaskStats("t1", "2026-04-01", "2026-04-30");
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/t1/stats?start=2026-04-01&end=2026-04-30",
+      );
+    });
+  });
+
+  describe("getCompletionHistory", () => {
+    it("should call request with date range params", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ history: [] });
+      await api.getCompletionHistory("t1", "2026-04-01", "2026-04-30");
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/t1/history?start=2026-04-01&end=2026-04-30",
+      );
+    });
+  });
+
+  describe("deleteFutureCompletions", () => {
+    it("should call request with DELETE to future completions endpoint", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ deleted_count: 5 });
+      await api.deleteFutureCompletions();
+      expect(api.request).toHaveBeenCalledWith("/tasks/completions/future", {
+        method: "DELETE",
+      });
+    });
+
+    it("should add after_date param when provided", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ deleted_count: 3 });
+      await api.deleteFutureCompletions("2026-04-15");
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/completions/future?after_date=2026-04-15",
+        {
+          method: "DELETE",
+        },
+      );
     });
   });
 });

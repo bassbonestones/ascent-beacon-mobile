@@ -112,6 +112,18 @@ describe("useTasks", () => {
       });
     });
 
+    it("passes daysAhead option to api.getTasks", async () => {
+      renderHook(() => useTasks({ daysAhead: 28 }));
+
+      await waitFor(() => {
+        expect(mockedApi.getTasks).toHaveBeenCalledWith(
+          expect.objectContaining({
+            days_ahead: 28,
+          }),
+        );
+      });
+    });
+
     it("sets error and shows alert on fetch failure", async () => {
       mockedApi.getTasks.mockRejectedValue(new Error("Network error"));
 
