@@ -1,7 +1,23 @@
 import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
-  background: { flex: 1 },
+  background: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  backgroundImageContainer: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backgroundImage: {
+    height: "100%",
+    aspectRatio: 9 / 16, // Adjust this to match your image's actual aspect ratio
+  },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0, 0, 0, 0.4)",

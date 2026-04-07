@@ -49,13 +49,17 @@ export default function LoginScreen({
   const auth = useLoginAuth(onLoginSuccess);
 
   return (
-    <ImageBackground
-      source={
-        require("../../assets/login-background.png") as ImageSourcePropType
-      }
-      style={styles.background}
-      resizeMode="cover"
-    >
+    <View style={styles.background}>
+      {/* Background image - stretched vertically, centered horizontally */}
+      <View style={styles.backgroundImageContainer}>
+        <Image
+          source={
+            require("../../assets/login-background.png") as ImageSourcePropType
+          }
+          style={styles.backgroundImage}
+          resizeMode="stretch"
+        />
+      </View>
       <View style={styles.overlay} />
 
       {/* Kite animation zone */}
@@ -132,6 +136,6 @@ export default function LoginScreen({
         visible={auth.showTermsModal}
         onClose={() => auth.setShowTermsModal(false)}
       />
-    </ImageBackground>
+    </View>
   );
 }
