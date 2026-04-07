@@ -6,3 +6,4 @@ export { SkipReasonModal } from "./SkipReasonModal";
 export { OverdueActionModal } from "./OverdueActionModal";
 export { TimePicker } from "./TimePicker";
 export { DatePicker } from "./DatePicker";
+export { DraggableTaskList } from "./DraggableTaskList";

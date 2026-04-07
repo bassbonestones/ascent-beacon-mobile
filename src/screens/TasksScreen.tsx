@@ -27,6 +27,7 @@ import {
   CreateTaskForm,
   SkipReasonModal,
   OverdueActionModal,
+  DraggableTaskList,
 } from "../components/tasks";
 import { showAlert, showConfirm } from "../utils/alert";
 import {
@@ -1075,37 +1076,18 @@ export default function TasksScreen({
           </Text>
         </View>
       ) : listViewMode === "anytime" ? (
-        <FlatList
-          data={sortedTasks}
-          extraData={tasks}
-          renderItem={({ item, index }) => (
-            <TaskCard
-              task={item}
-              currentDate={currentDate}
-              onPress={(t) => {
-                setSelectedTask(t);
-                setScreenMode("detail");
-              }}
-              onComplete={handleComplete}
-              showReorderButtons={
-                item.status === "pending" && item.sort_order !== null
-              }
-              onMoveUp={
-                index > 0
-                  ? () => handleReorder(item, item.sort_order! - 1)
-                  : undefined
-              }
-              onMoveDown={
-                index <
-                sortedTasks.filter((t) => t.status === "pending").length - 1
-                  ? () => handleReorder(item, item.sort_order! + 1)
-                  : undefined
-              }
-            />
-          )}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          refreshing={loading && !loadingMore}
+        <DraggableTaskList
+          tasks={sortedTasks}
+          allTasks={tasks}
+          currentDate={currentDate}
+          loading={loading}
+          loadingMore={loadingMore}
+          onTaskPress={(t) => {
+            setSelectedTask(t);
+            setScreenMode("detail");
+          }}
+          onComplete={handleComplete}
+          onReorder={handleReorder}
           onRefresh={refetch}
         />
       ) : listViewMode === "upcoming" && sections ? (
