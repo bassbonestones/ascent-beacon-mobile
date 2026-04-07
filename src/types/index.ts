@@ -654,7 +654,9 @@ export interface Task {
   description: string | null;
   duration_minutes: number;
   status: TaskStatus;
-  scheduled_at: string | null; // ISO datetime string
+  // Scheduling: scheduled_date for date-only, scheduled_at for timed
+  scheduled_date: string | null; // YYYY-MM-DD, for date-only tasks
+  scheduled_at: string | null; // ISO datetime string, for timed tasks
   is_recurring: boolean;
   recurrence_rule: string | null; // RRULE string
   notify_before_minutes: number | null;
@@ -691,6 +693,8 @@ export interface Task {
   isVirtualOccurrence?: boolean;
   virtualOccurrenceDate?: string; // YYYY-MM-DD format
   originalTaskId?: string; // The real task ID for API calls
+  // For past missed occurrences that are overdue
+  isOverdue?: boolean;
 }
 
 export interface TaskListResponse {
@@ -705,7 +709,9 @@ export interface CreateTaskRequest {
   title: string;
   description?: string | null;
   duration_minutes: number;
-  scheduled_at?: string | null;
+  // Scheduling: Use scheduled_date for date-only, scheduled_at for timed
+  scheduled_date?: string | null; // YYYY-MM-DD, for date-only tasks
+  scheduled_at?: string | null; // ISO datetime, for timed tasks
   notify_before_minutes?: number | null;
   // Phase 4b fields
   is_recurring?: boolean;
@@ -718,7 +724,9 @@ export interface UpdateTaskRequest {
   title?: string;
   description?: string | null;
   duration_minutes?: number;
-  scheduled_at?: string | null;
+  // Scheduling: Use scheduled_date for date-only, scheduled_at for timed
+  scheduled_date?: string | null; // YYYY-MM-DD, for date-only tasks
+  scheduled_at?: string | null; // ISO datetime, for timed tasks
   notify_before_minutes?: number | null;
   // Phase 4b fields
   is_recurring?: boolean;
@@ -797,6 +805,10 @@ export interface CompletionHistoryResponse {
 // Time Machine types
 export interface DeleteFutureCompletionsResponse {
   deletedCount: number;
+}
+
+export interface FutureCompletionsCountResponse {
+  count: number;
 }
 
 // Phase 4b: Today view

@@ -37,6 +37,7 @@ const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   description: "Test description",
   duration_minutes: 30,
   status: "pending",
+  scheduled_date: null,
   scheduled_at: null,
   is_recurring: false,
   recurrence_rule: null,
@@ -125,6 +126,7 @@ describe("TasksScreen", () => {
       setTravelDate: jest.fn(),
       resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
       revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      getFutureCompletionsCount: jest.fn().mockResolvedValue(0),
       getCurrentDate: () => new Date(),
       loading: false,
     });

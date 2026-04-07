@@ -8,10 +8,41 @@ import {
   getTaskWindow,
 } from "../../utils/taskSorting";
 
+/**
+ * Format a date for overdue display (e.g., "Apr 7" or "April 7, 2026" if different year).
+ */
+const formatOverdueDate = (
+  dateStr: string,
+  today: Date = new Date(),
+): string => {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  if (date.getFullYear() !== today.getFullYear()) {
+    return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  }
+  return `${months[date.getMonth()]} ${date.getDate()}`;
+};
+
 interface TaskCardProps {
   task: Task;
   onPress: (task: Task) => void;
   onComplete: (task: Task) => void;
+  currentDate?: Date; // For time travel support - defaults to now
 }
 
 const getStatusColor = (status: string, isOverdue: boolean): string => {
@@ -51,12 +82,19 @@ export function TaskCard({
   task,
   onPress,
   onComplete,
+  currentDate = new Date(),
 }: TaskCardProps): React.ReactElement {
   const isCompleted = task.status === "completed";
   const isPending = task.status === "pending";
-  const overdue = isTaskOverdue(task);
+  const overdue = isTaskOverdue(task, currentDate);
   const scheduledTime = formatTaskTime(task.scheduled_at, task.scheduling_mode);
   const taskWindow = getTaskWindow(task.recurrence_rule);
+
+  // Get the missed date for overdue virtual occurrences
+  const overdueDate =
+    overdue && task.virtualOccurrenceDate
+      ? formatOverdueDate(task.virtualOccurrenceDate, currentDate)
+      : null;
 
   const handleCompleteClick = React.useCallback(() => {
     onComplete(task);
@@ -105,7 +143,9 @@ export function TaskCard({
           >
             <Text style={styles.statusText}>
               {overdue
-                ? "Overdue"
+                ? overdueDate
+                  ? `Overdue (${overdueDate})`
+                  : "Overdue"
                 : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
             </Text>
           </View>

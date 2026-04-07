@@ -24,6 +24,7 @@ jest.mock("../../services/api", () => ({
   __esModule: true,
   default: {
     deleteFutureCompletions: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+    getFutureCompletionsCount: jest.fn().mockResolvedValue({ count: 0 }),
   },
 }));
 

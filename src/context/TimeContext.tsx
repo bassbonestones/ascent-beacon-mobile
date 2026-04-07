@@ -32,10 +32,17 @@ interface TimeContextValue {
   disableTimeMachine: () => void;
   /** Set the travel date (pass null to return to real time) */
   setTravelDate: (date: Date | null) => void;
-  /** Reset to today: delete all future completions and exit time travel */
-  resetToToday: () => Promise<{ deletedCount: number }>;
-  /** Revert to a specific date: delete completions after that date, stay in time machine */
-  revertToDate: (date: Date) => Promise<{ deletedCount: number }>;
+  /** Reset to today and exit time travel. If deleteCompletions is true, deletes future completions. */
+  resetToToday: (
+    deleteCompletions?: boolean,
+  ) => Promise<{ deletedCount: number }>;
+  /** Revert to a specific date, stay in time machine. If deleteCompletions is true, deletes completions after that date. */
+  revertToDate: (
+    date: Date,
+    deleteCompletions?: boolean,
+  ) => Promise<{ deletedCount: number }>;
+  /** Get count of completions that would be affected by reverting to a date */
+  getFutureCompletionsCount: (afterDate?: string) => Promise<number>;
   /** Get current date (travel date if active, otherwise real date) */
   getCurrentDate: () => Date;
   /** Loading state for initial hydration */
@@ -141,32 +148,58 @@ export function TimeProvider({
     }
   }, []);
 
-  const resetToToday = useCallback(async (): Promise<{
-    deletedCount: number;
-  }> => {
-    // Call API to delete all future completions (after today)
-    const result = await api.deleteFutureCompletions();
+  const resetToToday = useCallback(
+    async (
+      deleteCompletions: boolean = false,
+    ): Promise<{
+      deletedCount: number;
+    }> => {
+      let deletedCount = 0;
 
-    // Clear the travel date (exit time machine)
-    setTravelDateState(null);
-    await removeStoredValue(TRAVEL_DATE_KEY);
+      // Only call API to delete if requested
+      if (deleteCompletions) {
+        const result = await api.deleteFutureCompletions();
+        deletedCount = result.deletedCount;
+      }
 
-    return { deletedCount: result.deletedCount };
-  }, []);
+      // Clear the travel date (exit time machine)
+      setTravelDateState(null);
+      await removeStoredValue(TRAVEL_DATE_KEY);
+
+      return { deletedCount };
+    },
+    [],
+  );
 
   const revertToDate = useCallback(
-    async (date: Date): Promise<{ deletedCount: number }> => {
+    async (
+      date: Date,
+      deleteCompletions: boolean = false,
+    ): Promise<{ deletedCount: number }> => {
       // Format date as YYYY-MM-DD for API (using local date, not UTC)
       const dateStr = toLocalDateString(date);
 
-      // Call API to delete completions after the specified date
-      const result = await api.deleteFutureCompletions(dateStr);
+      let deletedCount = 0;
+
+      // Only call API to delete if requested
+      if (deleteCompletions) {
+        const result = await api.deleteFutureCompletions(dateStr);
+        deletedCount = result.deletedCount;
+      }
 
       // Set travel date to the specified date (stay in time machine)
       setTravelDateState(date);
       await setStoredValue(TRAVEL_DATE_KEY, date.toISOString());
 
-      return { deletedCount: result.deletedCount };
+      return { deletedCount };
+    },
+    [],
+  );
+
+  const getFutureCompletionsCount = useCallback(
+    async (afterDate?: string): Promise<number> => {
+      const result = await api.getFutureCompletionsCount(afterDate);
+      return result.count;
     },
     [],
   );
@@ -189,6 +222,7 @@ export function TimeProvider({
     setTravelDate,
     resetToToday,
     revertToDate,
+    getFutureCompletionsCount,
     getCurrentDate,
     loading,
   };

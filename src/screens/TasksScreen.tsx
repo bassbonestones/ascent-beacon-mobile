@@ -40,6 +40,8 @@ import {
   generateRecurringOccurrences,
   parseAsUtc,
   toLocalDateString,
+  getTaskScheduledDateStr,
+  isTaskScheduled,
 } from "../utils/taskSorting";
 
 interface TasksScreenProps {
@@ -134,6 +136,7 @@ export default function TasksScreen({
     status: apiStatusFilter,
     includeCompleted: apiIncludeCompleted,
     daysAhead: effectiveDaysAhead,
+    clientToday: getCurrentDate(), // Support time travel
   });
 
   const { goals, loading: goalsLoading } = useGoals({ parentOnly: true });
@@ -147,11 +150,12 @@ export default function TasksScreen({
       if (listViewMode === "today") {
         // Today view: overdue → timed → todos
         // Generate intraday occurrences for multi-occurrence modes (X times/day, specific times, interval)
-        // Use daysAhead=0 to only generate for today
+        // Use daysAhead=0 for today only, daysBack=7 for overdue detection
         const withOccurrences = generateRecurringOccurrences(
           tasks,
           currentDate,
           0, // Only today, no future days
+          7, // Look back 7 days for overdue occurrences
         );
 
         // Get today's LOCAL date as YYYY-MM-DD string for comparison
@@ -193,11 +197,9 @@ export default function TasksScreen({
             const completedDateStr = `${completedDate.getFullYear()}-${String(completedDate.getMonth() + 1).padStart(2, "0")}-${String(completedDate.getDate()).padStart(2, "0")}`;
             if (completedDateStr === todayDateStr) return true;
           }
-          if (t.scheduled_at) {
-            const scheduledDate = parseAsUtc(t.scheduled_at);
-            const scheduledDateStr = `${scheduledDate.getFullYear()}-${String(scheduledDate.getMonth() + 1).padStart(2, "0")}-${String(scheduledDate.getDate()).padStart(2, "0")}`;
-            if (scheduledDateStr === todayDateStr) return true;
-          }
+          // Check if scheduled for today using helper
+          const scheduledDateStr = getTaskScheduledDateStr(t);
+          if (scheduledDateStr === todayDateStr) return true;
           return false;
         }).length;
 
@@ -245,17 +247,14 @@ export default function TasksScreen({
               }
             }
 
-            // Also include if scheduled for today (LOCAL date)
-            if (t.scheduled_at) {
-              const scheduledDate = parseAsUtc(t.scheduled_at);
-              const scheduledDateStr = `${scheduledDate.getFullYear()}-${String(scheduledDate.getMonth() + 1).padStart(2, "0")}-${String(scheduledDate.getDate()).padStart(2, "0")}`;
-              if (scheduledDateStr === todayDateStr) {
-                return true;
-              }
+            // Also include if scheduled for today using helper
+            const scheduledDateStr = getTaskScheduledDateStr(t);
+            if (scheduledDateStr === todayDateStr) {
+              return true;
             }
 
-            // Fallback: include if no timestamps but is completed
-            return !completionTimestamp && !t.scheduled_at;
+            // Fallback: include if no timestamps and unscheduled
+            return !completionTimestamp && !isTaskScheduled(t);
           });
 
           return {
@@ -274,17 +273,14 @@ export default function TasksScreen({
               return true;
             }
 
-            // Single tasks: check if scheduled for today
-            if (t.scheduled_at) {
-              const scheduledDate = parseAsUtc(t.scheduled_at);
-              const scheduledDateStr = `${scheduledDate.getFullYear()}-${String(scheduledDate.getMonth() + 1).padStart(2, "0")}-${String(scheduledDate.getDate()).padStart(2, "0")}`;
-              if (scheduledDateStr === todayDateStr) {
-                return true;
-              }
+            // Single tasks: check if scheduled for today using helper
+            const scheduledDateStr = getTaskScheduledDateStr(t);
+            if (scheduledDateStr === todayDateStr) {
+              return true;
             }
 
             // Include unscheduled skipped tasks
-            return !t.scheduled_at;
+            return !isTaskScheduled(t);
           });
 
           return {
@@ -310,10 +306,12 @@ export default function TasksScreen({
         // Generate occurrences based on effectiveDaysAhead
         // For pending/all: uses paginated daysAhead (14, 21, 28, etc.)
         // For completed/skipped: uses MAX_DAYS_AHEAD to load all
+        // No past occurrences (daysBack=0) - overdue tasks show in Today view only
         const allWithOccurrences = generateRecurringOccurrences(
           tasks,
           currentDate,
           effectiveDaysAhead,
+          0, // No past occurrences in Upcoming view
         );
         const allUpcoming = filterTasksForUpcoming(
           allWithOccurrences,
@@ -410,18 +408,31 @@ export default function TasksScreen({
       return;
     }
     try {
+      // Get scheduling fields (scheduled_date for date-only, scheduled_at for timed)
+      const scheduling = taskForm.getSchedulingFields(
+        taskForm.scheduledDate,
+        taskForm.scheduledTime,
+      );
+
       // Determine scheduling_mode:
       // - For recurring tasks: use user's choice (floating/fixed)
-      // - For non-recurring: date_only if no time, fixed if has time
+      // - For non-recurring: date_only if has date but no time, fixed if has time, undefined if unscheduled
       let schedulingMode: SchedulingMode | undefined;
       if (taskForm.isRecurring) {
         // For recurring tasks, use the form's scheduling mode
         schedulingMode = taskForm.schedulingMode || undefined;
-      } else if (taskForm.scheduledDate || taskForm.scheduledTime) {
-        // For non-recurring scheduled tasks:
-        // - date_only if there's a date but no time
+      } else {
+        // For non-recurring tasks:
+        // - date_only if there's date but no time
         // - fixed if there's a time
-        schedulingMode = taskForm.scheduledTime ? "fixed" : "date_only";
+        // - undefined if unscheduled (will show in "Today")
+        if (taskForm.scheduledTime) {
+          schedulingMode = "fixed";
+        } else if (taskForm.scheduledDate) {
+          schedulingMode = "date_only";
+        } else {
+          schedulingMode = undefined;
+        }
       }
 
       // For recurring tasks, ensure there's a recurrence rule
@@ -437,10 +448,8 @@ export default function TasksScreen({
         duration_minutes: taskForm.isLightning
           ? 0
           : parseInt(taskForm.duration, 10) || 30,
-        scheduled_at: taskForm.dateTimeToIso(
-          taskForm.scheduledDate,
-          taskForm.scheduledTime,
-        ),
+        scheduled_date: scheduling.scheduled_date,
+        scheduled_at: scheduling.scheduled_at,
         is_recurring: taskForm.isRecurring,
         recurrence_rule: recurrenceRule,
         scheduling_mode: schedulingMode,
@@ -472,6 +481,12 @@ export default function TasksScreen({
       return;
     }
     try {
+      // Get scheduling fields (scheduled_date for date-only, scheduled_at for timed)
+      const scheduling = taskForm.getSchedulingFields(
+        taskForm.scheduledDate,
+        taskForm.scheduledTime,
+      );
+
       // Determine scheduling_mode
       let schedulingMode: SchedulingMode | null | undefined;
       if (taskForm.isRecurring) {
@@ -480,10 +495,12 @@ export default function TasksScreen({
       } else if (taskForm.scheduledDate || taskForm.scheduledTime) {
         // For non-recurring tasks with any scheduling:
         // - date_only if there's a date but no time
-        // - fixed if there's a time (need to clear date_only)
+        // - fixed if there's a time
         schedulingMode = taskForm.scheduledTime ? "fixed" : "date_only";
+      } else {
+        // Unscheduled - clear scheduling_mode
+        schedulingMode = null;
       }
-      // If no scheduling at all, leave undefined (don't change existing)
 
       // For recurring tasks, ensure there's a recurrence rule
       // Default to daily if none configured
@@ -498,10 +515,8 @@ export default function TasksScreen({
         duration_minutes: taskForm.isLightning
           ? 0
           : parseInt(taskForm.duration, 10) || 30,
-        scheduled_at: taskForm.dateTimeToIso(
-          taskForm.scheduledDate,
-          taskForm.scheduledTime,
-        ),
+        scheduled_date: scheduling.scheduled_date,
+        scheduled_at: scheduling.scheduled_at,
         is_recurring: taskForm.isRecurring,
         recurrence_rule: recurrenceRule,
         scheduling_mode: schedulingMode,
@@ -989,6 +1004,7 @@ export default function TasksScreen({
           renderItem={({ item }) => (
             <TaskCard
               task={item}
+              currentDate={currentDate}
               onPress={(t) => {
                 setSelectedTask(t);
                 setScreenMode("detail");
@@ -1021,6 +1037,7 @@ export default function TasksScreen({
           renderItem={({ item }) => (
             <TaskCard
               task={item}
+              currentDate={currentDate}
               onPress={(t) => {
                 if (isTaskOverdue(t, currentDate)) {
                   setOverdueModalTask(t);

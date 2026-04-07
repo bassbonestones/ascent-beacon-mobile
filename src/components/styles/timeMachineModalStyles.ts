@@ -36,6 +36,8 @@ interface TimeMachineModalStyles {
   confirmDelete: ViewStyle;
   confirmDeleteText: TextStyle;
   confirmTravel: ViewStyle;
+  confirmKeep: ViewStyle;
+  confirmKeepText: TextStyle;
 }
 
 export const styles = StyleSheet.create<TimeMachineModalStyles>({
@@ -235,5 +237,17 @@ export const styles = StyleSheet.create<TimeMachineModalStyles>({
     borderRadius: 8,
     backgroundColor: "#9C27B0",
     alignItems: "center",
+  },
+  confirmKeep: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    backgroundColor: "#4CAF50",
+    alignItems: "center",
+  },
+  confirmKeepText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
   },
 });

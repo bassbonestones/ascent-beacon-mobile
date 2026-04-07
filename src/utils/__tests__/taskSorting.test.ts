@@ -24,6 +24,7 @@ const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   description: null,
   duration_minutes: 30,
   status: "pending",
+  scheduled_date: null,
   scheduled_at: null,
   is_recurring: false,
   recurrence_rule: null,
@@ -456,7 +457,7 @@ describe("taskSorting", () => {
         is_recurring: false,
       });
 
-      const result = generateRecurringOccurrences([task], now, 7);
+      const result = generateRecurringOccurrences([task], now, 7, 0);
 
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe("task-1");
@@ -471,7 +472,7 @@ describe("taskSorting", () => {
         recurrence_rule: "FREQ=DAILY",
       });
 
-      const result = generateRecurringOccurrences([task], now, 7);
+      const result = generateRecurringOccurrences([task], now, 7, 0);
 
       // Today virtual + 7 future occurrences = 8 total
       expect(result.length).toBe(8);
@@ -492,7 +493,7 @@ describe("taskSorting", () => {
       });
 
       // Generate for 14 days to capture at least 2 weeks
-      const result = generateRecurringOccurrences([task], now, 14);
+      const result = generateRecurringOccurrences([task], now, 14, 0);
 
       const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);
       expect(virtualOccurrences.length).toBeGreaterThan(0);
@@ -513,7 +514,7 @@ describe("taskSorting", () => {
         recurrence_rule: "FREQ=DAILY",
       });
 
-      const result = generateRecurringOccurrences([task], now, 7);
+      const result = generateRecurringOccurrences([task], now, 7, 0);
       const ids = result.map((t) => t.id);
       const uniqueIds = [...new Set(ids)];
 
@@ -531,7 +532,7 @@ describe("taskSorting", () => {
         recurrence_rule: "FREQ=DAILY",
       });
 
-      const result = generateRecurringOccurrences([task], now, 3);
+      const result = generateRecurringOccurrences([task], now, 3, 0);
       const virtual = result.find((t) => t.isVirtualOccurrence);
 
       expect(virtual).toBeDefined();
@@ -549,7 +550,7 @@ describe("taskSorting", () => {
         scheduled_at: "2024-06-15T09:00:00Z",
       });
 
-      const result = generateRecurringOccurrences([taskNoRule], now, 7);
+      const result = generateRecurringOccurrences([taskNoRule], now, 7, 0);
 
       // Only the original task should be returned, no virtual occurrences
       expect(result).toHaveLength(1);
@@ -564,7 +565,7 @@ describe("taskSorting", () => {
         scheduled_at: null,
       });
 
-      const result = generateRecurringOccurrences([taskNoSchedule], now, 7);
+      const result = generateRecurringOccurrences([taskNoSchedule], now, 7, 0);
 
       // Should have original + virtual occurrences for future days
       expect(result.length).toBeGreaterThan(1);
@@ -587,7 +588,7 @@ describe("taskSorting", () => {
         scheduled_at: "2024-06-15T14:30:00Z",
       });
 
-      const result = generateRecurringOccurrences([task], now, 7);
+      const result = generateRecurringOccurrences([task], now, 7, 0);
       const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);
 
       expect(virtualOccurrences.length).toBeGreaterThan(0);
@@ -607,7 +608,7 @@ describe("taskSorting", () => {
         scheduled_at: null,
       });
 
-      const result = generateRecurringOccurrences([task], now, 3);
+      const result = generateRecurringOccurrences([task], now, 3, 0);
 
       // Should have 3 occurrences for today + 3 for each of 3 future days = 12 total
       const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);
@@ -637,7 +638,7 @@ describe("taskSorting", () => {
         completions_today: 2, // 2 of 3 completed
       });
 
-      const result = generateRecurringOccurrences([task], now, 0); // Only today
+      const result = generateRecurringOccurrences([task], now, 0, 0); // Only today, no past
 
       const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);
       expect(virtualOccurrences.length).toBe(3);
@@ -660,7 +661,7 @@ describe("taskSorting", () => {
         scheduled_at: null,
       });
 
-      const result = generateRecurringOccurrences([task], now, 2);
+      const result = generateRecurringOccurrences([task], now, 2, 0);
 
       const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);
       // Today: 3 times + 2 future days * 3 = 9
@@ -694,7 +695,7 @@ describe("taskSorting", () => {
         scheduled_at: null,
       });
 
-      const result = generateRecurringOccurrences([task], now, 1);
+      const result = generateRecurringOccurrences([task], now, 1, 0);
 
       const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);
       // Interval of 60 mins from 9-12 = 9:00, 10:00, 11:00, 12:00 = 4 times per day
@@ -726,7 +727,7 @@ describe("taskSorting", () => {
         scheduled_at: null,
       });
 
-      const result = generateRecurringOccurrences([task], now, 1);
+      const result = generateRecurringOccurrences([task], now, 1, 0);
 
       const todayStr = toLocalDateString(now);
       const todayOccs = result.filter(
@@ -745,7 +746,7 @@ describe("taskSorting", () => {
         scheduled_at: null,
       });
 
-      const result = generateRecurringOccurrences([task], now, 2);
+      const result = generateRecurringOccurrences([task], now, 2, 0);
 
       // Window mode: single occurrence per day
       // Today + 2 future = 3 virtual occurrences
@@ -770,7 +771,7 @@ describe("taskSorting", () => {
         scheduled_at: null,
       });
 
-      const result = generateRecurringOccurrences([task], now, 14);
+      const result = generateRecurringOccurrences([task], now, 14, 0);
 
       // Should have: 2 occurrences for today + 2 occurrences for tomorrow = 4 total
       const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);
@@ -792,7 +793,7 @@ describe("taskSorting", () => {
         scheduled_at: null,
       });
 
-      const result = generateRecurringOccurrences([task], now, 14);
+      const result = generateRecurringOccurrences([task], now, 14, 0);
 
       // Should have: 2 occurrences for today + 2 occurrences for tomorrow = 4 total
       const virtualOccurrences = result.filter((t) => t.isVirtualOccurrence);

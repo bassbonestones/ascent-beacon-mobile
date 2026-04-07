@@ -12,6 +12,39 @@ export function toLocalDateString(date: Date): string {
 }
 
 /**
+ * Get the scheduled date string (YYYY-MM-DD) from a task.
+ * Uses scheduled_date for date-only tasks, parses scheduled_at for timed tasks.
+ * Returns null if the task is unscheduled.
+ */
+export function getTaskScheduledDateStr(task: Task): string | null {
+  // Date-only tasks: use scheduled_date directly
+  if (task.scheduled_date) {
+    return task.scheduled_date;
+  }
+  // Timed tasks: parse scheduled_at
+  if (task.scheduled_at) {
+    return toLocalDateString(parseAsUtc(task.scheduled_at));
+  }
+  // Unscheduled
+  return null;
+}
+
+/**
+ * Check if a task is scheduled for a specific date (YYYY-MM-DD).
+ */
+export function isTaskScheduledForDate(task: Task, dateStr: string): boolean {
+  const taskDateStr = getTaskScheduledDateStr(task);
+  return taskDateStr === dateStr;
+}
+
+/**
+ * Check if a task is scheduled (has any date set).
+ */
+export function isTaskScheduled(task: Task): boolean {
+  return !!(task.scheduled_date || task.scheduled_at);
+}
+
+/**
  * Task category for sorting and grouping in Today view.
  */
 export type TaskCategory = "overdue" | "timed" | "todo";
@@ -103,8 +136,26 @@ export function getTaskCategory(
     return "todo";
   }
 
+  // Check explicit isOverdue flag (set on virtual occurrences for past dates)
+  if (task.isOverdue) {
+    return "overdue";
+  }
+
+  const nowDateStr = toLocalDateString(now);
+
+  // Date-only tasks: use scheduled_date
+  if (task.scheduled_date) {
+    if (task.scheduled_date < nowDateStr) {
+      return "overdue";
+    }
+    return "timed"; // date_only tasks scheduled for today or future go in timed section
+  }
+
+  // Timed tasks: use scheduled_at
   if (task.scheduled_at) {
     const scheduledDate = parseAsUtc(task.scheduled_at);
+
+    // Compare timestamps for timed tasks
     if (scheduledDate < now) {
       return "overdue";
     }
@@ -141,10 +192,39 @@ export function groupTasksByCategory(
 
   // Sort each category
   result.overdue.sort((a, b) => {
-    // Oldest overdue first
-    const aTime = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
-    const bTime = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
-    return aTime - bTime;
+    // Get the effective date for sorting
+    const getOverdueDate = (task: Task): string => {
+      if (task.virtualOccurrenceDate) return task.virtualOccurrenceDate;
+      if (task.scheduled_date) return task.scheduled_date;
+      if (task.scheduled_at)
+        return toLocalDateString(parseAsUtc(task.scheduled_at));
+      return "9999-99-99"; // Unscheduled at the end
+    };
+
+    const aDate = getOverdueDate(a);
+    const bDate = getOverdueDate(b);
+
+    // First, sort by date (oldest first)
+    if (aDate !== bDate) {
+      return aDate.localeCompare(bDate);
+    }
+
+    // Same date: timed tasks before untimed (scheduled_at means timed)
+    const aHasTime = !!a.scheduled_at;
+    const bHasTime = !!b.scheduled_at;
+
+    if (aHasTime && !bHasTime) return -1;
+    if (!aHasTime && bHasTime) return 1;
+
+    // Both timed: sort by time (earliest first)
+    if (aHasTime && bHasTime) {
+      const aTime = a.scheduled_at ? parseAsUtc(a.scheduled_at).getTime() : 0;
+      const bTime = b.scheduled_at ? parseAsUtc(b.scheduled_at).getTime() : 0;
+      return aTime - bTime;
+    }
+
+    // Both untimed: by creation date (newest first)
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
   result.timed.sort((a, b) => {
@@ -191,19 +271,25 @@ export function isTaskForToday(task: Task, today: Date = new Date()): boolean {
     return false;
   }
 
-  if (!task.scheduled_at) {
-    // Unscheduled tasks always appear in Today view
-    return true;
+  const todayStr = toLocalDateString(today);
+
+  // Date-only tasks: use scheduled_date
+  if (task.scheduled_date) {
+    // Task is for today if scheduled for today OR overdue (scheduled before today)
+    return task.scheduled_date <= todayStr;
   }
 
-  const scheduledDate = parseAsUtc(task.scheduled_at);
-  const todayStart = new Date(today);
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(today);
-  todayEnd.setHours(23, 59, 59, 999);
+  // Timed tasks: use scheduled_at
+  if (task.scheduled_at) {
+    const scheduledDate = parseAsUtc(task.scheduled_at);
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
+    // Task is for today if scheduled today OR overdue (scheduled before today)
+    return scheduledDate <= todayEnd;
+  }
 
-  // Task is for today if scheduled today OR overdue (scheduled before today)
-  return scheduledDate <= todayEnd;
+  // Unscheduled tasks always appear in Today view
+  return true;
 }
 
 /**
@@ -302,10 +388,16 @@ export function formatTaskTime(
  * Check if a task is overdue.
  */
 export function isTaskOverdue(task: Task, now: Date = new Date()): boolean {
+  // If explicitly set on virtual occurrence, use that value
+  if (task.isOverdue !== undefined) {
+    return task.isOverdue;
+  }
+
   // Not overdue if not pending
-  if (task.status !== "pending" || !task.scheduled_at) {
+  if (task.status !== "pending") {
     return false;
   }
+
   // Recurring tasks that are completed or skipped for today are not overdue
   if (
     task.is_recurring &&
@@ -314,18 +406,21 @@ export function isTaskOverdue(task: Task, now: Date = new Date()): boolean {
     return false;
   }
 
-  const scheduledDate = parseAsUtc(task.scheduled_at);
+  const nowDateStr = toLocalDateString(now);
 
-  // For date_only tasks, compare against end of day (not the midnight timestamp)
-  // A date-only task for today is NOT overdue until the day is over
-  if (task.scheduling_mode === "date_only") {
-    const endOfScheduledDay = new Date(scheduledDate);
-    endOfScheduledDay.setHours(23, 59, 59, 999);
-    return now > endOfScheduledDay;
+  // Date-only tasks: compare against scheduled_date
+  if (task.scheduled_date) {
+    return task.scheduled_date < nowDateStr;
   }
 
-  // For timed tasks, compare against the scheduled time
-  return scheduledDate < now;
+  // Timed tasks: compare against scheduled_at
+  if (task.scheduled_at) {
+    const scheduledDate = parseAsUtc(task.scheduled_at);
+    return scheduledDate < now;
+  }
+
+  // Unscheduled tasks are not overdue
+  return false;
 }
 
 /**
@@ -337,11 +432,15 @@ export function groupTasksByDate(tasks: Task[]): Map<string, Task[]> {
 
   for (const task of tasks) {
     let dateKey: string;
-    if (task.scheduled_at) {
+    // Check scheduled_date first (for date-only tasks)
+    if (task.scheduled_date) {
+      dateKey = task.scheduled_date;
+    } else if (task.scheduled_at) {
+      // Timed tasks: extract date from scheduled_at
       const date = parseAsUtc(task.scheduled_at);
       dateKey = toLocalDateString(date);
     } else if (task.virtualOccurrenceDate) {
-      // Virtual occurrences without scheduled_at use virtualOccurrenceDate
+      // Virtual occurrences without scheduling use virtualOccurrenceDate
       dateKey = task.virtualOccurrenceDate;
     } else {
       // Unscheduled tasks go under "No Date"
@@ -656,6 +755,66 @@ function getNextOccurrences(
 }
 
 /**
+ * Generate past occurrences going backward from a base date.
+ * Used to find missed/overdue recurring task occurrences.
+ */
+function getPastOccurrences(
+  rrule: string,
+  baseDate: Date,
+  count: number,
+  downToDate: Date,
+): Date[] {
+  const { freq, interval, byDay } = parseRRule(rrule);
+  const occurrences: Date[] = [];
+  const current = new Date(baseDate);
+
+  // Start from the day before baseDate
+  current.setDate(current.getDate() - 1);
+  current.setHours(
+    baseDate.getHours(),
+    baseDate.getMinutes(),
+    baseDate.getSeconds(),
+    0,
+  );
+
+  while (occurrences.length < count && current >= downToDate) {
+    let isValidDay = true;
+
+    if (freq === "DAILY") {
+      isValidDay = true;
+    } else if (freq === "WEEKLY") {
+      if (byDay && byDay.length > 0) {
+        const currentDayNum = current.getDay();
+        isValidDay = byDay.some(
+          (day) => dayAbbrevToNumber(day) === currentDayNum,
+        );
+      }
+    } else if (freq === "MONTHLY") {
+      isValidDay = current.getDate() === baseDate.getDate();
+    } else if (freq === "YEARLY") {
+      isValidDay =
+        current.getMonth() === baseDate.getMonth() &&
+        current.getDate() === baseDate.getDate();
+    }
+
+    if (isValidDay) {
+      occurrences.push(new Date(current));
+    }
+
+    // Move to previous day
+    current.setDate(current.getDate() - 1);
+  }
+
+  // Apply interval filtering for DAILY (every N days)
+  if (freq === "DAILY" && interval > 1) {
+    const filtered = occurrences.filter((occ, idx) => idx % interval === 0);
+    return filtered.slice(0, count);
+  }
+
+  return occurrences;
+}
+
+/**
  * Generate times for interval mode (every X minutes between start and end).
  * Returns array of "HH:MM" strings.
  */
@@ -752,16 +911,23 @@ function getIntradayOccurrences(
  * @param tasks - Array of tasks to process
  * @param startDate - Start date (typically today)
  * @param daysAhead - How many days ahead to generate (default: 14)
+ * @param daysBack - How many days back to generate for missed occurrences (default: 7)
  * @returns Array of tasks including virtual recurring occurrences
  */
 export function generateRecurringOccurrences(
   tasks: Task[],
   startDate: Date = new Date(),
   daysAhead: number = 14,
+  daysBack: number = 7,
 ): Task[] {
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + daysAhead);
   endDate.setHours(23, 59, 59, 999);
+
+  // Calculate start of past range for overdue detection
+  const pastStartDate = new Date(startDate);
+  pastStartDate.setDate(pastStartDate.getDate() - daysBack);
+  pastStartDate.setHours(0, 0, 0, 0);
 
   // Get today's date string for comparison
   const todayStr = toLocalDateString(startDate);
@@ -959,6 +1125,142 @@ export function generateRecurringOccurrences(
         };
         result.push(virtualTask);
         daysGenerated++;
+      }
+    }
+
+    // Generate PAST occurrences for overdue detection (only if daysBack > 0)
+    // This creates virtual occurrences for missed days that the user can catch up on
+    if (daysBack > 0) {
+      // Determine the effective start date for past occurrence generation
+      // Use scheduled_at if set, otherwise fall back to created_at
+      // This prevents generating past occurrences for dates before the task existed
+      let effectiveStartDate: Date | null = taskStartDate;
+      let effectiveStartDateStr: string | null = taskStartDateStr;
+
+      if (!effectiveStartDate && task.created_at) {
+        effectiveStartDate = parseAsUtc(task.created_at);
+        effectiveStartDateStr = toLocalDateString(effectiveStartDate);
+      }
+
+      // Only generate past occurrences if the effective start date is before today
+      const shouldGeneratePast =
+        effectiveStartDateStr && effectiveStartDateStr < todayStr;
+
+      if (shouldGeneratePast && effectiveStartDate) {
+        // Determine how far back to look
+        // Limit to task effective start date
+        let pastLimitDate = pastStartDate;
+        if (effectiveStartDate > pastStartDate) {
+          pastLimitDate = new Date(effectiveStartDate);
+          pastLimitDate.setHours(0, 0, 0, 0);
+        }
+
+        const pastDays = getPastOccurrences(
+          task.recurrence_rule,
+          new Date(startDate),
+          daysBack * intradayOccs.length,
+          pastLimitDate,
+        );
+
+        for (const dayDate of pastDays) {
+          const dayStr = toLocalDateString(dayDate);
+
+          // Skip if this day is before the task's effective start date
+          if (effectiveStartDateStr && dayStr < effectiveStartDateStr) {
+            continue;
+          }
+
+          // Check if there are completions for this past date
+          const completionsForDay = task.completions_by_date?.[dayStr] || [];
+          const completionsCountForDay = completionsForDay.length;
+
+          // Check if there are skips for this past date
+          const skipsForDay = task.skips_by_date?.[dayStr] || [];
+          const skipsCountForDay = skipsForDay.length;
+
+          // Build completed times set for matching timed occurrences
+          const completedTimesForDaySet = new Set(
+            completionsForDay.map((t) => {
+              const d = parseAsUtc(t);
+              return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+            }),
+          );
+
+          // Create virtual tasks for each intraday occurrence
+          let occIndex = 0;
+          for (const occ of intradayOccs) {
+            let scheduledAt: string | null = null;
+            if (occ.time) {
+              const [h, m] = occ.time.split(":").map(Number);
+              const occDate = new Date(dayDate);
+              occDate.setHours(h, m, 0, 0);
+              scheduledAt = occDate.toISOString();
+            } else if (task.scheduled_at && parsed.intradayMode === "single") {
+              const originalTime = parseAsUtc(task.scheduled_at);
+              const occDate = new Date(dayDate);
+              occDate.setHours(
+                originalTime.getHours(),
+                originalTime.getMinutes(),
+                originalTime.getSeconds(),
+                0,
+              );
+              scheduledAt = occDate.toISOString();
+            }
+
+            // Determine if this occurrence is completed
+            let isCompleted = false;
+            let completedAt: string | null = null;
+            if (occ.time && completedTimesForDaySet.size > 0) {
+              isCompleted = completedTimesForDaySet.has(occ.time);
+              if (isCompleted) {
+                const matchingTime = completionsForDay.find((t) => {
+                  const d = parseAsUtc(t);
+                  const timeStr = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+                  return timeStr === occ.time;
+                });
+                completedAt = matchingTime || scheduledAt;
+              }
+            } else {
+              isCompleted = occIndex < completionsCountForDay;
+              if (isCompleted && completionsForDay[occIndex]) {
+                completedAt = completionsForDay[occIndex];
+              }
+            }
+
+            // Determine if this occurrence is skipped
+            const isSkipped = !isCompleted && skipsCountForDay > 0;
+
+            // Past incomplete occurrences are OVERDUE
+            const isOverdue = !isCompleted && !isSkipped;
+
+            // Determine status: completed > skipped > pending (overdue shows as pending)
+            let status: "completed" | "skipped" | "pending" = "pending";
+            if (isCompleted) {
+              status = "completed";
+            } else if (isSkipped) {
+              status = "skipped";
+            }
+
+            const virtualTask: Task = {
+              ...task,
+              id: `${task.id}__${dayStr}${occ.suffix}`,
+              scheduled_at: scheduledAt,
+              status: status,
+              completed_at: completedAt,
+              completed_for_today: isCompleted,
+              skipped_for_today: isSkipped,
+              skip_reason: isSkipped
+                ? (task.skip_reasons_by_date?.[dayStr] ?? null)
+                : null,
+              isVirtualOccurrence: true,
+              virtualOccurrenceDate: dayStr,
+              originalTaskId: task.id,
+              isOverdue: isOverdue, // Mark as overdue for UI highlighting
+            };
+            result.push(virtualTask);
+            occIndex++;
+          }
+        }
       }
     }
 

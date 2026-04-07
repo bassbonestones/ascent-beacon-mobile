@@ -54,6 +54,8 @@ export function TimeMachineModal({
     showConfirm,
     showReturnConfirm,
     hasPendingChange,
+    futureCompletionsCount,
+    loadingCount,
     isRevert,
     handleDayPress,
     handleTimeChange,
@@ -61,6 +63,8 @@ export function TimeMachineModal({
     handleConfirmTravel,
     handleReturnToPresent,
     handleCancelPending,
+    openConfirmModal,
+    openReturnConfirmModal,
     setShowConfirm,
     setShowReturnConfirm,
   } = useTimeMachineActions(onClose);
@@ -168,13 +172,16 @@ export function TimeMachineModal({
                 <>
                   <TouchableOpacity
                     style={styles.confirmTravelButton}
-                    onPress={() => setShowConfirm(true)}
+                    onPress={openConfirmModal}
+                    disabled={loadingCount}
                     accessibilityLabel="Confirm travel"
                   >
                     <Text style={styles.confirmTravelButtonText}>
-                      {isRevert()
-                        ? "Revert to This Date"
-                        : "Travel to This Date"}
+                      {loadingCount
+                        ? "Loading..."
+                        : isRevert()
+                          ? "Revert to This Date"
+                          : "Travel to This Date"}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -189,10 +196,13 @@ export function TimeMachineModal({
               {isTimeTravelActive && !hasPendingChange && (
                 <TouchableOpacity
                   style={styles.returnButton}
-                  onPress={() => setShowReturnConfirm(true)}
+                  onPress={openReturnConfirmModal}
+                  disabled={loadingCount}
                   accessibilityLabel="Return to present"
                 >
-                  <Text style={styles.returnButtonText}>Return to Present</Text>
+                  <Text style={styles.returnButtonText}>
+                    {loadingCount ? "Loading..." : "Return to Present"}
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -204,11 +214,13 @@ export function TimeMachineModal({
         visible={showConfirm}
         isRevert={isRevert()}
         dateText={formatDate(pendingDate)}
+        completionsCount={futureCompletionsCount}
         onCancel={() => setShowConfirm(false)}
         onConfirm={handleConfirmTravel}
       />
       <ReturnConfirmModal
         visible={showReturnConfirm}
+        completionsCount={futureCompletionsCount}
         onCancel={() => setShowReturnConfirm(false)}
         onConfirm={handleReturnToPresent}
       />

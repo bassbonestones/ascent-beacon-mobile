@@ -42,6 +42,10 @@ export interface UseTaskFormReturn {
     date: string | null,
     time: string | null,
   ) => string | undefined;
+  getSchedulingFields: (
+    date: string | null,
+    time: string | null,
+  ) => { scheduled_date: string | null; scheduled_at: string | null };
 }
 
 /**
@@ -88,26 +92,25 @@ export function useTaskForm(): UseTaskFormReturn {
     setRecurrenceRule(task.recurrence_rule || "");
     setSchedulingMode(task.scheduling_mode || null);
 
-    // Extract date and time from scheduled_at
-    // Use parseAsUtc to properly handle UTC timestamps from the backend
-    // and convert to local time for display
-    if (task.scheduled_at) {
+    // Extract date and time from scheduled_date or scheduled_at
+    // scheduled_date is for date-only tasks, scheduled_at is for timed tasks
+    if (task.scheduled_date) {
+      // Date-only task: use scheduled_date directly, no time
+      setScheduledDate(task.scheduled_date);
+      setScheduledTime(null);
+    } else if (task.scheduled_at) {
+      // Timed task: extract date and time from scheduled_at
       const date = parseAsUtc(task.scheduled_at);
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, "0");
       const day = String(date.getDate()).padStart(2, "0");
       setScheduledDate(`${year}-${month}-${day}`);
 
-      // Only set time if this is NOT a date-only task
-      // date_only tasks have scheduled_at set to midnight but shouldn't show time
-      if (task.scheduling_mode === "date_only") {
-        setScheduledTime(null);
-      } else {
-        const hours = String(date.getHours()).padStart(2, "0");
-        const minutes = String(date.getMinutes()).padStart(2, "0");
-        setScheduledTime(`${hours}:${minutes}`);
-      }
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      setScheduledTime(`${hours}:${minutes}`);
     } else {
+      // Unscheduled task
       setScheduledDate(null);
       setScheduledTime(null);
     }
@@ -136,32 +139,52 @@ export function useTaskForm(): UseTaskFormReturn {
     [],
   );
 
-  // Convert date + time to ISO datetime
+  // Convert date + time to ISO datetime (for timed tasks only)
   const dateTimeToIso = useCallback(
     (date: string | null, time: string | null): string | undefined => {
-      // If no date and no time, no scheduled_at
-      if (!date && !time) return undefined;
+      // Only return ISO datetime when BOTH date and time are set
+      // For date-only tasks, use getSchedulingFields instead
+      if (!date || !time) return undefined;
 
-      let targetDate: Date;
-      if (date) {
-        const [year, month, day] = date.split("-").map(Number);
-        if (time) {
-          // Date + time: schedule at that specific datetime
-          const [hour, minute] = time.split(":").map(Number);
-          targetDate = new Date(year, month - 1, day, hour, minute, 0, 0);
-        } else {
-          // Date only: schedule at start of day (midnight local time)
-          // This ensures the task shows up in that day's view
-          targetDate = new Date(year, month - 1, day, 0, 0, 0, 0);
-        }
-      } else {
-        // Time only (no date): use today's date
-        const [hour, minute] = time!.split(":").map(Number);
-        targetDate = new Date();
-        targetDate.setHours(hour, minute, 0, 0);
-      }
-
+      const [year, month, day] = date.split("-").map(Number);
+      const [hour, minute] = time.split(":").map(Number);
+      const targetDate = new Date(year, month - 1, day, hour, minute, 0, 0);
       return targetDate.toISOString();
+    },
+    [],
+  );
+
+  // Get both scheduled_date and scheduled_at fields for API request
+  // - Date only: scheduled_date is set, scheduled_at is null
+  // - Date + time: scheduled_at is set, scheduled_date is null
+  // - Neither: both null (unscheduled = today in UI)
+  const getSchedulingFields = useCallback(
+    (
+      date: string | null,
+      time: string | null,
+    ): { scheduled_date: string | null; scheduled_at: string | null } => {
+      if (date && time) {
+        // Timed task: use scheduled_at
+        const [year, month, day] = date.split("-").map(Number);
+        const [hour, minute] = time.split(":").map(Number);
+        const targetDate = new Date(year, month - 1, day, hour, minute, 0, 0);
+        return {
+          scheduled_date: null,
+          scheduled_at: targetDate.toISOString(),
+        };
+      } else if (date && !time) {
+        // Date-only task: use scheduled_date
+        return {
+          scheduled_date: date,
+          scheduled_at: null,
+        };
+      } else {
+        // Unscheduled task
+        return {
+          scheduled_date: null,
+          scheduled_at: null,
+        };
+      }
     },
     [],
   );
@@ -193,5 +216,6 @@ export function useTaskForm(): UseTaskFormReturn {
     toggleRecurring,
     handleRecurrenceChange,
     dateTimeToIso,
+    getSchedulingFields,
   };
 }

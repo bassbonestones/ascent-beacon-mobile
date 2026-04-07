@@ -35,6 +35,7 @@ const createMockTask = (
   description: null,
   duration_minutes: 30,
   status,
+  scheduled_date: null,
   scheduled_at: null,
   is_recurring: false,
   recurrence_rule: null,

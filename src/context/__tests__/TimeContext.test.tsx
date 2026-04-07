@@ -25,6 +25,7 @@ jest.mock("../../services/api", () => ({
   __esModule: true,
   default: {
     deleteFutureCompletions: jest.fn(),
+    getFutureCompletionsCount: jest.fn(),
   },
 }));
 
@@ -44,6 +45,7 @@ const TimeConsumer: React.FC = () => {
     disableTimeMachine,
     setTravelDate,
     resetToToday,
+    getFutureCompletionsCount,
     getCurrentDate,
     loading,
   } = useTime();
@@ -75,9 +77,21 @@ const TimeConsumer: React.FC = () => {
       </TouchableOpacity>
       <TouchableOpacity
         testID="resetBtn"
-        onPress={() => resetToToday().catch(() => {})}
+        onPress={() => resetToToday(false).catch(() => {})}
       >
         <Text>Reset</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        testID="resetDeleteBtn"
+        onPress={() => resetToToday(true).catch(() => {})}
+      >
+        <Text>Reset with Delete</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        testID="countBtn"
+        onPress={() => getFutureCompletionsCount().catch(() => {})}
+      >
+        <Text>Get Count</Text>
       </TouchableOpacity>
     </>
   );
@@ -90,6 +104,7 @@ describe("TimeContext", () => {
     mockedSecureStore.setItemAsync.mockResolvedValue();
     mockedSecureStore.deleteItemAsync.mockResolvedValue();
     mockedApi.deleteFutureCompletions.mockResolvedValue({ deletedCount: 0 });
+    mockedApi.getFutureCompletionsCount.mockResolvedValue({ count: 0 });
   });
 
   describe("useTime hook", () => {
@@ -293,7 +308,39 @@ describe("TimeContext", () => {
       );
     });
 
-    it("should call API and clear date when resetToToday is called", async () => {
+    it("should clear date without calling API when resetToToday is called with deleteCompletions=false", async () => {
+      render(
+        <TimeProvider>
+          <TimeConsumer />
+        </TimeProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("loading").props.children).toBe("ready");
+      });
+
+      // First set a date
+      await act(async () => {
+        fireEvent.press(screen.getByTestId("setDateBtn"));
+      });
+
+      // Then reset without deleting
+      await act(async () => {
+        fireEvent.press(screen.getByTestId("resetBtn"));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("active").props.children).toBe("no");
+      });
+
+      // Should NOT call deleteFutureCompletions when deleteCompletions is false
+      expect(mockedApi.deleteFutureCompletions).not.toHaveBeenCalled();
+      expect(mockedSecureStore.deleteItemAsync).toHaveBeenCalledWith(
+        "time_travel_date",
+      );
+    });
+
+    it("should call API and clear date when resetToToday is called with deleteCompletions=true", async () => {
       mockedApi.deleteFutureCompletions.mockResolvedValue({ deletedCount: 5 });
 
       render(
@@ -311,9 +358,9 @@ describe("TimeContext", () => {
         fireEvent.press(screen.getByTestId("setDateBtn"));
       });
 
-      // Then reset
+      // Then reset with deleting
       await act(async () => {
-        fireEvent.press(screen.getByTestId("resetBtn"));
+        fireEvent.press(screen.getByTestId("resetDeleteBtn"));
       });
 
       await waitFor(() => {

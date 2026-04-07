@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { Platform, Alert } from "react-native";
 import { DateData } from "react-native-calendars";
 import { useTime } from "../context/TimeContext";
+import { toLocalDateString } from "../utils/taskSorting";
 
 interface UseTimeMachineActionsReturn {
   pendingDate: Date | null;
@@ -10,13 +11,17 @@ interface UseTimeMachineActionsReturn {
   showConfirm: boolean;
   showReturnConfirm: boolean;
   hasPendingChange: boolean;
+  futureCompletionsCount: number;
+  loadingCount: boolean;
   isRevert: () => boolean;
   handleDayPress: (day: DateData) => void;
   handleTimeChange: (hour: number, minute: number) => void;
   handleQuickTravel: (days: number) => void;
-  handleConfirmTravel: () => Promise<void>;
-  handleReturnToPresent: () => Promise<void>;
+  handleConfirmTravel: (deleteCompletions: boolean) => Promise<void>;
+  handleReturnToPresent: (deleteCompletions: boolean) => Promise<void>;
   handleCancelPending: () => void;
+  openConfirmModal: () => Promise<void>;
+  openReturnConfirmModal: () => Promise<void>;
   setShowConfirm: (show: boolean) => void;
   setShowReturnConfirm: (show: boolean) => void;
 }
@@ -24,13 +29,16 @@ interface UseTimeMachineActionsReturn {
 export function useTimeMachineActions(
   onClose: () => void,
 ): UseTimeMachineActionsReturn {
-  const { travelDate, resetToToday, revertToDate } = useTime();
+  const { travelDate, resetToToday, revertToDate, getFutureCompletionsCount } =
+    useTime();
 
   const [pendingDate, setPendingDate] = useState<Date | null>(null);
   const [pendingHour, setPendingHour] = useState(12);
   const [pendingMinute, setPendingMinute] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showReturnConfirm, setShowReturnConfirm] = useState(false);
+  const [futureCompletionsCount, setFutureCompletionsCount] = useState(0);
+  const [loadingCount, setLoadingCount] = useState(false);
 
   const isRevert = useCallback((): boolean => {
     if (!pendingDate || !travelDate) return false;
@@ -76,41 +84,90 @@ export function useTimeMachineActions(
     }
   };
 
-  const handleConfirmTravel = useCallback(async () => {
+  // Open the confirm modal for travel/revert - fetches count if reverting
+  const openConfirmModal = useCallback(async () => {
     if (!pendingDate) return;
-    try {
-      const result = await revertToDate(pendingDate);
-      setShowConfirm(false);
-      setPendingDate(null);
-      if (isRevert() && result.deletedCount > 0) {
-        showMessage(
-          "Time Travel",
-          `Deleted ${result.deletedCount} completion${result.deletedCount === 1 ? "" : "s"}.`,
-        );
-      }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Failed to travel";
-      showMessage("Error", msg);
-    }
-  }, [pendingDate, isRevert, revertToDate]);
 
-  const handleReturnToPresent = useCallback(async () => {
-    try {
-      const result = await resetToToday();
-      setShowReturnConfirm(false);
-      setPendingDate(null);
-      const message =
-        result.deletedCount > 0
-          ? `Deleted ${result.deletedCount} future completion${result.deletedCount === 1 ? "" : "s"}.`
-          : "Returned to present.";
-      showMessage("Returned to Present", message);
-      onClose();
-    } catch (error) {
-      const msg =
-        error instanceof Error ? error.message : "Failed to return to present";
-      showMessage("Error", msg);
+    // Check if this is a revert (going to an earlier date)
+    const isRevertAction =
+      travelDate && pendingDate.getTime() < travelDate.getTime();
+
+    if (isRevertAction) {
+      // Fetch count of completions that would be affected
+      setLoadingCount(true);
+      try {
+        const dateStr = toLocalDateString(pendingDate);
+        const count = await getFutureCompletionsCount(dateStr);
+        setFutureCompletionsCount(count);
+      } catch {
+        setFutureCompletionsCount(0);
+      } finally {
+        setLoadingCount(false);
+      }
+    } else {
+      setFutureCompletionsCount(0);
     }
-  }, [resetToToday, onClose]);
+
+    setShowConfirm(true);
+  }, [pendingDate, travelDate, getFutureCompletionsCount]);
+
+  // Open the return to present confirm modal - fetches count
+  const openReturnConfirmModal = useCallback(async () => {
+    setLoadingCount(true);
+    try {
+      const count = await getFutureCompletionsCount();
+      setFutureCompletionsCount(count);
+    } catch {
+      setFutureCompletionsCount(0);
+    } finally {
+      setLoadingCount(false);
+    }
+    setShowReturnConfirm(true);
+  }, [getFutureCompletionsCount]);
+
+  const handleConfirmTravel = useCallback(
+    async (deleteCompletions: boolean) => {
+      if (!pendingDate) return;
+      try {
+        const result = await revertToDate(pendingDate, deleteCompletions);
+        setShowConfirm(false);
+        setPendingDate(null);
+        if (deleteCompletions && result.deletedCount > 0) {
+          showMessage(
+            "Time Travel",
+            `Deleted ${result.deletedCount} completion${result.deletedCount === 1 ? "" : "s"}.`,
+          );
+        }
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : "Failed to travel";
+        showMessage("Error", msg);
+      }
+    },
+    [pendingDate, revertToDate],
+  );
+
+  const handleReturnToPresent = useCallback(
+    async (deleteCompletions: boolean) => {
+      try {
+        const result = await resetToToday(deleteCompletions);
+        setShowReturnConfirm(false);
+        setPendingDate(null);
+        const message =
+          deleteCompletions && result.deletedCount > 0
+            ? `Deleted ${result.deletedCount} future completion${result.deletedCount === 1 ? "" : "s"}.`
+            : "Returned to present.";
+        showMessage("Returned to Present", message);
+        onClose();
+      } catch (error) {
+        const msg =
+          error instanceof Error
+            ? error.message
+            : "Failed to return to present";
+        showMessage("Error", msg);
+      }
+    },
+    [resetToToday, onClose],
+  );
 
   const handleCancelPending = useCallback(() => {
     setPendingDate(null);
@@ -125,6 +182,8 @@ export function useTimeMachineActions(
     showConfirm,
     showReturnConfirm,
     hasPendingChange: pendingDate !== null,
+    futureCompletionsCount,
+    loadingCount,
     isRevert,
     handleDayPress,
     handleTimeChange,
@@ -132,6 +191,8 @@ export function useTimeMachineActions(
     handleConfirmTravel,
     handleReturnToPresent,
     handleCancelPending,
+    openConfirmModal,
+    openReturnConfirmModal,
     setShowConfirm,
     setShowReturnConfirm,
   };

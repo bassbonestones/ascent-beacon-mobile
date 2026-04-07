@@ -36,6 +36,7 @@ const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   description: null,
   duration_minutes: 15,
   status: "pending",
+  scheduled_date: null,
   scheduled_at: "2024-06-15T08:00:00Z",
   is_recurring: true,
   recurrence_rule: "FREQ=DAILY",
@@ -86,6 +87,7 @@ describe("HabitTrackerScreen", () => {
       setTravelDate: jest.fn(),
       resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
       revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      getFutureCompletionsCount: jest.fn().mockResolvedValue(0),
       getCurrentDate: () => new Date(),
       loading: false,
     });

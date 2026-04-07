@@ -54,6 +54,7 @@ describe("DashboardScreen", () => {
       setTravelDate: jest.fn(),
       resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
       revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      getFutureCompletionsCount: jest.fn().mockResolvedValue(0),
       getCurrentDate: () => new Date(),
       loading: false,
     });
@@ -251,6 +252,7 @@ describe("DashboardScreen", () => {
       setTravelDate: jest.fn(),
       resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
       revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      getFutureCompletionsCount: jest.fn().mockResolvedValue(0),
       getCurrentDate: () => new Date(),
       loading: false,
     });
@@ -276,6 +278,7 @@ describe("DashboardScreen", () => {
       setTravelDate: jest.fn(),
       resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
       revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+      getFutureCompletionsCount: jest.fn().mockResolvedValue(0),
       getCurrentDate: () => new Date(),
       loading: false,
     });

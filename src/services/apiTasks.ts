@@ -13,6 +13,7 @@ import type {
   TaskStatsResponse,
   CompletionHistoryResponse,
   DeleteFutureCompletionsResponse,
+  FutureCompletionsCountResponse,
 } from "../types";
 import type ApiServiceBase from "./apiBase";
 
@@ -63,6 +64,9 @@ export interface TasksMethods {
   deleteFutureCompletions(
     afterDate?: string,
   ): Promise<DeleteFutureCompletionsResponse>;
+  getFutureCompletionsCount(
+    afterDate?: string,
+  ): Promise<FutureCompletionsCountResponse>;
 }
 
 export interface TasksListParams {
@@ -230,5 +234,14 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
       return await this.request<DeleteFutureCompletionsResponse>(url, {
         method: "DELETE",
       });
+    }
+
+    async getFutureCompletionsCount(
+      afterDate?: string,
+    ): Promise<FutureCompletionsCountResponse> {
+      const url = afterDate
+        ? `/tasks/completions/future/count?after_date=${afterDate}`
+        : "/tasks/completions/future/count";
+      return await this.request<FutureCompletionsCountResponse>(url);
     }
   };

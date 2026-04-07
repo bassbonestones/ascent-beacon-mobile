@@ -10,6 +10,7 @@ const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   description: "Test description",
   duration_minutes: 45,
   status: "pending",
+  scheduled_date: null,
   scheduled_at: "2026-04-05T14:30:00.000Z",
   is_recurring: true,
   recurrence_rule: "FREQ=DAILY;INTERVAL=1",

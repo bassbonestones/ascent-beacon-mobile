@@ -14,6 +14,7 @@ export interface UseTasksOptions {
   status?: string;
   includeCompleted?: boolean;
   daysAhead?: number; // How many days ahead to load completion data (default: 14)
+  clientToday?: Date; // Override "today" for time travel support (default: new Date())
 }
 
 /**
@@ -26,18 +27,24 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  // Memoize clientToday string to avoid unnecessary re-fetches
+  // We derive the date string immediately so it can be used as a stable dependency
+  const clientTodayStr = options.clientToday
+    ? toLocalDateString(options.clientToday)
+    : toLocalDateString(new Date());
+
   const fetchTasks = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       setError(null);
       // Pass the client's local date so the backend can correctly determine "today"
       // This fixes timezone issues where UTC "today" differs from user's local "today"
-      const clientToday = toLocalDateString(new Date());
+      // Also supports time travel when clientToday option is provided
       const response = await api.getTasks({
         goal_id: options.goalId,
         status: options.status,
         include_completed: options.includeCompleted,
-        client_today: clientToday,
+        client_today: clientTodayStr,
         days_ahead: options.daysAhead,
       });
       setTasks(response.tasks);
@@ -55,6 +62,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
     options.status,
     options.includeCompleted,
     options.daysAhead,
+    clientTodayStr,
   ]);
 
   useEffect(() => {
