@@ -237,6 +237,15 @@ export const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: "#EF4444",
   },
+  taskCardDragging: {
+    opacity: 0.9,
+    backgroundColor: "#F3E8FF",
+    elevation: 8,
+    shadowColor: "#6200ee",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
   lightningBadge: {
     backgroundColor: "#FBBF24",
     paddingHorizontal: 6,

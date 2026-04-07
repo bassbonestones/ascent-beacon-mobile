@@ -8,8 +8,22 @@ import {
   StyleSheet,
   ImageBackground,
   LogBox,
+  Platform,
 } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
+
+// Conditionally import GestureHandlerRootView - only needed on native
+let GestureHandlerRootView: React.ComponentType<{
+  style?: any;
+  children?: React.ReactNode;
+}>;
+if (Platform.OS !== "web") {
+  GestureHandlerRootView =
+    require("react-native-gesture-handler").GestureHandlerRootView;
+} else {
+  // On web, just use a View wrapper
+  GestureHandlerRootView = View;
+}
 
 // Suppress known warnings on mobile (LogBox)
 LogBox.ignoreLogs([
@@ -117,15 +131,17 @@ function AppNavigator(): React.ReactElement {
 
 export default function App(): React.ReactElement {
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <TimeProvider>
-          <NavigationContainer>
-            <AppNavigator />
-          </NavigationContainer>
-        </TimeProvider>
-      </AuthProvider>
-    </ErrorBoundary>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
+        <AuthProvider>
+          <TimeProvider>
+            <NavigationContainer>
+              <AppNavigator />
+            </NavigationContainer>
+          </TimeProvider>
+        </AuthProvider>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }
 

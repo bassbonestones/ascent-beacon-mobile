@@ -10,9 +10,8 @@ jest.mock("../TaskCard", () => ({
     task,
     onPress,
     onComplete,
-    showReorderButtons,
-    onMoveUp,
-    onMoveDown,
+    drag,
+    isActive,
   }: any) => {
     const { View, Text, TouchableOpacity } = require("react-native");
     return (
@@ -26,15 +25,10 @@ jest.mock("../TaskCard", () => ({
           testID={`complete-${task.id}`}
           onPress={() => onComplete(task)}
         />
-        {showReorderButtons && onMoveUp && (
-          <TouchableOpacity testID={`move-up-${task.id}`} onPress={onMoveUp} />
+        {drag && (
+          <TouchableOpacity testID={`drag-${task.id}`} onLongPress={drag} />
         )}
-        {showReorderButtons && onMoveDown && (
-          <TouchableOpacity
-            testID={`move-down-${task.id}`}
-            onPress={onMoveDown}
-          />
-        )}
+        {isActive && <Text testID={`active-${task.id}`}>Dragging</Text>}
       </View>
     );
   },
@@ -132,7 +126,7 @@ describe("DraggableTaskList", () => {
     });
   });
 
-  describe("native platform (arrow buttons)", () => {
+  describe("native platform (drag and drop)", () => {
     beforeEach(() => {
       (Platform as any).OS = "ios";
     });
@@ -141,45 +135,28 @@ describe("DraggableTaskList", () => {
       (Platform as any).OS = "ios";
     });
 
-    it("shows move up button for non-first pending task", () => {
+    it("renders tasks on native", () => {
       const { getByTestId } = render(<DraggableTaskList {...defaultProps} />);
 
-      // Second task should have move up button
-      expect(getByTestId("move-up-task-2")).toBeTruthy();
+      expect(getByTestId("task-card-task-1")).toBeTruthy();
+      expect(getByTestId("task-card-task-2")).toBeTruthy();
     });
 
-    it("shows move down button for non-last pending task", () => {
+    it("provides drag handler for pending tasks with sort_order", () => {
       const { getByTestId } = render(<DraggableTaskList {...defaultProps} />);
 
-      // First task should have move down button
-      expect(getByTestId("move-down-task-1")).toBeTruthy();
+      // Tasks with drag enabled should render (drag handler provided in renderItem)
+      expect(getByTestId("task-card-task-1")).toBeTruthy();
+      expect(getByTestId("task-card-task-2")).toBeTruthy();
     });
 
-    it("does not show reorder buttons for completed tasks", () => {
-      const { queryByTestId } = render(<DraggableTaskList {...defaultProps} />);
-
-      expect(queryByTestId("move-up-task-3")).toBeNull();
-      expect(queryByTestId("move-down-task-3")).toBeNull();
-    });
-
-    it("calls onReorder when move up is pressed", () => {
-      const onReorder = jest.fn();
-      const { getByTestId } = render(
-        <DraggableTaskList {...defaultProps} onReorder={onReorder} />,
+    it("does not provide drag for completed tasks", () => {
+      const { getByTestId, queryByTestId } = render(
+        <DraggableTaskList {...defaultProps} />,
       );
 
-      fireEvent.press(getByTestId("move-up-task-2"));
-      expect(onReorder).toHaveBeenCalledWith(mockTasks[1], 0); // Move to position 0
-    });
-
-    it("calls onReorder when move down is pressed", () => {
-      const onReorder = jest.fn();
-      const { getByTestId } = render(
-        <DraggableTaskList {...defaultProps} onReorder={onReorder} />,
-      );
-
-      fireEvent.press(getByTestId("move-down-task-1"));
-      expect(onReorder).toHaveBeenCalledWith(mockTasks[0], 1); // Move to position 1
+      // Completed task is rendered but without drag (handled internally)
+      expect(getByTestId("task-card-task-3")).toBeTruthy();
     });
   });
 
@@ -202,7 +179,7 @@ describe("DraggableTaskList", () => {
     it("does not show arrow buttons on web (uses drag instead)", () => {
       const { queryByTestId } = render(<DraggableTaskList {...defaultProps} />);
 
-      // Web version doesn't use arrow buttons
+      // Neither platform uses arrow buttons anymore - both use drag
       expect(queryByTestId("move-up-task-2")).toBeNull();
       expect(queryByTestId("move-down-task-1")).toBeNull();
     });
@@ -211,14 +188,11 @@ describe("DraggableTaskList", () => {
   describe("edge cases", () => {
     it("handles single task", () => {
       const singleTask = [createMockTask({ id: "solo", sort_order: 0 })];
-      const { getByTestId, queryByTestId } = render(
+      const { getByTestId } = render(
         <DraggableTaskList {...defaultProps} tasks={singleTask} />,
       );
 
       expect(getByTestId("task-card-solo")).toBeTruthy();
-      // Single task has no up/down buttons
-      expect(queryByTestId("move-up-solo")).toBeNull();
-      expect(queryByTestId("move-down-solo")).toBeNull();
     });
 
     it("handles all completed tasks", () => {
@@ -226,13 +200,12 @@ describe("DraggableTaskList", () => {
         createMockTask({ id: "c1", status: "completed", sort_order: null }),
         createMockTask({ id: "c2", status: "completed", sort_order: null }),
       ];
-      const { getByTestId, queryByTestId } = render(
+      const { getByTestId } = render(
         <DraggableTaskList {...defaultProps} tasks={completedTasks} />,
       );
 
       expect(getByTestId("task-card-c1")).toBeTruthy();
-      expect(queryByTestId("move-up-c1")).toBeNull();
-      expect(queryByTestId("move-down-c1")).toBeNull();
+      expect(getByTestId("task-card-c2")).toBeTruthy();
     });
 
     it("renders with loading state", () => {

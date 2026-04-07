@@ -42,15 +42,18 @@ interface TaskCardProps {
   task: Task;
   onPress: (task: Task) => void;
   onComplete: (task: Task) => void;
-  currentDate?: Date; // For time travel support - defaults to now
-  // Phase 4e: Anytime task reordering
+  currentDate?: Date;
   showReorderButtons?: boolean;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
+  drag?: () => void;
+  isActive?: boolean;
+  // When true, disables internal touch handling (for use inside DraggableTaskList)
+  disableTouchHandling?: boolean;
 }
 
 const getStatusColor = (status: string, isOverdue: boolean): string => {
-  if (isOverdue) return "#EF4444"; // Red for overdue
+  if (isOverdue) return "#EF4444";
   switch (status) {
     case "pending":
       return "#3B82F6";
@@ -71,9 +74,6 @@ const formatDuration = (minutes: number): string => {
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 };
 
-/**
- * Format a time string (HH:MM) to 12-hour format.
- */
 const formatTime12h = (time: string): string => {
   const [hour, minute] = time.split(":");
   const h = parseInt(hour, 10);
@@ -90,6 +90,9 @@ export function TaskCard({
   showReorderButtons = false,
   onMoveUp,
   onMoveDown,
+  drag,
+  isActive = false,
+  disableTouchHandling = false,
 }: TaskCardProps): React.ReactElement {
   const isCompleted = task.status === "completed";
   const isPending = task.status === "pending";
@@ -97,7 +100,6 @@ export function TaskCard({
   const scheduledTime = formatTaskTime(task.scheduled_at, task.scheduling_mode);
   const taskWindow = getTaskWindow(task.recurrence_rule);
 
-  // Get the missed date for overdue virtual occurrences
   const overdueDate =
     overdue && task.virtualOccurrenceDate
       ? formatOverdueDate(task.virtualOccurrenceDate, currentDate)
@@ -107,99 +109,115 @@ export function TaskCard({
     onComplete(task);
   }, [onComplete, task]);
 
-  return (
-    <View style={[styles.taskCard, overdue && styles.taskCardOverdue]}>
-      {/* Main card content - pressable for navigation */}
-      <Pressable
-        style={styles.taskCardPressable}
-        onPress={() => onPress(task)}
-        accessibilityLabel={`Task: ${task.title}`}
-        accessibilityRole="button"
-      >
-        <View style={styles.taskHeader}>
-          <View style={styles.taskTitleContainer}>
-            <Text
-              style={[
-                styles.taskTitle,
-                isCompleted && styles.taskTitleCompleted,
-              ]}
-              numberOfLines={2}
-            >
-              {task.title}
-            </Text>
-            {task.goal && (
-              <Text style={styles.taskGoal} numberOfLines={1}>
-                {task.goal.title}
-              </Text>
-            )}
-            {!task.goal && (
-              <Text
-                style={[styles.taskGoal, styles.unalignedText]}
-                numberOfLines={1}
-              >
-                ⊘ Unaligned
-              </Text>
-            )}
-          </View>
-
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: getStatusColor(task.status, overdue) },
-            ]}
+  // Card content - shared between touchable and non-touchable versions
+  const cardContent = (
+    <>
+      <View style={styles.taskHeader}>
+        <View style={styles.taskTitleContainer}>
+          <Text
+            style={[styles.taskTitle, isCompleted && styles.taskTitleCompleted]}
+            numberOfLines={2}
           >
-            <Text style={styles.statusText}>
-              {overdue
-                ? overdueDate
-                  ? `Overdue (${overdueDate})`
-                  : "Overdue"
-                : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+            {task.title}
+          </Text>
+          {task.goal && (
+            <Text style={styles.taskGoal} numberOfLines={1}>
+              {task.goal.title}
             </Text>
+          )}
+          {!task.goal && (
+            <Text
+              style={[styles.taskGoal, styles.unalignedText]}
+              numberOfLines={1}
+            >
+              ⊘ Unaligned
+            </Text>
+          )}
+        </View>
+
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: getStatusColor(task.status, overdue) },
+          ]}
+        >
+          <Text style={styles.statusText}>
+            {overdue
+              ? overdueDate
+                ? `Overdue (${overdueDate})`
+                : "Overdue"
+              : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+          </Text>
+        </View>
+
+        {(isPending || isCompleted) && <View style={styles.actionSpacer} />}
+      </View>
+
+      <View style={styles.taskMeta}>
+        {scheduledTime && (
+          <Text style={[styles.taskTime, overdue && styles.taskTimeOverdue]}>
+            🕐 {scheduledTime}
+          </Text>
+        )}
+        {!scheduledTime && taskWindow && (
+          <Text style={[styles.taskTime, styles.taskTimeFlexible]}>
+            🕐 {formatTime12h(taskWindow.start)} -{" "}
+            {formatTime12h(taskWindow.end)}
+          </Text>
+        )}
+        {task.is_lightning && (
+          <View style={styles.lightningBadge}>
+            <Text style={styles.lightningText}>⚡ Quick</Text>
           </View>
+        )}
+        {task.is_recurring && (
+          <View style={styles.recurringBadge}>
+            <Text style={styles.recurringText}>🔄 Recurring</Text>
+          </View>
+        )}
+        {task.scheduling_mode === "anytime" && (
+          <View style={styles.anytimeBadge}>
+            <Text style={styles.anytimeText}>📋 Anytime</Text>
+          </View>
+        )}
+        {!task.is_lightning && task.duration_minutes > 0 && (
+          <Text style={styles.taskDuration}>
+            ⏱️ {formatDuration(task.duration_minutes)}
+          </Text>
+        )}
+      </View>
+    </>
+  );
 
-          {/* Spacer for action button area */}
-          {(isPending || isCompleted) && <View style={styles.actionSpacer} />}
-        </View>
-
-        <View style={styles.taskMeta}>
-          {scheduledTime && (
-            <Text style={[styles.taskTime, overdue && styles.taskTimeOverdue]}>
-              🕐 {scheduledTime}
-            </Text>
-          )}
-          {!scheduledTime && taskWindow && (
-            <Text style={[styles.taskTime, styles.taskTimeFlexible]}>
-              🕐 {formatTime12h(taskWindow.start)} -{" "}
-              {formatTime12h(taskWindow.end)}
-            </Text>
-          )}
-          {task.is_lightning && (
-            <View style={styles.lightningBadge}>
-              <Text style={styles.lightningText}>⚡ Quick</Text>
-            </View>
-          )}
-          {task.is_recurring && (
-            <View style={styles.recurringBadge}>
-              <Text style={styles.recurringText}>🔄 Recurring</Text>
-            </View>
-          )}
-          {task.scheduling_mode === "anytime" && (
-            <View style={styles.anytimeBadge}>
-              <Text style={styles.anytimeText}>📋 Anytime</Text>
-            </View>
-          )}
-          {!task.is_lightning && task.duration_minutes > 0 && (
-            <Text style={styles.taskDuration}>
-              ⏱️ {formatDuration(task.duration_minutes)}
-            </Text>
-          )}
-        </View>
-      </Pressable>
+  return (
+    <View
+      style={[
+        styles.taskCard,
+        overdue && styles.taskCardOverdue,
+        isActive && styles.taskCardDragging,
+      ]}
+    >
+      {/* Main card content - either wrapped in touchable or plain View */}
+      {disableTouchHandling ? (
+        // No touch handling - parent (DraggableTaskList) handles touches
+        <View style={styles.taskCardPressable}>{cardContent}</View>
+      ) : (
+        // Normal touch handling with Pressable
+        <Pressable
+          style={styles.taskCardPressable}
+          onPress={() => onPress(task)}
+          onLongPress={drag}
+          delayLongPress={150}
+          accessibilityLabel={`Task: ${task.title}`}
+          accessibilityRole="button"
+        >
+          {cardContent}
+        </Pressable>
+      )}
 
       {/* Action buttons - positioned absolutely to avoid nested buttons on web */}
       {isPending &&
         (Platform.OS === "web" ? (
-          // On web, use fully native HTML for reliable click handling
           <div
             onClick={(e: React.MouseEvent) => {
               e.stopPropagation();
@@ -251,7 +269,6 @@ export function TaskCard({
         </View>
       )}
 
-      {/* Phase 4e: Reorder buttons for anytime tasks */}
       {showReorderButtons && (
         <View style={styles.reorderButtons}>
           {onMoveUp && (
