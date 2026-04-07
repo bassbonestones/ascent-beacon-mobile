@@ -458,6 +458,7 @@ export type RootStackParamList = {
   HabitTracker: undefined;
   HabitMetrics: { taskId: string; taskTitle: string };
   ValuePriorityLinks: { valueId: string; valueStatement: string };
+  ReorderTasks: { date: string; dateDisplay: string; items: ReorderItem[] };
   Assistant: { contextMode?: string };
   Alignment: undefined;
 };
@@ -698,6 +699,9 @@ export interface Task {
   originalTaskId?: string; // The real task ID for API calls
   // For past missed occurrences that are overdue
   isOverdue?: boolean;
+  // For multi-per-day recurring tasks: occurrence index (0-based) and label
+  occurrenceIndex?: number;
+  occurrenceLabel?: string; // e.g., "(1 of 4)"
 }
 
 export interface TaskListResponse {
@@ -881,6 +885,51 @@ export interface UseTasksReturn {
   deleteTask: (id: string) => Promise<void>;
   // Phase 4e: Anytime tasks
   reorderTask: (id: string, newPosition: number) => Promise<Task>;
+}
+
+// ============================================================================
+// Occurrence Ordering Types (Phase 4f)
+// ============================================================================
+
+export type SaveMode = "today" | "permanent";
+
+export interface OccurrenceItem {
+  task_id: string;
+  occurrence_index: number;
+}
+
+export interface ReorderOccurrencesRequest {
+  date: string; // YYYY-MM-DD
+  occurrences: OccurrenceItem[];
+  save_mode: SaveMode;
+}
+
+export interface ReorderOccurrencesResponse {
+  message: string;
+  save_mode: SaveMode;
+  date: string;
+  count: number;
+}
+
+export interface DayOrderItem {
+  task_id: string;
+  occurrence_index: number;
+  sort_value: number;
+  is_override: boolean;
+}
+
+export interface DayOrderResponse {
+  date: string;
+  items: DayOrderItem[];
+  has_overrides: boolean;
+}
+
+// Item for reorder screen
+export interface ReorderItem {
+  task: Task;
+  occurrenceIndex: number;
+  occurrenceLabel?: string; // e.g., "(1 of 4)"
+  key: string;
 }
 
 // ============================================================================

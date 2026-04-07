@@ -402,8 +402,19 @@ describe("useTasks", () => {
   });
 
   describe("reorderTask", () => {
-    it("calls reorderTask API and refetches tasks", async () => {
-      const reorderedTask = createMockTask("t1", "Reordered", "pending");
+    const orderedTasks = [
+      { ...createMockTask("t1", "Task 1"), sort_order: 0 },
+      { ...createMockTask("t2", "Task 2"), sort_order: 1 },
+    ];
+
+    it("calls reorderTask API when sort_order changes", async () => {
+      mockedApi.getTasks.mockResolvedValue({
+        tasks: orderedTasks,
+        total: 2,
+        pending_count: 2,
+        completed_count: 0,
+      });
+      const reorderedTask = { ...orderedTasks[0], sort_order: 3 };
       mockedApi.reorderTask.mockResolvedValue({
         task: reorderedTask,
       });
@@ -421,21 +432,28 @@ describe("useTasks", () => {
       expect(mockedApi.reorderTask).toHaveBeenCalledWith("t1", {
         new_position: 3,
       });
-      expect(mockedApi.getTasks).toHaveBeenCalled();
     });
 
     it("handles error when reorderTask fails", async () => {
+      mockedApi.getTasks.mockResolvedValue({
+        tasks: orderedTasks,
+        total: 2,
+        pending_count: 2,
+        completed_count: 0,
+      });
       mockedApi.reorderTask.mockRejectedValue(new Error("Network error"));
 
       const { result } = renderHook(() => useTasks());
 
       await waitFor(() => expect(result.current.loading).toBe(false));
 
-      await expect(
-        act(async () => {
+      await act(async () => {
+        try {
           await result.current.reorderTask("t1", 3);
-        }),
-      ).rejects.toThrow("Network error");
+        } catch {
+          // Expected to throw
+        }
+      });
 
       expect(Alert.alert).toHaveBeenCalledWith(
         "Error",

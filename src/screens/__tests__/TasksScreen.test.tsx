@@ -8,6 +8,7 @@ import {
 import TasksScreen from "../TasksScreen";
 import { useTasks } from "../../hooks/useTasks";
 import { useGoals } from "../../hooks/useGoals";
+import { useOccurrenceOrder } from "../../hooks/useOccurrenceOrder";
 import { useTime } from "../../context/TimeContext";
 import type {
   Task,
@@ -20,11 +21,13 @@ import { showAlert, showConfirm } from "../../utils/alert";
 
 jest.mock("../../hooks/useTasks");
 jest.mock("../../hooks/useGoals");
+jest.mock("../../hooks/useOccurrenceOrder");
 jest.mock("../../utils/alert");
 jest.mock("../../context/TimeContext");
 
 const mockedUseTasks = jest.mocked(useTasks);
 const mockedUseGoals = jest.mocked(useGoals);
+const mockedUseOccurrenceOrder = jest.mocked(useOccurrenceOrder);
 const mockedShowAlert = jest.mocked(showAlert);
 const mockedShowConfirm = jest.mocked(showConfirm);
 const mockedUseTime = jest.mocked(useTime);
@@ -112,12 +115,21 @@ describe("TasksScreen", () => {
     goBack: jest.fn(),
     navigate: jest.fn(),
     setOptions: jest.fn(),
+    addListener: jest.fn(() => jest.fn()), // Returns unsubscribe function
   } as any;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockedUseTasks.mockReturnValue(defaultTasksHook);
     mockedUseGoals.mockReturnValue(defaultGoalsHook);
+    mockedUseOccurrenceOrder.mockReturnValue({
+      order: [],
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+      applySortOrder: (tasks) => tasks,
+      applyPermanentOrder: (tasks) => tasks,
+    });
     mockedShowConfirm.mockResolvedValue(false);
     mockedUseTime.mockReturnValue({
       isTimeMachineEnabled: false,

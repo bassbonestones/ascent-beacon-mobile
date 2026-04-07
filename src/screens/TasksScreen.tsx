@@ -15,10 +15,17 @@ import {
   Platform,
 } from "react-native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { Task, User, RootStackParamList, SchedulingMode } from "../types";
+import type {
+  Task,
+  User,
+  RootStackParamList,
+  SchedulingMode,
+  ReorderItem,
+} from "../types";
 import { useTasks } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
 import { useTaskForm } from "../hooks/useTaskForm";
+import { useOccurrenceOrder } from "../hooks/useOccurrenceOrder";
 import { useTime } from "../context/TimeContext";
 import { styles } from "./styles/tasksScreenStyles";
 import {
@@ -146,6 +153,30 @@ export default function TasksScreen({
   // Get current date for time-aware filtering
   const currentDate = getCurrentDate();
 
+  // Get today's date string for occurrence ordering
+  const todayDateStr = toLocalDateString(currentDate);
+
+  // Fetch occurrence order for Today view
+  const {
+    applySortOrder: applyTodayOrder,
+    applyPermanentOrder,
+    refetch: refetchOrder,
+  } = useOccurrenceOrder({
+    date: todayDateStr,
+    // Fetch order for both Today and Upcoming views (Upcoming uses it for Today section)
+    enabled: listViewMode === "today" || listViewMode === "upcoming",
+  });
+
+  // Refetch occurrence order when screen gains focus (e.g., returning from reorder screen)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      if (listViewMode === "today" || listViewMode === "upcoming") {
+        refetchOrder();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, listViewMode, refetchOrder]);
+
   // Filter and sort tasks based on view mode
   const { sortedTasks, sections, viewPendingCount, viewCompletedCount } =
     useMemo(() => {
@@ -217,8 +248,45 @@ export default function TasksScreen({
           if (condenseRecurring) {
             todayTasks = condenseRecurringTasks(todayTasks);
           }
+
+          // Default sorting: overdue → timed → todo
+          let sorted = sortTasksForTodayView(todayTasks, currentDate);
+
+          // Apply occurrence ordering to untimed tasks
+          // Untimed = has date but no specific time (must have scheduled_date)
+          // 1. Find untimed tasks in the sorted list
+          // 2. Apply saved order to them
+          // 3. Preserve position relative to timed/overdue tasks
+          const untimedIndices: number[] = [];
+          const untimedTasks: Task[] = [];
+          sorted.forEach((task, idx) => {
+            const hasDate = !!(
+              task.scheduled_date || task.virtualOccurrenceDate
+            );
+            const isUntimed =
+              task.scheduling_mode !== "anytime" &&
+              hasDate &&
+              !task.scheduled_at;
+            if (isUntimed) {
+              untimedIndices.push(idx);
+              untimedTasks.push(task);
+            }
+          });
+
+          if (untimedTasks.length > 0) {
+            // Apply saved order to untimed tasks
+            const reorderedUntimed = applyTodayOrder(untimedTasks);
+
+            // Put them back in their positions
+            const finalSorted = [...sorted];
+            untimedIndices.forEach((originalIdx, i) => {
+              finalSorted[originalIdx] = reorderedUntimed[i];
+            });
+            sorted = finalSorted;
+          }
+
           return {
-            sortedTasks: sortTasksForTodayView(todayTasks, currentDate),
+            sortedTasks: sorted,
             sections: null,
             viewPendingCount: todayPending,
             viewCompletedCount: todayCompleted,
@@ -403,11 +471,86 @@ export default function TasksScreen({
           .filter((k) => k !== "no-date")
           .sort();
 
-        const sectionData = dateKeys.map((dateKey) => ({
-          title: formatDateHeader(dateKey, currentDate),
-          dateKey,
-          data: grouped.get(dateKey) || [],
-        }));
+        // Get today's date string
+        const todayDateStr = toLocalDateString(currentDate);
+
+        const sectionData = dateKeys.map((dateKey) => {
+          let sectionTasks = grouped.get(dateKey) || [];
+
+          // Extract untimed tasks for reordering
+          const untimedIndices: number[] = [];
+          const untimedTasks: Task[] = [];
+          sectionTasks.forEach((task, idx) => {
+            const hasDate = !!(
+              task.scheduled_date || task.virtualOccurrenceDate
+            );
+            const isUntimed =
+              task.scheduling_mode !== "anytime" &&
+              hasDate &&
+              !task.scheduled_at;
+            if (isUntimed) {
+              untimedIndices.push(idx);
+              untimedTasks.push(task);
+            }
+          });
+
+          if (untimedTasks.length > 0) {
+            // For Today's section: apply full order (daily overrides + permanent)
+            // For future sections: apply only permanent preferences
+            const reorderedUntimed =
+              dateKey === todayDateStr
+                ? applyTodayOrder(untimedTasks)
+                : applyPermanentOrder(untimedTasks);
+
+            // Put them back in their positions
+            const finalSorted = [...sectionTasks];
+            untimedIndices.forEach((originalIdx, i) => {
+              finalSorted[originalIdx] = reorderedUntimed[i];
+            });
+            sectionTasks = finalSorted;
+          }
+
+          return {
+            title: formatDateHeader(dateKey, currentDate),
+            dateKey,
+            data: sectionTasks,
+          };
+        });
+
+        console.log(
+          "[Upcoming] sections:",
+          sectionData.length,
+          "keys:",
+          dateKeys,
+        );
+        console.log(
+          "[Upcoming] allUpcoming:",
+          allUpcoming.length,
+          "upcomingTasks:",
+          upcomingTasks.length,
+        );
+        sectionData.forEach((s) => {
+          console.log(
+            "[Upcoming] Section:",
+            s.title,
+            "dateKey:",
+            s.dateKey,
+            "tasks:",
+            s.data.length,
+          );
+          s.data.forEach((t: Task) =>
+            console.log(
+              "  - Task:",
+              t.title,
+              "id:",
+              t.id,
+              "recurring:",
+              t.is_recurring,
+              "virtualOcc:",
+              t.isVirtualOccurrence,
+            ),
+          );
+        });
 
         return {
           sortedTasks: upcomingTasks,
@@ -423,6 +566,8 @@ export default function TasksScreen({
       listViewMode,
       currentDate,
       effectiveDaysAhead,
+      applyTodayOrder,
+      applyPermanentOrder,
     ]);
 
   // Count overdue tasks
@@ -460,16 +605,22 @@ export default function TasksScreen({
       return;
     }
     try {
+      // Default to today's date if no date selected (and not an anytime task)
+      // This matches the UI placeholder that says "Today"
+      const effectiveDate =
+        taskForm.scheduledDate ||
+        (taskForm.isAnytime ? null : toLocalDateString(currentDate));
+
       // Get scheduling fields (scheduled_date for date-only, scheduled_at for timed)
       const scheduling = taskForm.getSchedulingFields(
-        taskForm.scheduledDate,
+        effectiveDate,
         taskForm.scheduledTime,
       );
 
       // Determine scheduling_mode:
       // - For anytime tasks: always "anytime" (Phase 4e)
       // - For recurring tasks: use user's choice (floating/fixed)
-      // - For non-recurring: date_only if has date but no time, fixed if has time, undefined if unscheduled
+      // - For non-recurring: date_only if has date but no time, fixed if has time
       let schedulingMode: SchedulingMode | undefined;
       if (taskForm.isAnytime) {
         // Phase 4e: Anytime task
@@ -479,15 +630,13 @@ export default function TasksScreen({
         schedulingMode = taskForm.schedulingMode || undefined;
       } else {
         // For non-recurring tasks:
-        // - date_only if there's date but no time
+        // - date_only if there's date but no time (includes defaulting to today)
         // - fixed if there's a time
-        // - undefined if unscheduled (will show in "Today")
         if (taskForm.scheduledTime) {
           schedulingMode = "fixed";
-        } else if (taskForm.scheduledDate) {
-          schedulingMode = "date_only";
         } else {
-          schedulingMode = undefined;
+          // effectiveDate is never null for non-anytime tasks (defaults to today)
+          schedulingMode = "date_only";
         }
       }
 
@@ -520,7 +669,7 @@ export default function TasksScreen({
     } catch {
       // Error handled in hook
     }
-  }, [taskForm, createTask]);
+  }, [taskForm, createTask, currentDate]);
 
   const handleEdit = useCallback(
     (task: Task) => {
@@ -735,6 +884,57 @@ export default function TasksScreen({
     },
     [reorderTask],
   );
+
+  // Check if a task is "untimed" (has a date but no specific time)
+  // Used for reorder functionality in Today/Upcoming views
+  // Must have a date to be reorderable - unscheduled tasks don't belong to any date
+  const isUntimedTask = useCallback((t: Task): boolean => {
+    // Anytime tasks have their own tab and ordering
+    if (t.scheduling_mode === "anytime") return false;
+
+    // Must have a date (either scheduled_date or virtual occurrence date for recurring)
+    const hasDate = !!(t.scheduled_date || t.virtualOccurrenceDate);
+    if (!hasDate) return false;
+
+    // Has a specific time? Not untimed
+    if (t.scheduled_at) return false;
+
+    // Has date but no time = untimed
+    return true;
+  }, []);
+
+  // Phase 4f: Navigate to reorder screen for Today view untimed tasks
+  const handleNavigateToReorder = useCallback(() => {
+    // Get untimed tasks for today (has date but no specific time)
+    const untimedTasks = sortedTasks.filter(isUntimedTask);
+    if (untimedTasks.length < 2) return;
+
+    const todayDateStr = toLocalDateString(currentDate);
+    const items: ReorderItem[] = untimedTasks.map((task) => {
+      // For recurring tasks with virtual occurrences, use the task's occurrence index
+      // For non-recurring tasks, occurrence_index is always 0
+      const occIndex = task.occurrenceIndex ?? 0;
+      return {
+        task,
+        occurrenceIndex: occIndex,
+        occurrenceLabel: task.occurrenceLabel,
+        key: `${task.id}-${occIndex}`,
+      };
+    });
+
+    navigation.navigate("ReorderTasks", {
+      date: todayDateStr,
+      dateDisplay: "Today",
+      items,
+    });
+  }, [sortedTasks, currentDate, navigation, isUntimedTask]);
+
+  // Check if Today view has untimed tasks that can be reordered
+  const hasReorderableUntimedTasks = useMemo(() => {
+    if (listViewMode !== "today") return false;
+    const untimedTasks = sortedTasks.filter(isUntimedTask);
+    return untimedTasks.length >= 2;
+  }, [listViewMode, sortedTasks, isUntimedTask]);
 
   const handleReopen = useCallback(
     async (task: Task) => {
@@ -980,6 +1180,16 @@ export default function TasksScreen({
             )}
           </>
         )}
+        {hasReorderableUntimedTasks && (
+          <TouchableOpacity
+            style={styles.condenseToggle}
+            onPress={handleNavigateToReorder}
+            accessibilityLabel="Reorder untimed tasks"
+            accessibilityRole="button"
+          >
+            <Text style={styles.condenseToggleText}>Reorder</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={[
             styles.condenseToggle,
@@ -1094,11 +1304,50 @@ export default function TasksScreen({
         <SectionList
           sections={sections}
           extraData={tasks}
-          renderSectionHeader={({ section }) => (
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionHeaderText}>{section.title}</Text>
-            </View>
-          )}
+          renderSectionHeader={({ section }) => {
+            // Get untimed tasks for reorder functionality
+            // Untimed = has date but no specific time (must have scheduled_date)
+            const untimedTasks = section.data.filter(
+              (t: Task) =>
+                t.scheduling_mode !== "anytime" &&
+                (t.scheduled_date || t.virtualOccurrenceDate) &&
+                !t.scheduled_at,
+            );
+            const hasUntimedTasks = untimedTasks.length > 1; // Need at least 2 to reorder
+
+            const handleReorderSection = () => {
+              const items: ReorderItem[] = untimedTasks.map((task: Task) => {
+                // For recurring tasks with virtual occurrences, use the task's occurrence index
+                // For non-recurring tasks, occurrence_index is always 0
+                const occIndex = task.occurrenceIndex ?? 0;
+                return {
+                  task,
+                  occurrenceIndex: occIndex,
+                  occurrenceLabel: task.occurrenceLabel,
+                  key: `${task.id}-${occIndex}`,
+                };
+              });
+              navigation.navigate("ReorderTasks", {
+                date: section.dateKey,
+                dateDisplay: section.title,
+                items,
+              });
+            };
+
+            return (
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionHeaderText}>{section.title}</Text>
+                {hasUntimedTasks && (
+                  <TouchableOpacity
+                    style={styles.sectionReorderButton}
+                    onPress={handleReorderSection}
+                  >
+                    <Text style={styles.sectionReorderButtonText}>Reorder</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          }}
           renderItem={({ item }) => (
             <TaskCard
               task={item}
@@ -1110,7 +1359,7 @@ export default function TasksScreen({
               onComplete={handleComplete}
             />
           )}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => `section-${item.id}-${index}`}
           contentContainerStyle={styles.listContent}
           refreshing={loading && !loadingMore}
           onRefresh={refetch}

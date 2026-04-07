@@ -108,6 +108,9 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 4,
     marginTop: 8,
     marginBottom: 4,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   sectionHeaderText: {
     fontSize: 14,
@@ -115,6 +118,17 @@ export const styles = StyleSheet.create({
     color: "#9CA3AF",
     textTransform: "uppercase",
     letterSpacing: 0.5,
+  },
+  sectionReorderButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: "#374151",
+  },
+  sectionReorderButtonText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#9CA3AF",
   },
   summaryRow: {
     flexDirection: "row",
@@ -184,6 +198,12 @@ export const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
+  taskTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 6,
+  },
   taskTitle: {
     fontSize: 16,
     fontWeight: "600",
@@ -192,6 +212,15 @@ export const styles = StyleSheet.create({
   taskTitleCompleted: {
     textDecorationLine: "line-through",
     color: "#6B7280",
+  },
+  occurrenceLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#9CA3AF",
+    backgroundColor: "#374151",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   taskGoal: {
     fontSize: 13,

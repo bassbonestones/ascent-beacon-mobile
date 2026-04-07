@@ -17,6 +17,9 @@ import type {
   AnytimeTasksResponse,
   ReorderTaskRequest,
   ReorderTaskResponse,
+  ReorderOccurrencesRequest,
+  ReorderOccurrencesResponse,
+  DayOrderResponse,
 } from "../types";
 import type ApiServiceBase from "./apiBase";
 
@@ -77,6 +80,13 @@ export interface TasksMethods {
     taskId: string,
     data: ReorderTaskRequest,
   ): Promise<ReorderTaskResponse>;
+
+  // Phase 4f: Occurrence ordering for Today/Upcoming
+  reorderOccurrences(
+    data: ReorderOccurrencesRequest,
+  ): Promise<ReorderOccurrencesResponse>;
+  getOccurrenceOrder(date: string): Promise<DayOrderResponse>;
+  clearOccurrenceOrder(date: string): Promise<void>;
 }
 
 export interface TasksListParams {
@@ -282,5 +292,30 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
           body: JSON.stringify(data),
         },
       );
+    }
+
+    // Phase 4f: Occurrence ordering for Today/Upcoming
+    async reorderOccurrences(
+      data: ReorderOccurrencesRequest,
+    ): Promise<ReorderOccurrencesResponse> {
+      return await this.request<ReorderOccurrencesResponse>(
+        "/tasks/reorder-occurrences",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      );
+    }
+
+    async getOccurrenceOrder(date: string): Promise<DayOrderResponse> {
+      return await this.request<DayOrderResponse>(
+        `/tasks/occurrence-order?date=${date}`,
+      );
+    }
+
+    async clearOccurrenceOrder(date: string): Promise<void> {
+      await this.request(`/tasks/occurrence-order/${date}`, {
+        method: "DELETE",
+      });
     }
   };

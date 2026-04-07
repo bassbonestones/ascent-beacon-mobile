@@ -47,6 +47,7 @@ import HabitTrackerScreen from "./src/screens/HabitTrackerScreen";
 import HabitMetricsScreen from "./src/screens/HabitMetricsScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import ValuePriorityLinksScreen from "./src/screens/ValuePriorityLinksScreen";
+import ReorderTasksScreen from "./src/screens/ReorderTasksScreen";
 import type { RootStackParamList } from "./src/types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -117,6 +118,11 @@ function AppNavigator(): React.ReactElement {
                 name="ValuePriorityLinks"
                 component={ValuePriorityLinksScreen}
                 options={{ title: "Review Links" }}
+              />
+              <Stack.Screen
+                name="ReorderTasks"
+                component={ReorderTasksScreen}
+                options={{ title: "Reorder Tasks" }}
               />
             </>
           )}

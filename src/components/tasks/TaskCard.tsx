@@ -111,12 +111,20 @@ export function TaskCard({
     <>
       <View style={styles.taskHeader}>
         <View style={styles.taskTitleContainer}>
-          <Text
-            style={[styles.taskTitle, isCompleted && styles.taskTitleCompleted]}
-            numberOfLines={2}
-          >
-            {task.title}
-          </Text>
+          <View style={styles.taskTitleRow}>
+            <Text
+              style={[
+                styles.taskTitle,
+                isCompleted && styles.taskTitleCompleted,
+              ]}
+              numberOfLines={2}
+            >
+              {task.title}
+            </Text>
+            {task.occurrenceLabel && (
+              <Text style={styles.occurrenceLabel}>{task.occurrenceLabel}</Text>
+            )}
+          </View>
           {task.goal && (
             <Text style={styles.taskGoal} numberOfLines={1}>
               {task.goal.title}

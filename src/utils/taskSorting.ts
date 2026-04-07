@@ -437,8 +437,13 @@ export function groupTasksByDate(tasks: Task[]): Map<string, Task[]> {
 
   for (const task of tasks) {
     let dateKey: string;
-    // Check scheduled_date first (for date-only tasks)
-    if (task.scheduled_date) {
+
+    // For virtual occurrences, always use virtualOccurrenceDate
+    // (they inherit scheduled_date from the original task, which would be wrong)
+    if (task.isVirtualOccurrence && task.virtualOccurrenceDate) {
+      dateKey = task.virtualOccurrenceDate;
+    } else if (task.scheduled_date) {
+      // Check scheduled_date for date-only tasks
       dateKey = task.scheduled_date;
     } else if (task.scheduled_at) {
       // Timed tasks: extract date from scheduled_at
@@ -569,7 +574,12 @@ export function filterTasksForUpcoming(
       return false;
     }
 
-    // Check scheduled_at first - compare LOCAL dates to avoid timezone issues
+    // Check scheduled_date first (date-only tasks)
+    if (task.scheduled_date) {
+      return task.scheduled_date >= todayDateStr;
+    }
+
+    // Check scheduled_at - compare LOCAL dates to avoid timezone issues
     if (task.scheduled_at) {
       const scheduledDate = parseAsUtc(task.scheduled_at);
       const scheduledDateStr = toLocalDateString(scheduledDate);
@@ -1088,6 +1098,13 @@ export function generateRecurringOccurrences(
             status = "skipped";
           }
 
+          // For multi-per-day tasks, track occurrence index and generate label
+          const totalOccurrences = intradayOccs.length;
+          const occurrenceLabel =
+            totalOccurrences > 1
+              ? `(${occIndex + 1} of ${totalOccurrences})`
+              : undefined;
+
           const virtualTask: Task = {
             ...task,
             id: `${task.id}__${todayDateStr}${occ.suffix}`,
@@ -1100,6 +1117,8 @@ export function generateRecurringOccurrences(
             isVirtualOccurrence: true,
             virtualOccurrenceDate: todayDateStr,
             originalTaskId: task.id,
+            occurrenceIndex: occIndex,
+            occurrenceLabel: occurrenceLabel,
           };
           result.push(virtualTask);
           occIndex++;
