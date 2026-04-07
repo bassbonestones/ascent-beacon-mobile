@@ -8,7 +8,7 @@
  * bundler issues with react-native-reanimated on web.
  */
 import React, { useState, useCallback, useRef } from "react";
-import { FlatList, Platform, ScrollView, View, Pressable } from "react-native";
+import { FlatList, Platform, ScrollView, View } from "react-native";
 import type { Task } from "../../types";
 import { TaskCard } from "./TaskCard";
 import { styles } from "../../screens/styles/tasksScreenStyles";
@@ -16,20 +16,13 @@ import { styles } from "../../screens/styles/tasksScreenStyles";
 // Only require the draggable library on native platforms
 // This avoids bundler issues with reanimated on web
 let DraggableFlatList: any = null;
-let GHRectButton: any = null;
-let GHTouchableOpacity: any = null;
+let ScaleDecorator: any = null;
 
 if (Platform.OS !== "web") {
   try {
     const draggableModule = require("react-native-draggable-flatlist");
     DraggableFlatList = draggableModule.default;
-    const gh = require("react-native-gesture-handler");
-    GHRectButton = gh.RectButton;
-    GHTouchableOpacity = gh.TouchableOpacity;
-    console.log("[DraggableTaskList] Library loaded successfully:", {
-      hasDraggableFlatList: !!DraggableFlatList,
-      hasGHRectButton: !!GHRectButton,
-    });
+    ScaleDecorator = draggableModule.ScaleDecorator;
   } catch (error) {
     console.warn("[DraggableTaskList] Failed to load:", error);
   }
@@ -187,22 +180,11 @@ function NativeDraggableList({
 }: DraggableTaskListProps): React.ReactElement {
   // Handle drag end - reorder based on new position
   const handleDragEnd = useCallback(
-    ({ data, from, to }: { data: Task[]; from: number; to: number }) => {
+    ({ from, to }: { data: Task[]; from: number; to: number }) => {
       if (from !== to) {
         const movedTask = tasks[from];
         // new_position is 1-indexed for the backend API
-        // 'to' is 0-indexed, so add 1
         const newPosition = to + 1;
-        console.log(
-          "[Drag] Moving task:",
-          movedTask?.id,
-          "from index",
-          from,
-          "to index",
-          to,
-          "-> new_position:",
-          newPosition,
-        );
         if (movedTask) {
           onReorder(movedTask, newPosition);
         }
@@ -212,67 +194,34 @@ function NativeDraggableList({
   );
 
   // Use DraggableFlatList if available
-  if (DraggableFlatList) {
-    console.log(
-      "[NativeDraggableList] Using DraggableFlatList with",
-      tasks.length,
-      "tasks",
-    );
+  if (DraggableFlatList && ScaleDecorator) {
     return (
       <DraggableFlatList
         data={tasks}
         extraData={allTasks}
         onDragEnd={handleDragEnd}
-        onDragBegin={(index: number) =>
-          console.log("[Drag] Started dragging item at index:", index)
-        }
         keyExtractor={(item: Task) => item.id}
         renderItem={({
           item,
           drag,
           isActive,
-          getIndex,
         }: {
           item: Task;
           drag: () => void;
           isActive: boolean;
-          getIndex: () => number | undefined;
         }) => {
           const canDrag = item.status === "pending" && item.sort_order !== null;
-          // Use React Native Pressable - simplest approach
           return (
-            <Pressable
-              onPress={() => {
-                console.log("[Press] Item pressed:", item.id);
-                onTaskPress(item);
-              }}
-              onLongPress={() => {
-                if (canDrag) {
-                  console.log(
-                    "[Drag] onLongPress triggered for item:",
-                    item.id,
-                    "index:",
-                    getIndex(),
-                  );
-                  drag();
-                }
-              }}
-              delayLongPress={200}
-              style={
-                isActive
-                  ? { opacity: 0.8, transform: [{ scale: 1.03 }] }
-                  : undefined
-              }
-            >
+            <ScaleDecorator>
               <TaskCard
                 task={item}
                 currentDate={currentDate}
-                onPress={() => {}}
+                onPress={onTaskPress}
                 onComplete={onComplete}
+                drag={canDrag ? drag : undefined}
                 isActive={isActive}
-                disableTouchHandling={true}
               />
-            </Pressable>
+            </ScaleDecorator>
           );
         }}
         contentContainerStyle={styles.listContent}
@@ -283,9 +232,6 @@ function NativeDraggableList({
   }
 
   // Fallback to regular FlatList if DraggableFlatList not available
-  console.log(
-    "[NativeDraggableList] FALLBACK: Using regular FlatList (library not loaded)",
-  );
   return (
     <FlatList
       data={tasks}

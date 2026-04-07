@@ -224,20 +224,64 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
 
   const reorderTask = useCallback(
     async (id: string, newPosition: number): Promise<Task> => {
+      // Optimistic update: reorder locally first for instant feedback
+      const taskIndex = tasks.findIndex((t) => t.id === id);
+      if (taskIndex === -1) {
+        throw new Error("Task not found");
+      }
+
+      const oldTasks = [...tasks];
+      const task = tasks[taskIndex];
+      const oldPosition = task.sort_order;
+
+      if (oldPosition === null || oldPosition === newPosition) {
+        return task; // No change needed
+      }
+
+      // Create new array with updated sort_orders
+      const updatedTasks = tasks.map((t) => {
+        if (t.id === id) {
+          return { ...t, sort_order: newPosition };
+        }
+        if (t.sort_order === null) return t;
+
+        if (newPosition < oldPosition) {
+          // Moving up: shift tasks in [newPosition, oldPosition-1] down
+          if (t.sort_order >= newPosition && t.sort_order < oldPosition) {
+            return { ...t, sort_order: t.sort_order + 1 };
+          }
+        } else {
+          // Moving down: shift tasks in [oldPosition+1, newPosition] up
+          if (t.sort_order > oldPosition && t.sort_order <= newPosition) {
+            return { ...t, sort_order: t.sort_order - 1 };
+          }
+        }
+        return t;
+      });
+
+      // Sort by sort_order for display
+      updatedTasks.sort((a, b) => {
+        if (a.sort_order === null) return 1;
+        if (b.sort_order === null) return -1;
+        return a.sort_order - b.sort_order;
+      });
+
+      setTasks(updatedTasks);
+
       try {
         const response = await api.reorderTask(id, {
           new_position: newPosition,
         });
-        // Refetch to get properly sorted list from server
-        await fetchTasks();
         return response.task;
       } catch (err) {
+        // Revert on failure
+        setTasks(oldTasks);
         const error = err instanceof Error ? err : new Error(String(err));
         showAlert("Error", "Failed to reorder task");
         throw error;
       }
     },
-    [fetchTasks],
+    [tasks],
   );
 
   return {

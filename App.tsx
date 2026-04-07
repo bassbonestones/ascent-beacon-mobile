@@ -29,6 +29,7 @@ if (Platform.OS !== "web") {
 LogBox.ignoreLogs([
   "props.pointerEvents is deprecated",
   "Animated: `useNativeDriver`",
+  "InteractionManager has been deprecated", // From react-native-draggable-flatlist
 ]);
 
 import { createNativeStackNavigator } from "@react-navigation/native-stack";

@@ -48,8 +48,6 @@ interface TaskCardProps {
   onMoveDown?: () => void;
   drag?: () => void;
   isActive?: boolean;
-  // When true, disables internal touch handling (for use inside DraggableTaskList)
-  disableTouchHandling?: boolean;
 }
 
 const getStatusColor = (status: string, isOverdue: boolean): string => {
@@ -92,7 +90,6 @@ export function TaskCard({
   onMoveDown,
   drag,
   isActive = false,
-  disableTouchHandling = false,
 }: TaskCardProps): React.ReactElement {
   const isCompleted = task.status === "completed";
   const isPending = task.status === "pending";
@@ -197,23 +194,17 @@ export function TaskCard({
         isActive && styles.taskCardDragging,
       ]}
     >
-      {/* Main card content - either wrapped in touchable or plain View */}
-      {disableTouchHandling ? (
-        // No touch handling - parent (DraggableTaskList) handles touches
-        <View style={styles.taskCardPressable}>{cardContent}</View>
-      ) : (
-        // Normal touch handling with Pressable
-        <Pressable
-          style={styles.taskCardPressable}
-          onPress={() => onPress(task)}
-          onLongPress={drag}
-          delayLongPress={150}
-          accessibilityLabel={`Task: ${task.title}`}
-          accessibilityRole="button"
-        >
-          {cardContent}
-        </Pressable>
-      )}
+      {/* Main card content - pressable for navigation, long-press for drag */}
+      <Pressable
+        style={styles.taskCardPressable}
+        onPress={() => onPress(task)}
+        onLongPress={drag}
+        delayLongPress={150}
+        accessibilityLabel={`Task: ${task.title}`}
+        accessibilityRole="button"
+      >
+        {cardContent}
+      </Pressable>
 
       {/* Action buttons - positioned absolutely to avoid nested buttons on web */}
       {isPending &&
