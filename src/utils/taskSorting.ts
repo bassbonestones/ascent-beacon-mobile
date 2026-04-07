@@ -763,6 +763,9 @@ export function generateRecurringOccurrences(
   endDate.setDate(endDate.getDate() + daysAhead);
   endDate.setHours(23, 59, 59, 999);
 
+  // Get today's date string for comparison
+  const todayStr = toLocalDateString(startDate);
+
   const result: Task[] = [];
 
   for (const task of tasks) {
@@ -770,6 +773,15 @@ export function generateRecurringOccurrences(
       // Non-recurring tasks pass through unchanged
       result.push(task);
       continue;
+    }
+
+    // Check if this recurring task has a future start date
+    // If scheduled_at is in the future, don't generate occurrences before that date
+    let taskStartDate: Date | null = null;
+    let taskStartDateStr: string | null = null;
+    if (task.scheduled_at) {
+      taskStartDate = parseAsUtc(task.scheduled_at);
+      taskStartDateStr = toLocalDateString(taskStartDate);
     }
 
     // Parse the RRULE including intraday extensions
@@ -831,12 +843,20 @@ export function generateRecurringOccurrences(
       todayMatchesRule = validDays.includes(todayDayOfWeek);
     }
 
+    // Check if today is on or after the task's start date
+    const todayAfterStart = !taskStartDateStr || todayStr >= taskStartDateStr;
+
     // For the original task, we need to add occurrences for TODAY
-    // (but only if it's a multi-occurrence mode AND within limits AND matches rule)
-    if (todayWithinLimit && todayWithinUntil && todayMatchesRule) {
+    // (but only if it's a multi-occurrence mode AND within limits AND matches rule AND after start)
+    if (
+      todayWithinLimit &&
+      todayWithinUntil &&
+      todayMatchesRule &&
+      todayAfterStart
+    ) {
       if (intradayOccs.length > 1 || intradayOccs[0].time !== null) {
         // Multi-occurrence mode: create virtual tasks for today
-        const todayStr = toLocalDateString(startDate);
+        const todayDateStr = toLocalDateString(startDate);
         let occIndex = 0;
         let skipIndex = 0;
         for (const occ of intradayOccs) {
@@ -894,7 +914,7 @@ export function generateRecurringOccurrences(
 
           const virtualTask: Task = {
             ...task,
-            id: `${task.id}__${todayStr}${occ.suffix}`,
+            id: `${task.id}__${todayDateStr}${occ.suffix}`,
             scheduled_at: scheduledAt,
             status: status,
             completed_at: completedAt,
@@ -902,7 +922,7 @@ export function generateRecurringOccurrences(
             skipped_for_today: isSkipped,
             skip_reason: isSkipped ? (task.skip_reason_today ?? null) : null,
             isVirtualOccurrence: true,
-            virtualOccurrenceDate: todayStr,
+            virtualOccurrenceDate: todayDateStr,
             originalTaskId: task.id,
           };
           result.push(virtualTask);
@@ -942,8 +962,17 @@ export function generateRecurringOccurrences(
       }
     }
 
-    // For recurring tasks, use today as the base date for generating future days
-    const baseDate = new Date(startDate);
+    // For recurring tasks, use today (or task start date if later) as the base for future days
+    // If the task has a future start date, use that instead of today
+    let baseDate: Date;
+    if (taskStartDate && taskStartDate > startDate) {
+      // Task starts in the future - use task start date as base (minus 1 day since getNextOccurrences adds 1)
+      baseDate = new Date(taskStartDate);
+      baseDate.setDate(baseDate.getDate() - 1);
+    } else {
+      // Task already started - use today as base
+      baseDate = new Date(startDate);
+    }
     baseDate.setHours(0, 0, 0, 0);
 
     // Generate future day occurrences
@@ -961,6 +990,11 @@ export function generateRecurringOccurrences(
       }
 
       const dayStr = toLocalDateString(dayDate);
+
+      // Skip if this day is before the task's start date
+      if (taskStartDateStr && dayStr < taskStartDateStr) {
+        continue;
+      }
 
       // Check if there are completions for this future date
       const completionsForDay = task.completions_by_date?.[dayStr] || [];
