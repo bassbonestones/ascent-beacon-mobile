@@ -21,13 +21,25 @@ export const styles = StyleSheet.create({
     flex: 1,
     textAlign: "center",
   },
+  backButtonRow: {
+    paddingHorizontal: 16,
+    paddingTop: 50,
+    paddingBottom: 10,
+    backgroundColor: "#111827",
+    borderBottomWidth: 1,
+    borderBottomColor: "#1F2937",
+  },
   backButton: {
-    paddingVertical: 4,
-    paddingRight: 8,
+    backgroundColor: "#374151",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: "center",
   },
   backButtonText: {
+    color: "#F9FAFB",
     fontSize: 16,
-    color: "#60A5FA",
+    fontWeight: "600",
   },
   addButton: {
     backgroundColor: "#3B82F6",

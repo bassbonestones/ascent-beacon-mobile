@@ -964,10 +964,11 @@ export function generateRecurringOccurrences(
 
     // For recurring tasks, use today (or task start date if later) as the base for future days
     // If the task has a future start date, use that instead of today
+    // Compare by date string (not timestamp) to avoid time-of-day issues
     let baseDate: Date;
-    if (taskStartDate && taskStartDate > startDate) {
+    if (taskStartDateStr && taskStartDateStr > todayStr) {
       // Task starts in the future - use task start date as base (minus 1 day since getNextOccurrences adds 1)
-      baseDate = new Date(taskStartDate);
+      baseDate = new Date(taskStartDate!);
       baseDate.setDate(baseDate.getDate() - 1);
     } else {
       // Task already started - use today as base

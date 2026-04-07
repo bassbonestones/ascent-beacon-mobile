@@ -434,6 +434,7 @@ export function RecurrencePicker({
                         setShowAddTime(false);
                       }}
                       label=""
+                      autoOpen
                     />
                   </View>
                 )}

@@ -812,8 +812,13 @@ export default function TasksScreen({
           onDelete={handleDelete}
           onEdit={handleEdit}
           onViewTracking={(task) => {
+            blurActiveElement();
+            // Extract base task ID from virtual occurrence ID (format: baseId__date__time)
+            const baseTaskId = task.id.includes("__")
+              ? task.id.split("__")[0]
+              : task.id;
             navigation.navigate("HabitMetrics", {
-              taskId: task.id,
+              taskId: baseTaskId,
               taskTitle: task.title,
             });
           }}
@@ -830,7 +835,7 @@ export default function TasksScreen({
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={styles.backButtonRow}>
         <TouchableOpacity
           onPress={() => {
             blurActiveElement();
@@ -840,8 +845,10 @@ export default function TasksScreen({
           accessibilityRole="button"
           style={styles.backButton}
         >
-          <Text style={styles.backButtonText}>← Dashboard</Text>
+          <Text style={styles.backButtonText}>Back to Dashboard</Text>
         </TouchableOpacity>
+      </View>
+      <View style={styles.header}>
         <Text style={styles.headerTitle}>Tasks</Text>
         <TouchableOpacity
           style={styles.addButton}

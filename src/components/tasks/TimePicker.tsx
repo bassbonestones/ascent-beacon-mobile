@@ -12,14 +12,16 @@ interface TimePickerProps {
   value: string | null; // "HH:MM" format or null
   onChange: (time: string | null) => void;
   label?: string;
+  autoOpen?: boolean; // Automatically open picker on mount
 }
 
 export function TimePicker({
   value,
   onChange,
   label = "Scheduled Time",
+  autoOpen = false,
 }: TimePickerProps): React.ReactElement {
-  const [showPicker, setShowPicker] = useState(false);
+  const [showPicker, setShowPicker] = useState(autoOpen);
   const [hourInput, setHourInput] = useState(
     value ? value.split(":")[0] : "09",
   );
@@ -143,7 +145,15 @@ export function TimePicker({
         <View style={pickerStyles.overlay}>
           <View style={pickerStyles.container}>
             <View style={pickerStyles.header}>
-              <TouchableOpacity onPress={() => setShowPicker(false)}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowPicker(false);
+                  // When autoOpen is used and user cancels, signal this to parent
+                  if (autoOpen && !value) {
+                    onChange(null);
+                  }
+                }}
+              >
                 <Text style={pickerStyles.cancelText}>Cancel</Text>
               </TouchableOpacity>
               <Text style={pickerStyles.title}>Select Time</Text>

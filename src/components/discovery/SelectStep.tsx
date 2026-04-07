@@ -44,9 +44,18 @@ export default function SelectStep({
             onPress={onExit}
             accessibilityLabel="Exit to Dashboard"
             accessibilityRole="button"
-            style={{ marginBottom: 8 }}
+            style={{
+              backgroundColor: "#E0E0E0",
+              paddingVertical: 12,
+              paddingHorizontal: 20,
+              borderRadius: 8,
+              alignItems: "center",
+              marginBottom: 16,
+            }}
           >
-            <Text style={{ fontSize: 16, color: "#007AFF" }}>← Dashboard</Text>
+            <Text style={{ color: "#333", fontSize: 16, fontWeight: "600" }}>
+              Back to Dashboard
+            </Text>
           </TouchableOpacity>
         )}
         <Text

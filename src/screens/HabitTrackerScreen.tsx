@@ -247,15 +247,17 @@ export default function HabitTrackerScreen({
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={styles.backButtonRow}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
           accessibilityLabel="Back to Dashboard"
           accessibilityRole="button"
         >
-          <Text style={styles.backButtonText}>← Dashboard</Text>
+          <Text style={styles.backButtonText}>Back to Dashboard</Text>
         </TouchableOpacity>
+      </View>
+      <View style={styles.header}>
         <Text style={styles.headerTitle}>Habit Tracker</Text>
         <Text style={styles.headerSubtitle}>
           {habits.length} habit{habits.length !== 1 ? "s" : ""} tracked

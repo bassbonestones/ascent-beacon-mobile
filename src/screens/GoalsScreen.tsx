@@ -120,7 +120,7 @@ export default function GoalsScreen({
 
   const renderListView = () => (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={styles.backButtonRow}>
         <TouchableOpacity
           onPress={() => {
             blurActiveElement();
@@ -130,8 +130,10 @@ export default function GoalsScreen({
           accessibilityRole="button"
           style={styles.backButton}
         >
-          <Text style={styles.backButtonText}>← Dashboard</Text>
+          <Text style={styles.backButtonText}>Back to Dashboard</Text>
         </TouchableOpacity>
+      </View>
+      <View style={styles.header}>
         <Text style={styles.headerTitle}>Goals</Text>
         <TouchableOpacity
           style={styles.addButton}
