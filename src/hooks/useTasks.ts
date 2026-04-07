@@ -222,6 +222,24 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
     [tasks],
   );
 
+  const reorderTask = useCallback(
+    async (id: string, newPosition: number): Promise<Task> => {
+      try {
+        const response = await api.reorderTask(id, {
+          new_position: newPosition,
+        });
+        // Refetch to get properly sorted list from server
+        await fetchTasks();
+        return response.task;
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        showAlert("Error", "Failed to reorder task");
+        throw error;
+      }
+    },
+    [fetchTasks],
+  );
+
   return {
     tasks,
     loading,
@@ -235,6 +253,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
     skipTask,
     reopenTask,
     deleteTask,
+    reorderTask,
   };
 }
 

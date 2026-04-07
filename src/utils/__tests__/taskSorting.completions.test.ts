@@ -28,6 +28,7 @@ describe("generateRecurringOccurrences with completions_by_date", () => {
     is_lightning: false,
     goal_id: null,
     goal: null,
+    sort_order: null,
     completed_for_today: false,
     completions_today: 0,
     completed_times_today: [],

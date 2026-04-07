@@ -261,6 +261,11 @@ export function sortTasksForTodayView(
  * Check if a task is scheduled for today.
  */
 export function isTaskForToday(task: Task, today: Date = new Date()): boolean {
+  // Anytime tasks never appear in Today view - they have their own tab
+  if (task.scheduling_mode === "anytime") {
+    return false;
+  }
+
   // Recurring tasks that are completed for today should not appear
   // BUT: virtual occurrences should NOT be filtered here - they have their own status
   if (
@@ -288,7 +293,7 @@ export function isTaskForToday(task: Task, today: Date = new Date()): boolean {
     return scheduledDate <= todayEnd;
   }
 
-  // Unscheduled tasks always appear in Today view
+  // Unscheduled tasks (not anytime) appear in Today view
   return true;
 }
 
@@ -559,6 +564,11 @@ export function filterTasksForUpcoming(
   const todayDateStr = toLocalDateString(today);
 
   return tasks.filter((task) => {
+    // Anytime tasks never appear in Upcoming view - they have their own tab
+    if (task.scheduling_mode === "anytime") {
+      return false;
+    }
+
     // Check scheduled_at first - compare LOCAL dates to avoid timezone issues
     if (task.scheduled_at) {
       const scheduledDate = parseAsUtc(task.scheduled_at);

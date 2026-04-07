@@ -49,6 +49,7 @@ const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   goal: { id: "goal-1", title: "Test Goal", status: "in_progress" },
   scheduling_mode: null,
   skip_reason: null,
+  sort_order: null,
   ...overrides,
 });
 
@@ -92,6 +93,7 @@ const defaultTasksHook: UseTasksReturn = {
   skipTask: jest.fn(),
   reopenTask: jest.fn(),
   deleteTask: jest.fn(),
+  reorderTask: jest.fn(),
 };
 
 const defaultGoalsHook: UseGoalsReturn = {
@@ -250,6 +252,40 @@ describe("TasksScreen", () => {
       render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
       expect(screen.getByLabelText("Show today tasks")).toBeTruthy();
       expect(screen.getByLabelText("Show upcoming tasks")).toBeTruthy();
+      expect(screen.getByLabelText("Show anytime tasks")).toBeTruthy();
+    });
+
+    it("shows anytime empty state when no anytime tasks", () => {
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks: [],
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Show anytime tasks"));
+      expect(screen.getByText("No tasks in backlog")).toBeTruthy();
+      expect(
+        screen.getByText("Create tasks without a schedule for your backlog"),
+      ).toBeTruthy();
+    });
+
+    it("shows anytime tasks in Anytime tab", () => {
+      const anytimeTasks = [
+        createMockTask({
+          id: "anytime-1",
+          title: "Anytime Task 1",
+          scheduling_mode: "anytime",
+          sort_order: 1,
+          scheduled_at: null,
+          scheduled_date: null,
+        }),
+      ];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks: anytimeTasks,
+      });
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Show anytime tasks"));
+      expect(screen.getByText("Anytime Task 1")).toBeTruthy();
     });
 
     it("shows upcoming empty state when no upcoming tasks", () => {
@@ -358,6 +394,8 @@ describe("TasksScreen", () => {
           is_recurring: false,
           recurrence_rule: undefined,
           scheduling_mode: undefined,
+          scheduled_at: null,
+          scheduled_date: null,
         });
       });
     });
@@ -390,6 +428,8 @@ describe("TasksScreen", () => {
           is_recurring: false,
           recurrence_rule: undefined,
           scheduling_mode: undefined,
+          scheduled_at: null,
+          scheduled_date: null,
         });
       });
     });

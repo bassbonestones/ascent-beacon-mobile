@@ -22,6 +22,7 @@ const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   goal: { id: "goal-1", title: "Test Goal", status: "in_progress" },
   scheduling_mode: "floating",
   skip_reason: null,
+  sort_order: null,
   ...overrides,
 });
 
@@ -112,6 +113,22 @@ describe("useTaskForm", () => {
       expect(result.current.scheduledTime).toBeNull();
     });
 
+    it("handles task with scheduled_date (date-only task)", () => {
+      const { result } = renderHook(() => useTaskForm());
+      const task = createMockTask({
+        scheduled_date: "2026-04-15",
+        scheduled_at: null,
+        scheduling_mode: "date_only",
+      });
+
+      act(() => {
+        result.current.populateForm(task);
+      });
+
+      expect(result.current.scheduledDate).toBe("2026-04-15");
+      expect(result.current.scheduledTime).toBeNull();
+    });
+
     it("handles lightning tasks", () => {
       const { result } = renderHook(() => useTaskForm());
       const task = createMockTask({ duration_minutes: 0 });
@@ -187,6 +204,26 @@ describe("useTaskForm", () => {
     });
   });
 
+  describe("toggleAnytime", () => {
+    it("toggles anytime state", () => {
+      const { result } = renderHook(() => useTaskForm());
+
+      expect(result.current.isAnytime).toBe(false);
+
+      act(() => {
+        result.current.toggleAnytime();
+      });
+
+      expect(result.current.isAnytime).toBe(true);
+
+      act(() => {
+        result.current.toggleAnytime();
+      });
+
+      expect(result.current.isAnytime).toBe(false);
+    });
+  });
+
   describe("handleRecurrenceChange", () => {
     it("updates recurrence values", () => {
       const { result } = renderHook(() => useTaskForm());
@@ -216,19 +253,14 @@ describe("useTaskForm", () => {
       expect(iso).toBeUndefined();
     });
 
-    it("returns start of day when date is provided but time is null", () => {
+    it("returns undefined when date is provided but time is null", () => {
       const { result } = renderHook(() => useTaskForm());
 
       const iso = result.current.dateTimeToIso("2026-04-05", null);
 
-      expect(iso).toBeDefined();
-      // Should be midnight local time on that date
-      const date = new Date(iso!);
-      expect(date.getFullYear()).toBe(2026);
-      expect(date.getMonth()).toBe(3); // April = 3 (0-indexed)
-      expect(date.getDate()).toBe(5);
-      expect(date.getHours()).toBe(0);
-      expect(date.getMinutes()).toBe(0);
+      // dateTimeToIso only returns ISO when BOTH date and time are set
+      // For date-only tasks, use getSchedulingFields instead
+      expect(iso).toBeUndefined();
     });
 
     it("returns ISO string when date and time are provided", () => {
@@ -240,13 +272,53 @@ describe("useTaskForm", () => {
       expect(iso).toContain("T");
     });
 
-    it("uses current date when date is null but time is provided", () => {
+    it("returns undefined when date is null but time is provided", () => {
       const { result } = renderHook(() => useTaskForm());
 
       const iso = result.current.dateTimeToIso(null, "14:30");
 
-      expect(iso).toBeDefined();
-      expect(iso).toContain("T");
+      // dateTimeToIso requires BOTH date and time
+      expect(iso).toBeUndefined();
+    });
+  });
+
+  describe("getSchedulingFields", () => {
+    it("returns scheduled_at when both date and time are provided", () => {
+      const { result } = renderHook(() => useTaskForm());
+
+      const fields = result.current.getSchedulingFields("2026-04-05", "14:30");
+
+      expect(fields.scheduled_date).toBeNull();
+      expect(fields.scheduled_at).toBeDefined();
+      expect(fields.scheduled_at).toContain("T");
+    });
+
+    it("returns scheduled_date when only date is provided", () => {
+      const { result } = renderHook(() => useTaskForm());
+
+      const fields = result.current.getSchedulingFields("2026-04-05", null);
+
+      expect(fields.scheduled_date).toBe("2026-04-05");
+      expect(fields.scheduled_at).toBeNull();
+    });
+
+    it("returns both null when neither date nor time is provided", () => {
+      const { result } = renderHook(() => useTaskForm());
+
+      const fields = result.current.getSchedulingFields(null, null);
+
+      expect(fields.scheduled_date).toBeNull();
+      expect(fields.scheduled_at).toBeNull();
+    });
+
+    it("returns both null when only time is provided (no date)", () => {
+      const { result } = renderHook(() => useTaskForm());
+
+      // Edge case: time without date - treated as unscheduled
+      const fields = result.current.getSchedulingFields(null, "14:30");
+
+      expect(fields.scheduled_date).toBeNull();
+      expect(fields.scheduled_at).toBeNull();
     });
   });
 });

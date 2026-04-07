@@ -296,4 +296,63 @@ describe("CreateTaskForm", () => {
       expect(screen.getByLabelText("Create task")).toBeTruthy();
     });
   });
+
+  describe("anytime task", () => {
+    it("shows anytime checkbox when not recurring", () => {
+      const onAnytimeToggle = jest.fn();
+      render(
+        <CreateTaskForm
+          {...defaultProps}
+          title="Test"
+          isRecurring={false}
+          isAnytime={false}
+          onAnytimeToggle={onAnytimeToggle}
+        />,
+      );
+      expect(screen.getByText("Anytime Task")).toBeTruthy();
+    });
+
+    it("does not show anytime checkbox when recurring", () => {
+      const onAnytimeToggle = jest.fn();
+      render(
+        <CreateTaskForm
+          {...defaultProps}
+          title="Test"
+          isRecurring={true}
+          isAnytime={false}
+          onAnytimeToggle={onAnytimeToggle}
+        />,
+      );
+      expect(screen.queryByText("Anytime Task")).toBeNull();
+    });
+
+    it("calls onAnytimeToggle when checkbox is pressed", () => {
+      const onAnytimeToggle = jest.fn();
+      render(
+        <CreateTaskForm
+          {...defaultProps}
+          title="Test"
+          isRecurring={false}
+          isAnytime={false}
+          onAnytimeToggle={onAnytimeToggle}
+        />,
+      );
+      fireEvent.press(screen.getByLabelText("Make anytime task"));
+      expect(onAnytimeToggle).toHaveBeenCalled();
+    });
+
+    it("shows checked state when isAnytime is true", () => {
+      const onAnytimeToggle = jest.fn();
+      render(
+        <CreateTaskForm
+          {...defaultProps}
+          title="Test"
+          isRecurring={false}
+          isAnytime={true}
+          onAnytimeToggle={onAnytimeToggle}
+        />,
+      );
+      expect(screen.getByLabelText("Make scheduled task")).toBeTruthy();
+    });
+  });
 });

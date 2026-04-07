@@ -48,6 +48,7 @@ const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   goal: null,
   scheduling_mode: "floating",
   skip_reason: null,
+  sort_order: null,
   ...overrides,
 });
 

@@ -43,6 +43,10 @@ interface TaskCardProps {
   onPress: (task: Task) => void;
   onComplete: (task: Task) => void;
   currentDate?: Date; // For time travel support - defaults to now
+  // Phase 4e: Anytime task reordering
+  showReorderButtons?: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }
 
 const getStatusColor = (status: string, isOverdue: boolean): string => {
@@ -83,6 +87,9 @@ export function TaskCard({
   onPress,
   onComplete,
   currentDate = new Date(),
+  showReorderButtons = false,
+  onMoveUp,
+  onMoveDown,
 }: TaskCardProps): React.ReactElement {
   const isCompleted = task.status === "completed";
   const isPending = task.status === "pending";
@@ -176,6 +183,11 @@ export function TaskCard({
               <Text style={styles.recurringText}>🔄 Recurring</Text>
             </View>
           )}
+          {task.scheduling_mode === "anytime" && (
+            <View style={styles.anytimeBadge}>
+              <Text style={styles.anytimeText}>📋 Anytime</Text>
+            </View>
+          )}
           {!task.is_lightning && task.duration_minutes > 0 && (
             <Text style={styles.taskDuration}>
               ⏱️ {formatDuration(task.duration_minutes)}
@@ -236,6 +248,32 @@ export function TaskCard({
       {isCompleted && (
         <View style={[styles.checkCircleAbsolute, styles.checkCircleCompleted]}>
           <Text style={styles.checkMark}>✓</Text>
+        </View>
+      )}
+
+      {/* Phase 4e: Reorder buttons for anytime tasks */}
+      {showReorderButtons && (
+        <View style={styles.reorderButtons}>
+          {onMoveUp && (
+            <Pressable
+              style={styles.reorderButton}
+              onPress={onMoveUp}
+              accessibilityLabel={`Move ${task.title} up`}
+              accessibilityRole="button"
+            >
+              <Text style={styles.reorderButtonText}>▲</Text>
+            </Pressable>
+          )}
+          {onMoveDown && (
+            <Pressable
+              style={styles.reorderButton}
+              onPress={onMoveDown}
+              accessibilityLabel={`Move ${task.title} down`}
+              accessibilityRole="button"
+            >
+              <Text style={styles.reorderButtonText}>▼</Text>
+            </Pressable>
+          )}
         </View>
       )}
     </View>

@@ -23,6 +23,7 @@ const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   goal: { id: "goal-1", title: "Test Goal", status: "in_progress" },
   scheduling_mode: null,
   skip_reason: null,
+  sort_order: null,
   ...overrides,
 });
 
@@ -154,6 +155,22 @@ describe("TaskCard", () => {
       />,
     );
     expect(screen.getByText("⚡ Quick")).toBeTruthy();
+  });
+
+  it("shows anytime badge for anytime tasks", () => {
+    const task = createMockTask({
+      scheduling_mode: "anytime",
+      scheduled_at: null,
+      sort_order: 1,
+    });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByText("📋 Anytime")).toBeTruthy();
   });
 
   it("shows duration for non-lightning tasks", () => {
@@ -295,5 +312,91 @@ describe("TaskCard", () => {
       />,
     );
     expect(screen.getByRole("button", { name: /Task:/ })).toBeTruthy();
+  });
+
+  describe("reorder buttons", () => {
+    it("shows reorder buttons when showReorderButtons is true", () => {
+      const task = createMockTask({
+        scheduling_mode: "anytime",
+        sort_order: 1,
+      });
+      const mockOnMoveUp = jest.fn();
+      const mockOnMoveDown = jest.fn();
+
+      render(
+        <TaskCard
+          task={task}
+          onPress={mockOnPress}
+          onComplete={mockOnComplete}
+          showReorderButtons={true}
+          onMoveUp={mockOnMoveUp}
+          onMoveDown={mockOnMoveDown}
+        />,
+      );
+
+      expect(screen.getByLabelText(`Move ${task.title} up`)).toBeTruthy();
+      expect(screen.getByLabelText(`Move ${task.title} down`)).toBeTruthy();
+    });
+
+    it("does not show reorder buttons by default", () => {
+      const task = createMockTask();
+
+      render(
+        <TaskCard
+          task={task}
+          onPress={mockOnPress}
+          onComplete={mockOnComplete}
+        />,
+      );
+
+      expect(screen.queryByLabelText(`Move ${task.title} up`)).toBeNull();
+      expect(screen.queryByLabelText(`Move ${task.title} down`)).toBeNull();
+    });
+
+    it("calls onMoveUp when up button is pressed", () => {
+      const task = createMockTask({
+        scheduling_mode: "anytime",
+        sort_order: 2,
+      });
+      const mockOnMoveUp = jest.fn();
+      const mockOnMoveDown = jest.fn();
+
+      render(
+        <TaskCard
+          task={task}
+          onPress={mockOnPress}
+          onComplete={mockOnComplete}
+          showReorderButtons={true}
+          onMoveUp={mockOnMoveUp}
+          onMoveDown={mockOnMoveDown}
+        />,
+      );
+
+      fireEvent.press(screen.getByLabelText(`Move ${task.title} up`));
+      expect(mockOnMoveUp).toHaveBeenCalled();
+    });
+
+    it("calls onMoveDown when down button is pressed", () => {
+      const task = createMockTask({
+        scheduling_mode: "anytime",
+        sort_order: 1,
+      });
+      const mockOnMoveUp = jest.fn();
+      const mockOnMoveDown = jest.fn();
+
+      render(
+        <TaskCard
+          task={task}
+          onPress={mockOnPress}
+          onComplete={mockOnComplete}
+          showReorderButtons={true}
+          onMoveUp={mockOnMoveUp}
+          onMoveDown={mockOnMoveDown}
+        />,
+      );
+
+      fireEvent.press(screen.getByLabelText(`Move ${task.title} down`));
+      expect(mockOnMoveDown).toHaveBeenCalled();
+    });
   });
 });

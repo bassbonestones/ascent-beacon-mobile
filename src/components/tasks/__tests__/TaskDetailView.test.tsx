@@ -23,6 +23,7 @@ const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   goal: { id: "goal-1", title: "Test Goal", status: "in_progress" },
   scheduling_mode: null,
   skip_reason: null,
+  sort_order: null,
   ...overrides,
 });
 
@@ -299,5 +300,102 @@ describe("TaskDetailView", () => {
     expect(screen.getByRole("button", { name: "Complete task" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Skip task" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Delete task" })).toBeTruthy();
+  });
+
+  describe("recurrence details", () => {
+    it("shows daily recurrence info", () => {
+      const task = createMockTask({
+        is_recurring: true,
+        recurrence_rule: "FREQ=DAILY;INTERVAL=1",
+      });
+      render(<TaskDetailView {...defaultProps} task={task} />);
+      expect(screen.getByText("Repeats")).toBeTruthy();
+      expect(screen.getByText("Every day")).toBeTruthy();
+    });
+
+    it("shows weekly recurrence with days", () => {
+      const task = createMockTask({
+        is_recurring: true,
+        recurrence_rule: "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR",
+      });
+      render(<TaskDetailView {...defaultProps} task={task} />);
+      expect(screen.getByText("Every week")).toBeTruthy();
+      expect(screen.getByText("Mon, Wed, Fri")).toBeTruthy();
+    });
+
+    it("shows recurrence with interval", () => {
+      const task = createMockTask({
+        is_recurring: true,
+        recurrence_rule: "FREQ=DAILY;INTERVAL=2",
+      });
+      render(<TaskDetailView {...defaultProps} task={task} />);
+      expect(screen.getByText("Every 2 days")).toBeTruthy();
+    });
+
+    it("shows anytime intraday mode", () => {
+      const task = createMockTask({
+        is_recurring: true,
+        recurrence_rule: "FREQ=DAILY;X-INTRADAY=anytime;X-DAILYOCC=3",
+      });
+      render(<TaskDetailView {...defaultProps} task={task} />);
+      expect(screen.getByText("3x per day")).toBeTruthy();
+    });
+
+    it("shows count end condition", () => {
+      const task = createMockTask({
+        is_recurring: true,
+        recurrence_rule: "FREQ=DAILY;INTERVAL=1;COUNT=30",
+      });
+      render(<TaskDetailView {...defaultProps} task={task} />);
+      expect(screen.getByText("Stops after 30 days")).toBeTruthy();
+    });
+
+    it("shows window intraday mode", () => {
+      const task = createMockTask({
+        is_recurring: true,
+        recurrence_rule:
+          "FREQ=DAILY;X-INTRADAY=window;X-WINSTART=09:00;X-WINEND=17:00",
+      });
+      render(<TaskDetailView {...defaultProps} task={task} />);
+      expect(screen.getByText("Flexible window")).toBeTruthy();
+    });
+
+    it("shows specific times intraday mode", () => {
+      const task = createMockTask({
+        is_recurring: true,
+        recurrence_rule:
+          "FREQ=DAILY;X-INTRADAY=specific_times;X-TIMES=09:00,12:00,18:00",
+      });
+      render(<TaskDetailView {...defaultProps} task={task} />);
+      expect(screen.getByText("3 specific times")).toBeTruthy();
+    });
+
+    it("shows interval intraday mode", () => {
+      const task = createMockTask({
+        is_recurring: true,
+        recurrence_rule:
+          "FREQ=DAILY;X-INTRADAY=interval;X-INTERVALMIN=60;X-WINSTART=08:00;X-WINEND=20:00",
+      });
+      render(<TaskDetailView {...defaultProps} task={task} />);
+      expect(screen.getByText("Every 60 min")).toBeTruthy();
+    });
+
+    it("shows monthly recurrence", () => {
+      const task = createMockTask({
+        is_recurring: true,
+        recurrence_rule: "FREQ=MONTHLY;INTERVAL=1",
+      });
+      render(<TaskDetailView {...defaultProps} task={task} />);
+      expect(screen.getByText("Every month")).toBeTruthy();
+    });
+
+    it("shows yearly recurrence with interval", () => {
+      const task = createMockTask({
+        is_recurring: true,
+        recurrence_rule: "FREQ=YEARLY;INTERVAL=2",
+      });
+      render(<TaskDetailView {...defaultProps} task={task} />);
+      expect(screen.getByText("Every 2 years")).toBeTruthy();
+    });
   });
 });

@@ -535,6 +535,17 @@ export const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "600",
   },
+  anytimeBadge: {
+    backgroundColor: "#14B8A6",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  anytimeText: {
+    fontSize: 11,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
   skipReasonText: {
     fontSize: 13,
     color: "#9CA3AF",
@@ -574,5 +585,26 @@ export const styles = StyleSheet.create({
   listFooterText: {
     color: "#9CA3AF",
     fontSize: 14,
+  },
+  // Phase 4e: Anytime task reorder buttons
+  reorderButtons: {
+    position: "absolute",
+    right: 50,
+    top: 8,
+    flexDirection: "column",
+    gap: 2,
+    zIndex: 90,
+  },
+  reorderButton: {
+    width: 28,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#374151",
+    borderRadius: 4,
+  },
+  reorderButtonText: {
+    color: "#9CA3AF",
+    fontSize: 10,
   },
 });

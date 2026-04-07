@@ -305,4 +305,57 @@ describe("apiTasks", () => {
       );
     });
   });
+
+  describe("getAnytimeTasks", () => {
+    it("should call request with /tasks/view/anytime", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({
+        tasks: [],
+        total: 0,
+      });
+      await api.getAnytimeTasks();
+      expect(api.request).toHaveBeenCalledWith("/tasks/view/anytime");
+    });
+
+    it("should add include_completed param when true", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({
+        tasks: [],
+        total: 0,
+      });
+      await api.getAnytimeTasks(true);
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/view/anytime?include_completed=true",
+      );
+    });
+  });
+
+  describe("getFutureCompletionsCount", () => {
+    it("should call request with /tasks/completions/future/count", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ count: 5 });
+      await api.getFutureCompletionsCount();
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/completions/future/count",
+      );
+    });
+
+    it("should add after_date param when provided", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ count: 3 });
+      await api.getFutureCompletionsCount("2026-04-15");
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/completions/future/count?after_date=2026-04-15",
+      );
+    });
+  });
+
+  describe("reorderTask", () => {
+    it("should call request with PATCH to reorder endpoint", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({
+        task: { id: "task-1", sort_order: 2 },
+      });
+      await api.reorderTask("task-1", { new_position: 2 });
+      expect(api.request).toHaveBeenCalledWith("/tasks/task-1/reorder", {
+        method: "PATCH",
+        body: JSON.stringify({ new_position: 2 }),
+      });
+    });
+  });
 });

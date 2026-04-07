@@ -638,7 +638,8 @@ export type TaskStatus = "pending" | "completed" | "skipped";
 // 'floating' = time-of-day (adjusts with timezone)
 // 'fixed' = fixed time (timezone-locked)
 // 'date_only' = only date is set, no specific time
-export type SchedulingMode = "floating" | "fixed" | "date_only";
+// 'anytime' = no schedule, backlog task with manual ordering (Phase 4e)
+export type SchedulingMode = "floating" | "fixed" | "date_only" | "anytime";
 
 export interface TaskGoalInfo {
   id: string;
@@ -668,6 +669,8 @@ export interface Task {
   // Phase 4b fields
   scheduling_mode: SchedulingMode | null;
   skip_reason: string | null;
+  // Phase 4e: Sort order for anytime tasks (lower = higher in list)
+  sort_order: number | null;
   // For recurring tasks, indicates if completed for today
   completed_for_today?: boolean;
   // For recurring tasks with multiple daily occurrences, count of completions today
@@ -749,6 +752,20 @@ export interface SkipTaskRequest {
 export interface ReopenTaskRequest {
   scheduled_for?: string | null; // For recurring tasks: which occurrence to undo
   local_date?: string | null; // Client's local date (YYYY-MM-DD) for this occurrence
+}
+
+// Phase 4e: Anytime tasks (backlog)
+export interface AnytimeTasksResponse {
+  tasks: Task[];
+  total: number;
+}
+
+export interface ReorderTaskRequest {
+  new_position: number; // 1-indexed (1 = top of list)
+}
+
+export interface ReorderTaskResponse {
+  task: Task;
 }
 
 // Phase 4b: Task completion history (for recurring tasks)
@@ -862,6 +879,8 @@ export interface UseTasksReturn {
     localDate?: string,
   ) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
+  // Phase 4e: Anytime tasks
+  reorderTask: (id: string, newPosition: number) => Promise<Task>;
 }
 
 // ============================================================================

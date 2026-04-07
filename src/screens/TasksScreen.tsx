@@ -50,7 +50,7 @@ interface TasksScreenProps {
 }
 
 type ScreenMode = "list" | "create" | "detail" | "edit";
-type ListViewMode = "today" | "upcoming";
+type ListViewMode = "today" | "upcoming" | "anytime";
 type StatusFilter = "all" | "pending" | "completed" | "skipped";
 
 export default function TasksScreen({
@@ -132,6 +132,7 @@ export default function TasksScreen({
     skipTask,
     reopenTask,
     deleteTask,
+    reorderTask,
   } = useTasks({
     status: apiStatusFilter,
     includeCompleted: apiIncludeCompleted,
@@ -297,6 +298,56 @@ export default function TasksScreen({
           viewPendingCount: todayPending,
           viewCompletedCount: todayCompleted,
         };
+      } else if (listViewMode === "anytime") {
+        // Anytime view: show backlog tasks with no schedule
+        // Anytime tasks have scheduling_mode === "anytime"
+
+        // Filter to anytime tasks only
+        let anytimeTasks = tasks.filter((t) => t.scheduling_mode === "anytime");
+
+        // Count pending anytime tasks
+        const anytimePending = anytimeTasks.filter(
+          (t) => t.status === "pending",
+        ).length;
+        const anytimeCompleted = anytimeTasks.filter(
+          (t) => t.status === "completed",
+        ).length;
+
+        // Apply status filter
+        if (statusFilter === "pending") {
+          anytimeTasks = anytimeTasks.filter((t) => t.status === "pending");
+        } else if (statusFilter === "completed") {
+          anytimeTasks = anytimeTasks.filter((t) => t.status === "completed");
+        } else if (statusFilter === "skipped") {
+          anytimeTasks = anytimeTasks.filter((t) => t.status === "skipped");
+        }
+        // "all" shows all anytime tasks
+
+        // Sort by sort_order for pending, by updated_at for completed/skipped
+        anytimeTasks.sort((a, b) => {
+          // Pending tasks with sort_order come first, sorted by sort_order
+          if (a.status === "pending" && b.status === "pending") {
+            const aOrder = a.sort_order ?? Infinity;
+            const bOrder = b.sort_order ?? Infinity;
+            return aOrder - bOrder;
+          }
+          // Completed/skipped tasks sorted by updated_at (most recent first)
+          if (a.status !== "pending" && b.status !== "pending") {
+            return (
+              new Date(b.updated_at).getTime() -
+              new Date(a.updated_at).getTime()
+            );
+          }
+          // Pending before completed/skipped
+          return a.status === "pending" ? -1 : 1;
+        });
+
+        return {
+          sortedTasks: anytimeTasks,
+          sections: null,
+          viewPendingCount: anytimePending,
+          viewCompletedCount: anytimeCompleted,
+        };
       } else {
         // Upcoming view: group by date (includes today and future)
         let upcomingTasks: Task[] = [];
@@ -415,10 +466,14 @@ export default function TasksScreen({
       );
 
       // Determine scheduling_mode:
+      // - For anytime tasks: always "anytime" (Phase 4e)
       // - For recurring tasks: use user's choice (floating/fixed)
       // - For non-recurring: date_only if has date but no time, fixed if has time, undefined if unscheduled
       let schedulingMode: SchedulingMode | undefined;
-      if (taskForm.isRecurring) {
+      if (taskForm.isAnytime) {
+        // Phase 4e: Anytime task
+        schedulingMode = "anytime";
+      } else if (taskForm.isRecurring) {
         // For recurring tasks, use the form's scheduling mode
         schedulingMode = taskForm.schedulingMode || undefined;
       } else {
@@ -441,6 +496,11 @@ export default function TasksScreen({
         ? taskForm.recurrenceRule || "FREQ=DAILY"
         : undefined;
 
+      // For anytime tasks, clear scheduling fields (Phase 4e)
+      const finalScheduling = taskForm.isAnytime
+        ? { scheduled_date: null, scheduled_at: null }
+        : scheduling;
+
       await createTask({
         goal_id: taskForm.goalId || undefined,
         title: taskForm.title.trim(),
@@ -448,8 +508,8 @@ export default function TasksScreen({
         duration_minutes: taskForm.isLightning
           ? 0
           : parseInt(taskForm.duration, 10) || 30,
-        scheduled_date: scheduling.scheduled_date,
-        scheduled_at: scheduling.scheduled_at,
+        scheduled_date: finalScheduling.scheduled_date,
+        scheduled_at: finalScheduling.scheduled_at,
         is_recurring: taskForm.isRecurring,
         recurrence_rule: recurrenceRule,
         scheduling_mode: schedulingMode,
@@ -663,6 +723,18 @@ export default function TasksScreen({
     setSkipModalTask(task);
   }, []);
 
+  // Phase 4e: Handle reordering anytime tasks
+  const handleReorder = useCallback(
+    async (task: Task, newPosition: number) => {
+      try {
+        await reorderTask(task.id, newPosition);
+      } catch {
+        // Error handled in hook
+      }
+    },
+    [reorderTask],
+  );
+
   const handleReopen = useCallback(
     async (task: Task) => {
       try {
@@ -779,6 +851,8 @@ export default function TasksScreen({
           taskForm.resetForm();
           setScreenMode("list");
         }}
+        isAnytime={taskForm.isAnytime}
+        onAnytimeToggle={taskForm.toggleAnytime}
       />
     );
   }
@@ -814,6 +888,8 @@ export default function TasksScreen({
           setScreenMode("list");
         }}
         isEditMode={true}
+        isAnytime={taskForm.isAnytime}
+        onAnytimeToggle={taskForm.toggleAnytime}
       />
     );
   }
@@ -924,7 +1000,7 @@ export default function TasksScreen({
       </View>
 
       <View style={styles.viewModeRow}>
-        {(["today", "upcoming"] as ListViewMode[]).map((mode) => (
+        {(["today", "upcoming", "anytime"] as ListViewMode[]).map((mode) => (
           <TouchableOpacity
             key={mode}
             style={[
@@ -982,16 +1058,56 @@ export default function TasksScreen({
                 : statusFilter === "completed"
                   ? "No completed tasks today"
                   : "No tasks today"
-              : statusFilter === "pending"
-                ? "No upcoming tasks"
-                : "No tasks scheduled"}
+              : listViewMode === "anytime"
+                ? statusFilter === "pending"
+                  ? "No tasks in backlog"
+                  : "No anytime tasks"
+                : statusFilter === "pending"
+                  ? "No upcoming tasks"
+                  : "No tasks scheduled"}
           </Text>
           <Text style={styles.emptyStateText}>
             {listViewMode === "today"
               ? "Create a task to get started"
-              : "Schedule tasks with future dates to see them here"}
+              : listViewMode === "anytime"
+                ? "Create tasks without a schedule for your backlog"
+                : "Schedule tasks with future dates to see them here"}
           </Text>
         </View>
+      ) : listViewMode === "anytime" ? (
+        <FlatList
+          data={sortedTasks}
+          extraData={tasks}
+          renderItem={({ item, index }) => (
+            <TaskCard
+              task={item}
+              currentDate={currentDate}
+              onPress={(t) => {
+                setSelectedTask(t);
+                setScreenMode("detail");
+              }}
+              onComplete={handleComplete}
+              showReorderButtons={
+                item.status === "pending" && item.sort_order !== null
+              }
+              onMoveUp={
+                index > 0
+                  ? () => handleReorder(item, item.sort_order! - 1)
+                  : undefined
+              }
+              onMoveDown={
+                index <
+                sortedTasks.filter((t) => t.status === "pending").length - 1
+                  ? () => handleReorder(item, item.sort_order! + 1)
+                  : undefined
+              }
+            />
+          )}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshing={loading && !loadingMore}
+          onRefresh={refetch}
+        />
       ) : listViewMode === "upcoming" && sections ? (
         <SectionList
           sections={sections}

@@ -44,6 +44,9 @@ interface CreateTaskFormProps {
   onSubmit: () => void;
   onCancel: () => void;
   isEditMode?: boolean;
+  // Phase 4e: Anytime task support
+  isAnytime?: boolean;
+  onAnytimeToggle?: () => void;
 }
 
 const getRecurrenceDescription = (
@@ -79,6 +82,8 @@ export function CreateTaskForm({
   onSubmit,
   onCancel,
   isEditMode = false,
+  isAnytime = false,
+  onAnytimeToggle,
 }: CreateTaskFormProps): React.ReactElement {
   const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
   const canSubmit = title.trim().length > 0;
@@ -267,6 +272,30 @@ export function CreateTaskForm({
           Repeats on a schedule (daily, weekly, etc.)
         </Text>
 
+        {/* Phase 4e: Anytime Task Toggle - only show for non-recurring */}
+        {!isRecurring && onAnytimeToggle && (
+          <>
+            <TouchableOpacity
+              style={styles.lightningCheckbox}
+              onPress={onAnytimeToggle}
+              accessibilityLabel={
+                isAnytime ? "Make scheduled task" : "Make anytime task"
+              }
+              accessibilityRole="checkbox"
+            >
+              <View
+                style={[styles.checkbox, isAnytime && styles.checkboxChecked]}
+              >
+                {isAnytime && <Text style={{ color: "#1F2937" }}>📋</Text>}
+              </View>
+              <Text style={styles.lightningLabel}>Anytime Task</Text>
+            </TouchableOpacity>
+            <Text style={styles.lightningHelp}>
+              No schedule, shows in your backlog
+            </Text>
+          </>
+        )}
+
         {/* Recurrence Settings */}
         {isRecurring && (
           <TouchableOpacity
@@ -295,8 +324,8 @@ export function CreateTaskForm({
           </View>
         )}
 
-        {/* Date & Time - only show for non-recurring tasks */}
-        {!isRecurring && (
+        {/* Date & Time - only show for non-recurring, non-anytime tasks */}
+        {!isRecurring && !isAnytime && (
           <>
             <DatePicker
               value={scheduledDate}

@@ -14,6 +14,7 @@ export interface UseTaskFormReturn {
   schedulingMode: SchedulingMode | null;
   scheduledTime: string | null;
   scheduledDate: string | null;
+  isAnytime: boolean; // Phase 4e
 
   // Setters
   setTitle: (value: string) => void;
@@ -26,12 +27,14 @@ export interface UseTaskFormReturn {
   setSchedulingMode: (value: SchedulingMode | null) => void;
   setScheduledTime: (value: string | null) => void;
   setScheduledDate: (value: string | null) => void;
+  setIsAnytime: (value: boolean) => void; // Phase 4e
 
   // Actions
   resetForm: () => void;
   populateForm: (task: Task) => void;
   toggleLightning: () => void;
   toggleRecurring: () => void;
+  toggleAnytime: () => void; // Phase 4e
   handleRecurrenceChange: (
     rrule: string,
     mode: SchedulingMode,
@@ -64,6 +67,7 @@ export function useTaskForm(): UseTaskFormReturn {
   );
   const [scheduledTime, setScheduledTime] = useState<string | null>(null);
   const [scheduledDate, setScheduledDate] = useState<string | null>(null);
+  const [isAnytime, setIsAnytime] = useState(false); // Phase 4e
 
   const resetForm = useCallback(() => {
     setTitle("");
@@ -76,6 +80,7 @@ export function useTaskForm(): UseTaskFormReturn {
     setSchedulingMode(null);
     setScheduledTime(null);
     setScheduledDate(null);
+    setIsAnytime(false); // Phase 4e
   }, []);
 
   /**
@@ -91,6 +96,7 @@ export function useTaskForm(): UseTaskFormReturn {
     setIsRecurring(task.is_recurring || false);
     setRecurrenceRule(task.recurrence_rule || "");
     setSchedulingMode(task.scheduling_mode || null);
+    setIsAnytime(task.scheduling_mode === "anytime"); // Phase 4e
 
     // Extract date and time from scheduled_date or scheduled_at
     // scheduled_date is for date-only tasks, scheduled_at is for timed tasks
@@ -122,6 +128,11 @@ export function useTaskForm(): UseTaskFormReturn {
 
   const toggleRecurring = useCallback(() => {
     setIsRecurring((prev) => !prev);
+  }, []);
+
+  // Phase 4e: Toggle anytime task
+  const toggleAnytime = useCallback(() => {
+    setIsAnytime((prev) => !prev);
   }, []);
 
   const handleRecurrenceChange = useCallback(
@@ -200,6 +211,7 @@ export function useTaskForm(): UseTaskFormReturn {
     schedulingMode,
     scheduledTime,
     scheduledDate,
+    isAnytime, // Phase 4e
     setTitle,
     setDescription,
     setGoalId,
@@ -210,10 +222,12 @@ export function useTaskForm(): UseTaskFormReturn {
     setSchedulingMode,
     setScheduledTime,
     setScheduledDate,
+    setIsAnytime, // Phase 4e
     resetForm,
     populateForm,
     toggleLightning,
     toggleRecurring,
+    toggleAnytime, // Phase 4e
     handleRecurrenceChange,
     dateTimeToIso,
     getSchedulingFields,

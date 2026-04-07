@@ -36,6 +36,7 @@ const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   goal: null,
   scheduling_mode: null,
   skip_reason: null,
+  sort_order: null,
   ...overrides,
 });
 
@@ -163,6 +164,26 @@ describe("taskSorting", () => {
       expect(filtered.length).toBe(0);
     });
 
+    it("excludes anytime tasks", () => {
+      const tasks = [
+        createMockTask({
+          id: "anytime-task",
+          scheduling_mode: "anytime",
+          scheduled_at: null,
+          scheduled_date: null,
+          sort_order: 1,
+        }),
+        createMockTask({
+          id: "regular-unscheduled",
+          scheduling_mode: null,
+          scheduled_at: null,
+        }),
+      ];
+      const filtered = filterTasksForToday(tasks, now);
+      expect(filtered.length).toBe(1);
+      expect(filtered[0].id).toBe("regular-unscheduled");
+    });
+
     it("excludes recurring tasks that are completed for today", () => {
       const tasks = [
         createMockTask({
@@ -224,10 +245,10 @@ describe("taskSorting", () => {
 
     it("returns false for date_only task when same day is not over", () => {
       // Task scheduled for today (June 15) as date_only
-      // Create a timestamp representing midnight LOCAL June 15 (as dateTimeToIso would)
-      const todayMidnightLocal = new Date(2024, 5, 15, 0, 0, 0, 0); // June 15 midnight local
+      // Date-only tasks use scheduled_date (YYYY-MM-DD), not scheduled_at
       const task = createMockTask({
-        scheduled_at: todayMidnightLocal.toISOString(),
+        scheduled_date: "2024-06-15",
+        scheduled_at: null,
         scheduling_mode: "date_only",
         status: "pending",
       });
@@ -238,9 +259,10 @@ describe("taskSorting", () => {
 
     it("returns true for date_only task when day has passed", () => {
       // Task scheduled for yesterday (June 14) as date_only
-      const yesterdayMidnightLocal = new Date(2024, 5, 14, 0, 0, 0, 0);
+      // Date-only tasks use scheduled_date (YYYY-MM-DD), not scheduled_at
       const task = createMockTask({
-        scheduled_at: yesterdayMidnightLocal.toISOString(),
+        scheduled_date: "2024-06-14",
+        scheduled_at: null,
         scheduling_mode: "date_only",
         status: "pending",
       });
@@ -349,6 +371,26 @@ describe("taskSorting", () => {
       const tasks = [createMockTask({ scheduled_at: "2024-06-16T09:00:00Z" })];
       const filtered = filterTasksForUpcoming(tasks, now);
       expect(filtered.length).toBe(1);
+    });
+
+    it("excludes anytime tasks", () => {
+      const tasks = [
+        createMockTask({
+          id: "anytime-task",
+          scheduling_mode: "anytime",
+          scheduled_at: null,
+          scheduled_date: null,
+          sort_order: 1,
+        }),
+        createMockTask({
+          id: "scheduled-task",
+          scheduling_mode: "fixed",
+          scheduled_at: "2024-06-16T09:00:00Z",
+        }),
+      ];
+      const filtered = filterTasksForUpcoming(tasks, now);
+      expect(filtered.length).toBe(1);
+      expect(filtered[0].id).toBe("scheduled-task");
     });
 
     it("includes virtual occurrences with future virtualOccurrenceDate", () => {

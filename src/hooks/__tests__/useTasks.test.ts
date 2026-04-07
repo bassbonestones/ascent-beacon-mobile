@@ -14,6 +14,7 @@ jest.mock("../../services/api", () => ({
     skipTask: jest.fn(),
     reopenTask: jest.fn(),
     deleteTask: jest.fn(),
+    reorderTask: jest.fn(),
   },
 }));
 
@@ -47,6 +48,7 @@ const createMockTask = (
   goal: { id: "goal-1", title: "Test Goal", status: "not_started" },
   scheduling_mode: null,
   skip_reason: null,
+  sort_order: null,
 });
 
 describe("useTasks", () => {
@@ -165,6 +167,65 @@ describe("useTasks", () => {
       // Verify a refetch was triggered
       expect(mockedApi.getTasks).toHaveBeenCalled();
     });
+
+    it("handles error when createTask fails", async () => {
+      mockedApi.createTask.mockRejectedValue(new Error("Failed to create"));
+
+      const { result } = renderHook(() => useTasks());
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await expect(
+        act(async () => {
+          await result.current.createTask({
+            goal_id: "goal-1",
+            title: "New Task",
+            duration_minutes: 30,
+          });
+        }),
+      ).rejects.toThrow("Failed to create");
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        "Error",
+        "Failed to create task",
+      );
+    });
+  });
+
+  describe("updateTask", () => {
+    it("updates a task", async () => {
+      const updatedTask = createMockTask("t1", "Updated Task 1");
+      mockedApi.updateTask.mockResolvedValue(updatedTask);
+
+      const { result } = renderHook(() => useTasks());
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(async () => {
+        await result.current.updateTask("t1", { title: "Updated Task 1" });
+      });
+
+      expect(result.current.tasks[0].title).toBe("Updated Task 1");
+    });
+
+    it("handles error when updateTask fails", async () => {
+      mockedApi.updateTask.mockRejectedValue(new Error("Failed to update"));
+
+      const { result } = renderHook(() => useTasks());
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await expect(
+        act(async () => {
+          await result.current.updateTask("t1", { title: "New Title" });
+        }),
+      ).rejects.toThrow("Failed to update");
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        "Error",
+        "Failed to update task",
+      );
+    });
   });
 
   describe("completeTask", () => {
@@ -187,6 +248,25 @@ describe("useTasks", () => {
       expect(result.current.pendingCount).toBe(1);
       expect(result.current.completedCount).toBe(1);
     });
+
+    it("handles error when completeTask fails", async () => {
+      mockedApi.completeTask.mockRejectedValue(new Error("Failed to complete"));
+
+      const { result } = renderHook(() => useTasks());
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await expect(
+        act(async () => {
+          await result.current.completeTask("t1");
+        }),
+      ).rejects.toThrow("Failed to complete");
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        "Error",
+        "Failed to complete task",
+      );
+    });
   });
 
   describe("skipTask", () => {
@@ -204,6 +284,22 @@ describe("useTasks", () => {
 
       expect(result.current.tasks[0].status).toBe("skipped");
       expect(result.current.pendingCount).toBe(1);
+    });
+
+    it("handles error when skipTask fails", async () => {
+      mockedApi.skipTask.mockRejectedValue(new Error("Failed to skip"));
+
+      const { result } = renderHook(() => useTasks());
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await expect(
+        act(async () => {
+          await result.current.skipTask("t1");
+        }),
+      ).rejects.toThrow("Failed to skip");
+
+      expect(Alert.alert).toHaveBeenCalledWith("Error", "Failed to skip task");
     });
   });
 
@@ -231,6 +327,25 @@ describe("useTasks", () => {
       expect(result.current.pendingCount).toBe(1);
       expect(result.current.completedCount).toBe(0);
     });
+
+    it("handles error when reopenTask fails", async () => {
+      mockedApi.reopenTask.mockRejectedValue(new Error("Failed to reopen"));
+
+      const { result } = renderHook(() => useTasks());
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await expect(
+        act(async () => {
+          await result.current.reopenTask("t1");
+        }),
+      ).rejects.toThrow("Failed to reopen");
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        "Error",
+        "Failed to reopen task",
+      );
+    });
   });
 
   describe("deleteTask", () => {
@@ -249,6 +364,25 @@ describe("useTasks", () => {
       expect(result.current.tasks[0].id).toBe("t2");
       expect(result.current.pendingCount).toBe(1);
     });
+
+    it("handles error when deleteTask fails", async () => {
+      mockedApi.deleteTask.mockRejectedValue(new Error("Failed to delete"));
+
+      const { result } = renderHook(() => useTasks());
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await expect(
+        act(async () => {
+          await result.current.deleteTask("t1");
+        }),
+      ).rejects.toThrow("Failed to delete");
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        "Error",
+        "Failed to delete task",
+      );
+    });
   });
 
   describe("refetch", () => {
@@ -264,6 +398,49 @@ describe("useTasks", () => {
       });
 
       expect(mockedApi.getTasks).toHaveBeenCalled();
+    });
+  });
+
+  describe("reorderTask", () => {
+    it("calls reorderTask API and refetches tasks", async () => {
+      const reorderedTask = createMockTask("t1", "Reordered", "pending");
+      mockedApi.reorderTask.mockResolvedValue({
+        task: reorderedTask,
+      });
+
+      const { result } = renderHook(() => useTasks());
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      mockedApi.getTasks.mockClear();
+
+      await act(async () => {
+        await result.current.reorderTask("t1", 3);
+      });
+
+      expect(mockedApi.reorderTask).toHaveBeenCalledWith("t1", {
+        new_position: 3,
+      });
+      expect(mockedApi.getTasks).toHaveBeenCalled();
+    });
+
+    it("handles error when reorderTask fails", async () => {
+      mockedApi.reorderTask.mockRejectedValue(new Error("Network error"));
+
+      const { result } = renderHook(() => useTasks());
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await expect(
+        act(async () => {
+          await result.current.reorderTask("t1", 3);
+        }),
+      ).rejects.toThrow("Network error");
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        "Error",
+        "Failed to reorder task",
+      );
     });
   });
 });

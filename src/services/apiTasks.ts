@@ -14,6 +14,9 @@ import type {
   CompletionHistoryResponse,
   DeleteFutureCompletionsResponse,
   FutureCompletionsCountResponse,
+  AnytimeTasksResponse,
+  ReorderTaskRequest,
+  ReorderTaskResponse,
 } from "../types";
 import type ApiServiceBase from "./apiBase";
 
@@ -67,6 +70,13 @@ export interface TasksMethods {
   getFutureCompletionsCount(
     afterDate?: string,
   ): Promise<FutureCompletionsCountResponse>;
+
+  // Phase 4e: Anytime tasks
+  getAnytimeTasks(includeCompleted?: boolean): Promise<AnytimeTasksResponse>;
+  reorderTask(
+    taskId: string,
+    data: ReorderTaskRequest,
+  ): Promise<ReorderTaskResponse>;
 }
 
 export interface TasksListParams {
@@ -243,5 +253,34 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
         ? `/tasks/completions/future/count?after_date=${afterDate}`
         : "/tasks/completions/future/count";
       return await this.request<FutureCompletionsCountResponse>(url);
+    }
+
+    // Phase 4e: Anytime tasks
+
+    async getAnytimeTasks(
+      includeCompleted: boolean = false,
+    ): Promise<AnytimeTasksResponse> {
+      const params = new URLSearchParams();
+      if (includeCompleted) {
+        params.append("include_completed", "true");
+      }
+      const queryString = params.toString();
+      const url = queryString
+        ? `/tasks/view/anytime?${queryString}`
+        : "/tasks/view/anytime";
+      return await this.request<AnytimeTasksResponse>(url);
+    }
+
+    async reorderTask(
+      taskId: string,
+      data: ReorderTaskRequest,
+    ): Promise<ReorderTaskResponse> {
+      return await this.request<ReorderTaskResponse>(
+        `/tasks/${taskId}/reorder`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(data),
+        },
+      );
     }
   };
