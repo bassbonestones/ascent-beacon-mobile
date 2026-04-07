@@ -53,6 +53,8 @@ jest.mock("../../services/api", () => ({
   __esModule: true,
   default: {
     reorderOccurrences: jest.fn(),
+    getPermanentOrder: jest.fn(),
+    clearOccurrenceOrderFrom: jest.fn(),
   },
 }));
 
@@ -60,7 +62,11 @@ import api from "../../services/api";
 const mockedApi = api as jest.Mocked<typeof api>;
 
 // Helper to create mock task
-const createMockTask = (id: string, title: string): Task => ({
+const createMockTask = (
+  id: string,
+  title: string,
+  isRecurring: boolean = false,
+): Task => ({
   id,
   user_id: "user-1",
   goal_id: "goal-1",
@@ -70,8 +76,8 @@ const createMockTask = (id: string, title: string): Task => ({
   status: "pending",
   scheduled_date: "2024-01-15",
   scheduled_at: null,
-  is_recurring: false,
-  recurrence_rule: null,
+  is_recurring: isRecurring,
+  recurrence_rule: isRecurring ? "daily" : null,
   notify_before_minutes: null,
   completed_at: null,
   created_at: "2024-01-01T00:00:00Z",
@@ -101,6 +107,7 @@ const createMockRoute = (items: ReorderItem[]) => ({
 });
 
 describe("ReorderTasksScreen", () => {
+  // Non-recurring tasks - Save Permanent should NOT show
   const mockItems: ReorderItem[] = [
     {
       task: createMockTask("t1", "Task 1"),
@@ -111,6 +118,20 @@ describe("ReorderTasksScreen", () => {
       task: createMockTask("t2", "Task 2"),
       occurrenceIndex: 0,
       key: "t2-0",
+    },
+  ];
+
+  // Recurring tasks - Save Permanent SHOULD show
+  const recurringItems: ReorderItem[] = [
+    {
+      task: createMockTask("r1", "Recurring Task 1", true),
+      occurrenceIndex: 0,
+      key: "r1-0",
+    },
+    {
+      task: createMockTask("r2", "Recurring Task 2", true),
+      occurrenceIndex: 0,
+      key: "r2-0",
     },
   ];
 
@@ -149,6 +170,21 @@ describe("ReorderTasksScreen", () => {
   });
 
   it("renders cancel and save buttons", () => {
+    // Use recurring items so Save Permanent shows
+    render(
+      <ReorderTasksScreen
+        navigation={mockNavigation}
+        route={createMockRoute(recurringItems)}
+      />,
+    );
+
+    expect(screen.getByText("Cancel")).toBeTruthy();
+    expect(screen.getByText("Save for Today")).toBeTruthy();
+    expect(screen.getByText("Save Permanent")).toBeTruthy();
+  });
+
+  it("hides Save Permanent when less than 2 recurring tasks", () => {
+    // Use non-recurring items - Save Permanent should NOT show
     render(
       <ReorderTasksScreen
         navigation={mockNavigation}
@@ -158,7 +194,7 @@ describe("ReorderTasksScreen", () => {
 
     expect(screen.getByText("Cancel")).toBeTruthy();
     expect(screen.getByText("Save for Today")).toBeTruthy();
-    expect(screen.getByText("Save Permanent")).toBeTruthy();
+    expect(screen.queryByText("Save Permanent")).toBeNull();
   });
 
   it("navigates back when cancel is pressed", () => {
@@ -198,10 +234,33 @@ describe("ReorderTasksScreen", () => {
   });
 
   it("calls API with permanent when Save Permanent is pressed", async () => {
+    // Mock Alert.alert to auto-press "Permanent Only" button
+    const RNAlert = require("react-native").Alert;
+    const originalAlert = RNAlert.alert;
+    RNAlert.alert = jest.fn(
+      (
+        _title: string,
+        _message?: string,
+        buttons?: Array<{
+          text?: string;
+          style?: string;
+          onPress?: () => void;
+        }>,
+      ) => {
+        // Find and call the "Permanent Only" button
+        const permanentOnlyButton = buttons?.find(
+          (b) => b.text === "Permanent Only",
+        );
+        if (permanentOnlyButton?.onPress) {
+          permanentOnlyButton.onPress();
+        }
+      },
+    );
+
     render(
       <ReorderTasksScreen
         navigation={mockNavigation}
-        route={createMockRoute(mockItems)}
+        route={createMockRoute(recurringItems)}
       />,
     );
 
@@ -211,14 +270,15 @@ describe("ReorderTasksScreen", () => {
       expect(mockedApi.reorderOccurrences).toHaveBeenCalledWith({
         date: "2024-01-15",
         occurrences: [
-          { task_id: "t1", occurrence_index: 0 },
-          { task_id: "t2", occurrence_index: 0 },
+          { task_id: "r1", occurrence_index: 0 },
+          { task_id: "r2", occurrence_index: 0 },
         ],
         save_mode: "permanent",
       });
     });
 
     expect(mockGoBack).toHaveBeenCalled();
+    RNAlert.alert = originalAlert;
   });
 
   it("shows error message when API fails", async () => {
@@ -288,6 +348,70 @@ describe("ReorderTasksScreen", () => {
     // Should show loading state
     await waitFor(() => {
       expect(screen.getByTestId("save-loading")).toBeTruthy();
+    });
+  });
+
+  it("renders Revert button in header", () => {
+    render(
+      <ReorderTasksScreen
+        navigation={mockNavigation}
+        route={createMockRoute(mockItems)}
+      />,
+    );
+
+    expect(screen.getByText("Revert")).toBeTruthy();
+  });
+
+  it("shows error when reverting with no permanent order", async () => {
+    mockedApi.getPermanentOrder.mockResolvedValueOnce([]);
+
+    render(
+      <ReorderTasksScreen
+        navigation={mockNavigation}
+        route={createMockRoute(mockItems)}
+      />,
+    );
+
+    fireEvent.press(screen.getByText("Revert"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("No permanent preferences saved yet"),
+      ).toBeTruthy();
+    });
+  });
+
+  it("reorders items when reverting to permanent order", async () => {
+    // Setup: mockItems are in order t1, t2
+    // Permanent order says t2 should come first
+    mockedApi.getPermanentOrder.mockResolvedValueOnce([
+      { task_id: "t2", occurrence_index: 0, sequence_number: 1 },
+      { task_id: "t1", occurrence_index: 0, sequence_number: 2 },
+    ]);
+
+    render(
+      <ReorderTasksScreen
+        navigation={mockNavigation}
+        route={createMockRoute(mockItems)}
+      />,
+    );
+
+    // Before revert: Task 1, Task 2
+    const initialTexts = screen
+      .getAllByText(/Task \d/)
+      .map((el) => el.children[0]);
+    expect(initialTexts[0]).toBe("Task 1");
+    expect(initialTexts[1]).toBe("Task 2");
+
+    fireEvent.press(screen.getByText("Revert"));
+
+    // After revert: Task 2, Task 1
+    await waitFor(() => {
+      const reorderedTexts = screen
+        .getAllByText(/Task \d/)
+        .map((el) => el.children[0]);
+      expect(reorderedTexts[0]).toBe("Task 2");
+      expect(reorderedTexts[1]).toBe("Task 1");
     });
   });
 });

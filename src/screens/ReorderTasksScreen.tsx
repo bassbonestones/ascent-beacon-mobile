@@ -5,6 +5,7 @@
  * - Drag-and-drop reordering of untimed tasks
  * - "(1 of 4)" labels for multi-per-day occurrences
  * - Cancel / Save for Today / Save Permanent buttons
+ * - Revert to Permanent button to preview permanent order
  */
 import React, { useState, useCallback, useMemo, useRef } from "react";
 import {
@@ -15,6 +16,7 @@ import {
   Platform,
   FlatList,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type {
@@ -23,6 +25,7 @@ import type {
   SaveMode,
   ReorderItem,
   RootStackParamList,
+  PermanentOrderItem,
 } from "../types";
 import api from "../services/api";
 
@@ -58,6 +61,7 @@ export default function ReorderTasksScreen({
 
   const [items, setItems] = useState<ReorderItem[]>(initialItems);
   const [saving, setSaving] = useState(false);
+  const [reverting, setReverting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Check if there are at least 2 recurring tasks - only show "Save Permanent" if so
@@ -69,6 +73,65 @@ export default function ReorderTasksScreen({
     return recurringCount >= 2;
   }, [items]);
 
+  // Revert to permanent order (preview - just rearranges the list)
+  const handleRevertToPermanent = useCallback(async () => {
+    setReverting(true);
+    setError(null);
+
+    try {
+      const permanentOrder = await api.getPermanentOrder();
+
+      if (permanentOrder.length === 0) {
+        setError("No permanent preferences saved yet");
+        setReverting(false);
+        return;
+      }
+
+      // Create a map of task_id-occurrence_index to sequence_number
+      const orderMap = new Map<string, number>();
+      for (const item of permanentOrder) {
+        const key = `${item.task_id}-${item.occurrence_index}`;
+        orderMap.set(key, item.sequence_number);
+      }
+
+      // Reorder items based on permanent preferences
+      setItems((prevItems) => {
+        const orderedItems: ReorderItem[] = [];
+        const unorderedItems: ReorderItem[] = [];
+
+        for (const item of prevItems) {
+          const taskId = item.task.originalTaskId || item.task.id;
+          const key = `${taskId}-${item.occurrenceIndex}`;
+
+          if (orderMap.has(key)) {
+            orderedItems.push(item);
+          } else {
+            unorderedItems.push(item);
+          }
+        }
+
+        // Sort ordered items by their permanent sequence number
+        orderedItems.sort((a, b) => {
+          const aTaskId = a.task.originalTaskId || a.task.id;
+          const bTaskId = b.task.originalTaskId || b.task.id;
+          const aKey = `${aTaskId}-${a.occurrenceIndex}`;
+          const bKey = `${bTaskId}-${b.occurrenceIndex}`;
+          const aPos = orderMap.get(aKey) ?? Infinity;
+          const bPos = orderMap.get(bKey) ?? Infinity;
+          return aPos - bPos;
+        });
+
+        return [...orderedItems, ...unorderedItems];
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to load permanent order";
+      setError(message);
+    } finally {
+      setReverting(false);
+    }
+  }, []);
+
   // Handle drag end on native
   const handleDragEnd = useCallback(({ data }: { data: ReorderItem[] }) => {
     setItems(data);
@@ -79,9 +142,9 @@ export default function ReorderTasksScreen({
     navigation.goBack();
   }, [navigation]);
 
-  // Handle save
-  const handleSave = useCallback(
-    async (saveMode: SaveMode) => {
+  // Core save logic
+  const performSave = useCallback(
+    async (saveMode: SaveMode, clearOverridesFromDate?: boolean) => {
       setSaving(true);
       setError(null);
 
@@ -92,6 +155,11 @@ export default function ReorderTasksScreen({
       }));
 
       try {
+        // If clearing overrides from this date onward, do it before saving
+        if (clearOverridesFromDate) {
+          await api.clearOccurrenceOrderFrom(date);
+        }
+
         await api.reorderOccurrences({
           date,
           occurrences,
@@ -108,6 +176,75 @@ export default function ReorderTasksScreen({
     },
     [date, items, navigation],
   );
+
+  // Handle save for today (no prompt needed)
+  const handleSaveToday = useCallback(() => {
+    performSave("today");
+  }, [performSave]);
+
+  // Handle save permanent with prompt for options
+  const handleSavePermanent = useCallback(() => {
+    const showPrompt = () => {
+      if (Platform.OS === "web") {
+        // Web: use sequential confirms (simple approach)
+        const choice = window.confirm(
+          "Save Permanent Preferences\n\n" +
+            "Click OK to save permanent preferences only.\n" +
+            "Click Cancel to also override all future daily overrides.",
+        );
+        if (choice) {
+          // OK = save permanent preferences only
+          performSave("permanent", false);
+        } else {
+          // Cancel in first dialog means they want to clear overrides
+          const confirmClear = window.confirm(
+            "This will delete all daily overrides from today onward " +
+              "so future dates use this permanent order.\n\n" +
+              "Continue?",
+          );
+          if (confirmClear) {
+            performSave("permanent", true);
+          }
+        }
+      } else {
+        // Native: use Alert with buttons
+        Alert.alert(
+          "Save Permanent Preferences",
+          "How would you like to save?",
+          [
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+            {
+              text: "Permanent Only",
+              onPress: () => performSave("permanent", false),
+            },
+            {
+              text: "Override All",
+              style: "destructive",
+              onPress: () => {
+                Alert.alert(
+                  "Confirm Override",
+                  "This will delete all daily overrides from today onward so future dates use this permanent order.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Override All",
+                      style: "destructive",
+                      onPress: () => performSave("permanent", true),
+                    },
+                  ],
+                );
+              },
+            },
+          ],
+        );
+      }
+    };
+
+    showPrompt();
+  }, [performSave]);
 
   // Render a single item in the list
   const renderItem = useCallback(
@@ -298,10 +435,27 @@ export default function ReorderTasksScreen({
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Reorder tasks for {dateDisplay}</Text>
-        <Text style={styles.headerSubtitle}>
-          Drag tasks to set your preferred order
-        </Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>
+              Reorder tasks for {dateDisplay}
+            </Text>
+            <Text style={styles.headerSubtitle}>
+              Drag tasks to set your preferred order
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.revertButton}
+            onPress={handleRevertToPermanent}
+            disabled={reverting || saving}
+          >
+            {reverting ? (
+              <ActivityIndicator size="small" color="#5856D6" />
+            ) : (
+              <Text style={styles.revertButtonText}>Revert</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Error message */}
@@ -326,7 +480,7 @@ export default function ReorderTasksScreen({
 
         <TouchableOpacity
           style={[styles.button, styles.saveButton]}
-          onPress={() => handleSave("today")}
+          onPress={handleSaveToday}
           disabled={saving}
         >
           {saving ? (
@@ -343,7 +497,7 @@ export default function ReorderTasksScreen({
         {hasEnoughRecurringTasks && (
           <TouchableOpacity
             style={[styles.button, styles.permanentButton]}
-            onPress={() => handleSave("permanent")}
+            onPress={handleSavePermanent}
             disabled={saving}
           >
             {saving ? (
@@ -377,6 +531,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
@@ -386,6 +548,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     marginTop: 4,
+  },
+  revertButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: "#f0f0f0",
+    marginLeft: 12,
+  },
+  revertButtonText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#5856D6",
   },
   errorBanner: {
     backgroundColor: "#fee",

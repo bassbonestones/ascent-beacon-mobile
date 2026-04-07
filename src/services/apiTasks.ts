@@ -21,6 +21,7 @@ import type {
   ReorderOccurrencesResponse,
   DayOrderResponse,
   DateRangeOrderResponse,
+  PermanentOrderItem,
 } from "../types";
 import type ApiServiceBase from "./apiBase";
 
@@ -92,6 +93,8 @@ export interface TasksMethods {
     endDate: string,
   ): Promise<DateRangeOrderResponse>;
   clearOccurrenceOrder(date: string): Promise<void>;
+  clearOccurrenceOrderFrom(fromDate: string): Promise<void>;
+  getPermanentOrder(): Promise<PermanentOrderItem[]>;
 }
 
 export interface TasksListParams {
@@ -331,5 +334,18 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
       await this.request(`/tasks/occurrence-order/${date}`, {
         method: "DELETE",
       });
+    }
+
+    async clearOccurrenceOrderFrom(fromDate: string): Promise<void> {
+      await this.request(`/tasks/occurrence-order/from/${fromDate}`, {
+        method: "DELETE",
+      });
+    }
+
+    async getPermanentOrder(): Promise<PermanentOrderItem[]> {
+      // Use range API with a single day - we just need permanent_order field
+      const today = new Date().toISOString().split("T")[0];
+      const response = await this.getOccurrenceOrderRange(today, today);
+      return response.permanent_order;
     }
   };
