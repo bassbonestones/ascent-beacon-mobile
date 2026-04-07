@@ -1,6 +1,17 @@
 import type { Task } from "../types";
 
 /**
+ * Convert a Date to local YYYY-MM-DD string.
+ * Using toISOString().split("T")[0] gives UTC date which is wrong after local midnight.
+ */
+export function toLocalDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Task category for sorting and grouping in Today view.
  */
 export type TaskCategory = "overdue" | "timed" | "todo";
@@ -291,10 +302,27 @@ export function formatTaskTime(
  * Check if a task is overdue.
  */
 export function isTaskOverdue(task: Task, now: Date = new Date()): boolean {
+  // Not overdue if not pending
   if (task.status !== "pending" || !task.scheduled_at) {
     return false;
   }
-  return parseAsUtc(task.scheduled_at) < now;
+  // Recurring tasks that are completed for today are not overdue
+  if (task.is_recurring && task.completed_for_today) {
+    return false;
+  }
+
+  const scheduledDate = parseAsUtc(task.scheduled_at);
+
+  // For date_only tasks, compare against end of day (not the midnight timestamp)
+  // A date-only task for today is NOT overdue until the day is over
+  if (task.scheduling_mode === "date_only") {
+    const endOfScheduledDay = new Date(scheduledDate);
+    endOfScheduledDay.setHours(23, 59, 59, 999);
+    return now > endOfScheduledDay;
+  }
+
+  // For timed tasks, compare against the scheduled time
+  return scheduledDate < now;
 }
 
 /**
@@ -308,7 +336,7 @@ export function groupTasksByDate(tasks: Task[]): Map<string, Task[]> {
     let dateKey: string;
     if (task.scheduled_at) {
       const date = parseAsUtc(task.scheduled_at);
-      dateKey = date.toISOString().split("T")[0];
+      dateKey = toLocalDateString(date);
     } else if (task.virtualOccurrenceDate) {
       // Virtual occurrences without scheduled_at use virtualOccurrenceDate
       dateKey = task.virtualOccurrenceDate;
@@ -420,28 +448,28 @@ export function formatDateHeader(
 }
 
 /**
- * Filter tasks for upcoming view (future tasks only, not today).
+ * Filter tasks for upcoming view (today and future tasks).
  */
 export function filterTasksForUpcoming(
   tasks: Task[],
   today: Date = new Date(),
 ): Task[] {
-  const todayEnd = new Date(today);
-  todayEnd.setHours(23, 59, 59, 999);
-  const todayDateStr = today.toISOString().split("T")[0];
+  const todayStart = new Date(today);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayDateStr = toLocalDateString(today);
 
   return tasks.filter((task) => {
     // Check scheduled_at first
     if (task.scheduled_at) {
-      return parseAsUtc(task.scheduled_at) > todayEnd;
+      return parseAsUtc(task.scheduled_at) >= todayStart;
     }
 
     // For virtual occurrences without scheduled_at, check virtualOccurrenceDate
     if (task.virtualOccurrenceDate) {
-      return task.virtualOccurrenceDate > todayDateStr;
+      return task.virtualOccurrenceDate >= todayDateStr;
     }
 
-    // Unscheduled tasks don't appear in Upcoming (they're in Today)
+    // Unscheduled tasks don't appear in Upcoming (they're in Today only)
     return false;
   });
 }
@@ -796,7 +824,7 @@ export function generateRecurringOccurrences(
     if (todayWithinLimit && todayWithinUntil && todayMatchesRule) {
       if (intradayOccs.length > 1 || intradayOccs[0].time !== null) {
         // Multi-occurrence mode: create virtual tasks for today
-        const todayStr = startDate.toISOString().split("T")[0];
+        const todayStr = toLocalDateString(startDate);
         let occIndex = 0;
         for (const occ of intradayOccs) {
           let scheduledAt: string | null = null;
@@ -848,7 +876,7 @@ export function generateRecurringOccurrences(
       } else {
         // Single occurrence mode: create a virtual task for today with correct status
         // based on completed_for_today (the original task stays status="pending")
-        const todayStr = startDate.toISOString().split("T")[0];
+        const todayStr = toLocalDateString(startDate);
         const isCompleted = completionsToday > 0 || task.completed_for_today;
         const virtualTask: Task = {
           ...task,
@@ -882,7 +910,7 @@ export function generateRecurringOccurrences(
         break;
       }
 
-      const dayStr = dayDate.toISOString().split("T")[0];
+      const dayStr = toLocalDateString(dayDate);
 
       // Check if there are completions for this future date
       const completionsForDay = task.completions_by_date?.[dayStr] || [];

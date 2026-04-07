@@ -12,6 +12,7 @@ import {
 } from "./TimeMachineConfirmModals";
 import { TimeMachineStatus } from "./TimeMachineStatus";
 import { useTimeMachineActions } from "./useTimeMachineActions";
+import { toLocalDateString } from "../utils/taskSorting";
 
 type Direction = "left" | "right";
 
@@ -73,7 +74,7 @@ export function TimeMachineModal({
 
   const getDisplayDateString = (): string => {
     const date = pendingDate || travelDate || new Date();
-    return date.toISOString().split("T")[0];
+    return toLocalDateString(date);
   };
 
   const markedDates = (() => {
@@ -81,7 +82,7 @@ export function TimeMachineModal({
       {};
     const date = pendingDate || travelDate;
     if (date) {
-      marks[date.toISOString().split("T")[0]] = {
+      marks[toLocalDateString(date)] = {
         selected: true,
         selectedColor: pendingDate ? "#FF9800" : "#9C27B0",
       };
@@ -137,7 +138,7 @@ export function TimeMachineModal({
                 current={getDisplayDateString()}
                 onDayPress={handleDayPress}
                 markedDates={markedDates}
-                minDate={new Date().toISOString().split("T")[0]}
+                minDate={toLocalDateString(new Date())}
                 enableSwipeMonths
                 renderArrow={(direction: Direction) => (
                   <Ionicons

@@ -216,10 +216,10 @@ export default function TasksScreen({
           viewCompletedCount: todayCompleted,
         };
       } else {
-        // Upcoming view: group by date
+        // Upcoming view: group by date (includes today and future)
         let upcomingTasks: Task[] = [];
 
-        // Calculate counts for Upcoming view (future dates only)
+        // Calculate counts for Upcoming view (today and future dates)
 
         // Generate occurrences for counting (always need this for accurate counts)
         const allWithOccurrences = generateRecurringOccurrences(
@@ -239,11 +239,10 @@ export default function TasksScreen({
         ).length;
 
         if (statusFilter === "pending") {
-          // For recurring tasks, we need to generate future occurrences FIRST,
-          // then filter for upcoming. Otherwise today's recurring tasks get filtered out
-          // before we can generate their future occurrences.
+          // For recurring tasks, we need to generate occurrences FIRST,
+          // then filter for upcoming (today + future).
           if (!condenseRecurring) {
-            // Now filter to only show future dates (not today) AND pending status
+            // Filter to show today and future dates AND pending status
             upcomingTasks = allUpcoming.filter((t) => t.status === "pending");
           } else {
             // Condense mode: filter first, then condense
@@ -256,10 +255,10 @@ export default function TasksScreen({
           // For completed/all status in Upcoming view:
           // Use allUpcoming which includes virtual recurring occurrences
           if (statusFilter === "completed") {
-            // Show completed tasks scheduled for future dates
+            // Show completed tasks scheduled for today and future dates
             upcomingTasks = allUpcoming.filter((t) => t.status === "completed");
           } else {
-            // "all" - show all future tasks (pending + completed)
+            // "all" - show all tasks today + future (pending + completed)
             upcomingTasks = allUpcoming;
           }
         }
@@ -298,15 +297,24 @@ export default function TasksScreen({
     }
     try {
       // Determine scheduling_mode:
-      // - 'date_only': date is set but no specific time
-      // - For recurring with time: use user's choice (floating/fixed)
-      // - Otherwise: undefined
+      // - For recurring tasks: use user's choice (floating/fixed)
+      // - For non-recurring: date_only if no time, fixed if has time
       let schedulingMode: SchedulingMode | undefined;
-      if (taskForm.scheduledDate && !taskForm.scheduledTime) {
-        schedulingMode = "date_only";
-      } else if (taskForm.isRecurring && taskForm.scheduledTime) {
+      if (taskForm.isRecurring) {
+        // For recurring tasks, use the form's scheduling mode
         schedulingMode = taskForm.schedulingMode || undefined;
+      } else if (taskForm.scheduledDate || taskForm.scheduledTime) {
+        // For non-recurring scheduled tasks:
+        // - date_only if there's a date but no time
+        // - fixed if there's a time
+        schedulingMode = taskForm.scheduledTime ? "fixed" : "date_only";
       }
+
+      // For recurring tasks, ensure there's a recurrence rule
+      // Default to daily if none configured
+      const recurrenceRule = taskForm.isRecurring
+        ? taskForm.recurrenceRule || "FREQ=DAILY"
+        : undefined;
 
       await createTask({
         goal_id: taskForm.goalId || undefined,
@@ -320,9 +328,7 @@ export default function TasksScreen({
           taskForm.scheduledTime,
         ),
         is_recurring: taskForm.isRecurring,
-        recurrence_rule: taskForm.isRecurring
-          ? taskForm.recurrenceRule || undefined
-          : undefined,
+        recurrence_rule: recurrenceRule,
         scheduling_mode: schedulingMode,
       });
       taskForm.resetForm();
@@ -352,13 +358,24 @@ export default function TasksScreen({
       return;
     }
     try {
-      // Determine scheduling_mode (same logic as create)
-      let schedulingMode: SchedulingMode | undefined;
-      if (taskForm.scheduledDate && !taskForm.scheduledTime) {
-        schedulingMode = "date_only";
-      } else if (taskForm.isRecurring && taskForm.scheduledTime) {
+      // Determine scheduling_mode
+      let schedulingMode: SchedulingMode | null | undefined;
+      if (taskForm.isRecurring) {
+        // For recurring tasks, use the form's scheduling mode
         schedulingMode = taskForm.schedulingMode || undefined;
+      } else if (taskForm.scheduledDate || taskForm.scheduledTime) {
+        // For non-recurring tasks with any scheduling:
+        // - date_only if there's a date but no time
+        // - fixed if there's a time (need to clear date_only)
+        schedulingMode = taskForm.scheduledTime ? "fixed" : "date_only";
       }
+      // If no scheduling at all, leave undefined (don't change existing)
+
+      // For recurring tasks, ensure there's a recurrence rule
+      // Default to daily if none configured
+      const recurrenceRule = taskForm.isRecurring
+        ? taskForm.recurrenceRule || "FREQ=DAILY"
+        : undefined;
 
       await updateTask(editingTask.id, {
         goal_id: taskForm.goalId || undefined,
@@ -372,9 +389,7 @@ export default function TasksScreen({
           taskForm.scheduledTime,
         ),
         is_recurring: taskForm.isRecurring,
-        recurrence_rule: taskForm.isRecurring
-          ? taskForm.recurrenceRule || undefined
-          : undefined,
+        recurrence_rule: recurrenceRule,
         scheduling_mode: schedulingMode,
       });
       taskForm.resetForm();

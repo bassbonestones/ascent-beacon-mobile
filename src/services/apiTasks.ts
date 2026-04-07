@@ -69,6 +69,7 @@ export interface TasksListParams {
   goal_id?: string;
   status?: string;
   include_completed?: boolean;
+  client_today?: string; // Client's local date as YYYY-MM-DD
 }
 
 /**
@@ -89,6 +90,9 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
       }
       if (params.include_completed) {
         searchParams.append("include_completed", "true");
+      }
+      if (params.client_today) {
+        searchParams.append("client_today", params.client_today);
       }
 
       const queryString = searchParams.toString();

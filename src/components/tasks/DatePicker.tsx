@@ -55,8 +55,11 @@ export function DatePicker({
     return `${monthName} ${parseInt(d, 10)}, ${y}`;
   };
 
-  // Get today's date for minDate if not provided
-  const today = new Date().toISOString().split("T")[0];
+  // Get today's date in LOCAL time for minDate
+  // Using toISOString() would give UTC date, which after UTC midnight
+  // would show tomorrow's date and disable today
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
   return (
     <View>

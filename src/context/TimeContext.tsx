@@ -9,6 +9,7 @@ import React, {
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import api from "../services/api";
+import { toLocalDateString } from "../utils/taskSorting";
 
 const TIME_MACHINE_ENABLED_KEY = "time_machine_enabled";
 const TRAVEL_DATE_KEY = "time_travel_date";
@@ -155,8 +156,8 @@ export function TimeProvider({
 
   const revertToDate = useCallback(
     async (date: Date): Promise<{ deletedCount: number }> => {
-      // Format date as YYYY-MM-DD for API
-      const dateStr = date.toISOString().split("T")[0];
+      // Format date as YYYY-MM-DD for API (using local date, not UTC)
+      const dateStr = toLocalDateString(date);
 
       // Call API to delete completions after the specified date
       const result = await api.deleteFutureCompletions(dateStr);

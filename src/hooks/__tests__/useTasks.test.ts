@@ -102,10 +102,13 @@ describe("useTasks", () => {
       renderHook(() => useTasks({ goalId: "g1", status: "pending" }));
 
       await waitFor(() => {
-        expect(mockedApi.getTasks).toHaveBeenCalledWith({
-          goal_id: "g1",
-          status: "pending",
-        });
+        expect(mockedApi.getTasks).toHaveBeenCalledWith(
+          expect.objectContaining({
+            goal_id: "g1",
+            status: "pending",
+            client_today: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+          }),
+        );
       });
     });
 

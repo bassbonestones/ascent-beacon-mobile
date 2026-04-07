@@ -12,6 +12,7 @@ import {
   getTaskWindow,
   hasFlexibleWindow,
   getEffectiveStartTime,
+  toLocalDateString,
 } from "../taskSorting";
 import type { Task } from "../../types";
 
@@ -49,6 +50,27 @@ describe("taskSorting", () => {
     const day = String(tomorrow.getDate()).padStart(2, "0");
     return `${year}${month}${day}`;
   };
+
+  describe("toLocalDateString", () => {
+    it("returns local date string in YYYY-MM-DD format", () => {
+      // Create a date that is April 6th in local time
+      const localDate = new Date(2026, 3, 6, 20, 30, 0); // April 6, 2026 8:30 PM local
+      expect(toLocalDateString(localDate)).toBe("2026-04-06");
+    });
+
+    it("handles dates near midnight correctly (avoids UTC conversion bug)", () => {
+      // This tests the critical bug: at 8:30 PM CDT (UTC-5), toISOString() would
+      // return the next day's date (April 7) because it's already 1:30 AM UTC
+      // toLocalDateString should always return the LOCAL date
+      const lateNight = new Date(2026, 3, 6, 23, 59, 59); // April 6, 2026 11:59 PM local
+      expect(toLocalDateString(lateNight)).toBe("2026-04-06");
+    });
+
+    it("pads single-digit months and days", () => {
+      const earlyDate = new Date(2026, 0, 5); // Jan 5, 2026
+      expect(toLocalDateString(earlyDate)).toBe("2026-01-05");
+    });
+  });
 
   describe("getTaskCategory", () => {
     it("returns todo for unscheduled pending tasks", () => {
@@ -198,6 +220,45 @@ describe("taskSorting", () => {
       });
       expect(isTaskOverdue(task, now)).toBe(false);
     });
+
+    it("returns false for date_only task when same day is not over", () => {
+      // Task scheduled for today (June 15) as date_only
+      // Create a timestamp representing midnight LOCAL June 15 (as dateTimeToIso would)
+      const todayMidnightLocal = new Date(2024, 5, 15, 0, 0, 0, 0); // June 15 midnight local
+      const task = createMockTask({
+        scheduled_at: todayMidnightLocal.toISOString(),
+        scheduling_mode: "date_only",
+        status: "pending",
+      });
+      // Current time is noon on June 15 local - should NOT be overdue
+      const noonLocal = new Date(2024, 5, 15, 12, 0, 0, 0);
+      expect(isTaskOverdue(task, noonLocal)).toBe(false);
+    });
+
+    it("returns true for date_only task when day has passed", () => {
+      // Task scheduled for yesterday (June 14) as date_only
+      const yesterdayMidnightLocal = new Date(2024, 5, 14, 0, 0, 0, 0);
+      const task = createMockTask({
+        scheduled_at: yesterdayMidnightLocal.toISOString(),
+        scheduling_mode: "date_only",
+        status: "pending",
+      });
+      // Current time is June 15 - should be overdue (whole day passed)
+      const todayNoonLocal = new Date(2024, 5, 15, 12, 0, 0, 0);
+      expect(isTaskOverdue(task, todayNoonLocal)).toBe(true);
+    });
+
+    it("returns true for timed task earlier today", () => {
+      // Task scheduled for 9 AM today local, current time is noon - overdue
+      const nineAmLocal = new Date(2024, 5, 15, 9, 0, 0, 0);
+      const task = createMockTask({
+        scheduled_at: nineAmLocal.toISOString(),
+        scheduling_mode: "fixed",
+        status: "pending",
+      });
+      const noonLocal = new Date(2024, 5, 15, 12, 0, 0, 0);
+      expect(isTaskOverdue(task, noonLocal)).toBe(true);
+    });
   });
 
   describe("condenseRecurringTasks", () => {
@@ -271,10 +332,10 @@ describe("taskSorting", () => {
       expect(filtered.length).toBe(0);
     });
 
-    it("excludes tasks scheduled for today", () => {
+    it("includes tasks scheduled for today", () => {
       const tasks = [createMockTask({ scheduled_at: "2024-06-15T14:00:00Z" })];
       const filtered = filterTasksForUpcoming(tasks, now);
-      expect(filtered.length).toBe(0);
+      expect(filtered.length).toBe(1);
     });
 
     it("excludes overdue tasks", () => {
@@ -302,7 +363,7 @@ describe("taskSorting", () => {
       expect(filtered.length).toBe(1);
     });
 
-    it("excludes virtual occurrences with today's virtualOccurrenceDate", () => {
+    it("includes virtual occurrences with today's virtualOccurrenceDate", () => {
       const tasks = [
         createMockTask({
           id: "virtual-today",
@@ -312,7 +373,7 @@ describe("taskSorting", () => {
         }),
       ];
       const filtered = filterTasksForUpcoming(tasks, now);
-      expect(filtered.length).toBe(0);
+      expect(filtered.length).toBe(1);
     });
   });
 
@@ -554,7 +615,7 @@ describe("taskSorting", () => {
       expect(virtualOccurrences.length).toBe(12);
 
       // Check IDs have occurrence suffix
-      const todayStr = now.toISOString().split("T")[0];
+      const todayStr = toLocalDateString(now);
       const todayOccs = virtualOccurrences.filter(
         (t) => t.virtualOccurrenceDate === todayStr,
       );
@@ -606,7 +667,7 @@ describe("taskSorting", () => {
       expect(virtualOccurrences.length).toBe(9);
 
       // Check specific times are in scheduled_at
-      const todayStr = now.toISOString().split("T")[0];
+      const todayStr = toLocalDateString(now);
       const todayOccs = virtualOccurrences.filter(
         (t) => t.virtualOccurrenceDate === todayStr,
       );
@@ -667,7 +728,7 @@ describe("taskSorting", () => {
 
       const result = generateRecurringOccurrences([task], now, 1);
 
-      const todayStr = now.toISOString().split("T")[0];
+      const todayStr = toLocalDateString(now);
       const todayOccs = result.filter(
         (t) => t.isVirtualOccurrence && t.virtualOccurrenceDate === todayStr,
       );

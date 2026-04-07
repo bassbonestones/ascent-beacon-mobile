@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import api from "../services/api";
 import { showAlert } from "../utils/alert";
+import { toLocalDateString } from "../utils/taskSorting";
 import type {
   Task,
   CreateTaskRequest,
@@ -28,10 +29,14 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
     try {
       setLoading(true);
       setError(null);
+      // Pass the client's local date so the backend can correctly determine "today"
+      // This fixes timezone issues where UTC "today" differs from user's local "today"
+      const clientToday = toLocalDateString(new Date());
       const response = await api.getTasks({
         goal_id: options.goalId,
         status: options.status,
         include_completed: options.includeCompleted,
+        client_today: clientToday,
       });
       setTasks(response.tasks);
       setPendingCount(response.pending_count);

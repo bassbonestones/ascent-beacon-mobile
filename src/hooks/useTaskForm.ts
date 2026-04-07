@@ -98,9 +98,15 @@ export function useTaskForm(): UseTaskFormReturn {
       const day = String(date.getDate()).padStart(2, "0");
       setScheduledDate(`${year}-${month}-${day}`);
 
-      const hours = String(date.getHours()).padStart(2, "0");
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      setScheduledTime(`${hours}:${minutes}`);
+      // Only set time if this is NOT a date-only task
+      // date_only tasks have scheduled_at set to midnight but shouldn't show time
+      if (task.scheduling_mode === "date_only") {
+        setScheduledTime(null);
+      } else {
+        const hours = String(date.getHours()).padStart(2, "0");
+        const minutes = String(date.getMinutes()).padStart(2, "0");
+        setScheduledTime(`${hours}:${minutes}`);
+      }
     } else {
       setScheduledDate(null);
       setScheduledTime(null);
