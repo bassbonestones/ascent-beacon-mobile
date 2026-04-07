@@ -33,6 +33,7 @@ import {
   formatDateHeader,
   generateRecurringOccurrences,
   parseAsUtc,
+  toLocalDateString,
 } from "../utils/taskSorting";
 
 interface TasksScreenProps {
@@ -64,21 +65,27 @@ export default function TasksScreen({
   // In Today view, fetch ALL tasks so we can generate virtual occurrences
   // and then filter by status on the frontend. This allows recurring tasks
   // with completions_today > 0 to show completed occurrences.
-  // In Upcoming view, use the status filter as before.
+  // In Upcoming view, we also need to fetch all for "completed" and "skipped"
+  // filters because recurring tasks have status="pending" but their occurrences
+  // can be completed/skipped (stored in completions_by_date / skips_by_date).
   const apiStatusFilter =
     listViewMode === "today"
       ? undefined // Fetch all, filter on frontend
-      : statusFilter === "all"
-        ? undefined
+      : statusFilter === "all" ||
+          statusFilter === "completed" ||
+          statusFilter === "skipped"
+        ? undefined // Fetch all, filter on frontend after generating virtual occurrences
         : statusFilter;
 
   // Include completed tasks when:
   // - Today view (to show in "Completed" filter)
-  // - Upcoming view with "all" or "completed" filter
+  // - Upcoming view with "all", "completed", or "skipped" filter
+  // NOTE: "skipped" needs this too to get skips_by_date from the API
   const apiIncludeCompleted =
     listViewMode === "today" ||
     statusFilter === "all" ||
-    statusFilter === "completed";
+    statusFilter === "completed" ||
+    statusFilter === "skipped";
 
   const {
     tasks,
@@ -457,6 +464,7 @@ export default function TasksScreen({
 
         // For recurring tasks, pass the current occurrence date (or travel date)
         let scheduledFor: string | undefined;
+        let localDate: string | undefined;
         if (task.is_recurring) {
           // For virtual occurrences, use the virtual occurrence date
           if (task.isVirtualOccurrence && task.virtualOccurrenceDate) {
@@ -476,6 +484,7 @@ export default function TasksScreen({
               );
             }
             scheduledFor = occDate.toISOString();
+            localDate = task.virtualOccurrenceDate;
           } else if (task.scheduled_at) {
             // Use current date (real or travel) with the task's scheduled time
             const originalTime = parseAsUtc(task.scheduled_at);
@@ -487,12 +496,16 @@ export default function TasksScreen({
               0,
             );
             scheduledFor = today.toISOString();
+            localDate = toLocalDateString(getCurrentDate());
           } else {
-            // No scheduled time, use current date
-            scheduledFor = getCurrentDate().toISOString();
+            // No scheduled time, use midnight local time to ensure date matches client_today
+            const today = getCurrentDate();
+            today.setHours(0, 0, 0, 0);
+            scheduledFor = today.toISOString();
+            localDate = toLocalDateString(getCurrentDate());
           }
         }
-        await completeTask(taskId, scheduledFor);
+        await completeTask(taskId, scheduledFor, localDate);
         // Close detail view after completing
         setSelectedTask(null);
         setScreenMode("list");
@@ -512,6 +525,7 @@ export default function TasksScreen({
 
         // For recurring tasks, pass the current occurrence date (or travel date)
         let scheduledFor: string | undefined;
+        let localDate: string | undefined;
         if (skipModalTask.is_recurring) {
           // For virtual occurrences, use the virtual occurrence date
           if (
@@ -533,6 +547,7 @@ export default function TasksScreen({
               );
             }
             scheduledFor = occDate.toISOString();
+            localDate = skipModalTask.virtualOccurrenceDate;
           } else if (skipModalTask.scheduled_at) {
             const originalTime = parseAsUtc(skipModalTask.scheduled_at);
             const today = getCurrentDate();
@@ -543,11 +558,16 @@ export default function TasksScreen({
               0,
             );
             scheduledFor = today.toISOString();
+            localDate = toLocalDateString(getCurrentDate());
           } else {
-            scheduledFor = getCurrentDate().toISOString();
+            // No scheduled time, use midnight local time to ensure date matches client_today
+            const today = getCurrentDate();
+            today.setHours(0, 0, 0, 0);
+            scheduledFor = today.toISOString();
+            localDate = toLocalDateString(getCurrentDate());
           }
         }
-        await skipTask(taskId, reason, scheduledFor);
+        await skipTask(taskId, reason, scheduledFor, localDate);
         setSkipModalTask(null);
         // Close detail view after skipping (check both real and virtual IDs)
         if (
@@ -577,6 +597,7 @@ export default function TasksScreen({
 
         // For recurring tasks, pass the scheduled_for to identify which completion to undo
         let scheduledFor: string | undefined;
+        let localDate: string | undefined;
         if (task.is_recurring) {
           // For virtual occurrences, use the virtual occurrence date + scheduled time
           if (task.isVirtualOccurrence && task.virtualOccurrenceDate) {
@@ -594,6 +615,7 @@ export default function TasksScreen({
               );
             }
             scheduledFor = occDate.toISOString();
+            localDate = task.virtualOccurrenceDate;
           } else if (task.scheduled_at) {
             // Use current date with the task's scheduled time
             const originalTime = parseAsUtc(task.scheduled_at);
@@ -605,12 +627,16 @@ export default function TasksScreen({
               0,
             );
             scheduledFor = today.toISOString();
+            localDate = toLocalDateString(getCurrentDate());
           } else {
-            scheduledFor = getCurrentDate().toISOString();
+            const today = getCurrentDate();
+            today.setHours(0, 0, 0, 0);
+            scheduledFor = today.toISOString();
+            localDate = toLocalDateString(getCurrentDate());
           }
         }
 
-        await reopenTask(taskId, scheduledFor);
+        await reopenTask(taskId, scheduledFor, localDate);
         // Close detail view after reopening
         setSelectedTask(null);
         setScreenMode("list");
@@ -811,26 +837,28 @@ export default function TasksScreen({
       </View>
 
       <View style={styles.filterRow}>
-        {(["pending", "completed", "skipped", "all"] as StatusFilter[]).map((filter) => (
-          <TouchableOpacity
-            key={filter}
-            style={[
-              styles.filterToggle,
-              statusFilter === filter && styles.filterToggleActive,
-            ]}
-            onPress={() => setStatusFilter(filter)}
-            accessibilityLabel={`Show ${filter} tasks`}
-          >
-            <Text
+        {(["pending", "completed", "skipped", "all"] as StatusFilter[]).map(
+          (filter) => (
+            <TouchableOpacity
+              key={filter}
               style={[
-                styles.filterToggleText,
-                statusFilter === filter && styles.filterToggleTextActive,
+                styles.filterToggle,
+                statusFilter === filter && styles.filterToggleActive,
               ]}
+              onPress={() => setStatusFilter(filter)}
+              accessibilityLabel={`Show ${filter} tasks`}
             >
-              {filter.charAt(0).toUpperCase() + filter.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.filterToggleText,
+                  statusFilter === filter && styles.filterToggleTextActive,
+                ]}
+              >
+                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ),
+        )}
       </View>
 
       {statusFilter === "pending" && listViewMode === "today" && (

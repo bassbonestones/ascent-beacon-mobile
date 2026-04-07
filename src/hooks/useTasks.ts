@@ -87,10 +87,15 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
   );
 
   const completeTask = useCallback(
-    async (id: string, scheduledFor?: string): Promise<Task> => {
+    async (
+      id: string,
+      scheduledFor?: string,
+      localDate?: string,
+    ): Promise<Task> => {
       try {
         const updated = await api.completeTask(id, {
           scheduled_for: scheduledFor,
+          local_date: localDate,
         });
         // For recurring tasks, refetch to get updated completions_today
         // This ensures virtual occurrences are regenerated with correct completion status
@@ -121,11 +126,13 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
       id: string,
       reason?: string,
       scheduledFor?: string,
+      localDate?: string,
     ): Promise<Task> => {
       try {
         const updated = await api.skipTask(id, {
           reason,
           scheduled_for: scheduledFor,
+          local_date: localDate,
         });
         // For recurring tasks, refetch to get updated completions_today
         if (updated.is_recurring) {
@@ -146,7 +153,11 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
   );
 
   const reopenTask = useCallback(
-    async (id: string, scheduledFor?: string): Promise<Task> => {
+    async (
+      id: string,
+      scheduledFor?: string,
+      localDate?: string,
+    ): Promise<Task> => {
       try {
         const task = tasks.find((t) => t.id === id);
         const wasCompleted = task?.status === "completed";
@@ -154,6 +165,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
 
         const updated = await api.reopenTask(id, {
           scheduled_for: scheduledFor,
+          local_date: localDate,
         });
 
         // For recurring tasks, refetch to get updated completion counts

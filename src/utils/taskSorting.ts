@@ -307,7 +307,10 @@ export function isTaskOverdue(task: Task, now: Date = new Date()): boolean {
     return false;
   }
   // Recurring tasks that are completed or skipped for today are not overdue
-  if (task.is_recurring && (task.completed_for_today || task.skipped_for_today)) {
+  if (
+    task.is_recurring &&
+    (task.completed_for_today || task.skipped_for_today)
+  ) {
     return false;
   }
 
@@ -810,6 +813,15 @@ export function generateRecurringOccurrences(
       }),
     );
 
+    // Track skipped times for matching
+    const skippedTimesSet = new Set(
+      (task.skipped_times_today || []).map((t) => {
+        const d = parseAsUtc(t);
+        return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+      }),
+    );
+    const skipsToday = task.skips_today || 0;
+
     // Check if today is a valid day for this recurrence rule
     // For WEEKLY with BYDAY, only show on matching days
     const todayDayOfWeek = startDate.getDay(); // 0=Sun, 1=Mon, etc.
@@ -826,6 +838,7 @@ export function generateRecurringOccurrences(
         // Multi-occurrence mode: create virtual tasks for today
         const todayStr = toLocalDateString(startDate);
         let occIndex = 0;
+        let skipIndex = 0;
         for (const occ of intradayOccs) {
           let scheduledAt: string | null = null;
           if (occ.time) {
@@ -838,6 +851,7 @@ export function generateRecurringOccurrences(
           // For timed occurrences, match by time; for anytime mode, use index fallback
           let isCompleted = false;
           let completedAt: string | null = null;
+          let isSkipped = false;
           if (occ.time && completedTimesSet.size > 0) {
             // Match by time (HH:MM)
             isCompleted = completedTimesSet.has(occ.time);
@@ -858,13 +872,35 @@ export function generateRecurringOccurrences(
               completedAt = scheduledAt || startDate.toISOString();
             }
           }
+
+          // Check if this occurrence is skipped (only if not completed)
+          if (!isCompleted) {
+            if (occ.time && skippedTimesSet.size > 0) {
+              isSkipped = skippedTimesSet.has(occ.time);
+            } else {
+              // Fallback for anytime mode: use index-based counting for skips
+              isSkipped = skipIndex < skipsToday;
+              if (isSkipped) skipIndex++;
+            }
+          }
+
+          // Determine status: completed > skipped > pending
+          let status: "completed" | "skipped" | "pending" = "pending";
+          if (isCompleted) {
+            status = "completed";
+          } else if (isSkipped) {
+            status = "skipped";
+          }
+
           const virtualTask: Task = {
             ...task,
             id: `${task.id}__${todayStr}${occ.suffix}`,
             scheduled_at: scheduledAt,
-            status: isCompleted ? "completed" : "pending",
+            status: status,
             completed_at: completedAt,
             completed_for_today: isCompleted,
+            skipped_for_today: isSkipped,
+            skip_reason: isSkipped ? (task.skip_reason_today ?? null) : null,
             isVirtualOccurrence: true,
             virtualOccurrenceDate: todayStr,
             originalTaskId: task.id,
@@ -895,6 +931,8 @@ export function generateRecurringOccurrences(
           status: status,
           completed_for_today: isCompleted,
           skipped_for_today: isSkipped,
+          // Copy skip reason for today
+          skip_reason: isSkipped ? (task.skip_reason_today ?? null) : null,
           isVirtualOccurrence: true,
           virtualOccurrenceDate: todayStr,
           originalTaskId: task.id,
@@ -927,6 +965,11 @@ export function generateRecurringOccurrences(
       // Check if there are completions for this future date
       const completionsForDay = task.completions_by_date?.[dayStr] || [];
       const completionsCountForDay = completionsForDay.length;
+
+      // Check if there are skips for this future date
+      const skipsForDay = task.skips_by_date?.[dayStr] || [];
+      const skipsCountForDay = skipsForDay.length;
+      const skipReasonForDay = task.skip_reasons_by_date?.[dayStr] || null;
 
       // Build a set of completed times for this day (for timed occurrences)
       const completedTimesForDaySet = new Set(
@@ -979,13 +1022,26 @@ export function generateRecurringOccurrences(
           }
         }
 
+        // Determine if this occurrence is skipped (only checked if not completed)
+        const isSkipped = !isCompleted && skipsCountForDay > 0;
+
+        // Determine status: completed > skipped > pending
+        let status: "completed" | "skipped" | "pending" = "pending";
+        if (isCompleted) {
+          status = "completed";
+        } else if (isSkipped) {
+          status = "skipped";
+        }
+
         const virtualTask: Task = {
           ...task,
           id: `${task.id}__${dayStr}${occ.suffix}`,
           scheduled_at: scheduledAt,
-          status: isCompleted ? "completed" : "pending",
+          status: status,
           completed_at: completedAt,
           completed_for_today: isCompleted, // Mark as done for this day
+          skipped_for_today: isSkipped,
+          skip_reason: isSkipped ? skipReasonForDay : null,
           isVirtualOccurrence: true,
           virtualOccurrenceDate: dayStr,
           originalTaskId: task.id,

@@ -429,8 +429,8 @@ describe("TasksScreen", () => {
       fireEvent.press(screen.getByLabelText("Task: Complete Me"));
       fireEvent.press(screen.getByLabelText("Complete task"));
       await waitFor(() => {
-        // Non-recurring task passes undefined for scheduledFor
-        expect(completeTask).toHaveBeenCalledWith("t-1", undefined);
+        // Non-recurring task passes undefined for scheduledFor and localDate
+        expect(completeTask).toHaveBeenCalledWith("t-1", undefined, undefined);
       });
     });
 
@@ -456,8 +456,13 @@ describe("TasksScreen", () => {
       fireEvent.press(screen.getAllByLabelText("Skip task")[1]);
 
       await waitFor(() => {
-        // Non-recurring task passes undefined for both reason and scheduledFor
-        expect(skipTask).toHaveBeenCalledWith("t-1", undefined, undefined);
+        // Non-recurring task passes undefined for both reason, scheduledFor, and localDate
+        expect(skipTask).toHaveBeenCalledWith(
+          "t-1",
+          undefined,
+          undefined,
+          undefined,
+        );
       });
     });
 
@@ -488,10 +493,11 @@ describe("TasksScreen", () => {
       fireEvent.press(screen.getAllByLabelText("Skip task")[1]);
 
       await waitFor(() => {
-        // Non-recurring task passes undefined for scheduledFor (3rd arg)
+        // Non-recurring task passes undefined for scheduledFor and localDate (3rd and 4th args)
         expect(skipTask).toHaveBeenCalledWith(
           "t-1",
           "Too busy today",
+          undefined,
           undefined,
         );
       });
@@ -553,7 +559,8 @@ describe("TasksScreen", () => {
       fireEvent.press(screen.getByLabelText("Reopen task"));
 
       await waitFor(() => {
-        expect(reopenTask).toHaveBeenCalledWith("t-1", undefined);
+        // Non-recurring task passes undefined for scheduledFor and localDate
+        expect(reopenTask).toHaveBeenCalledWith("t-1", undefined, undefined);
       });
     });
 
@@ -595,8 +602,8 @@ describe("TasksScreen", () => {
       fireEvent.press(screen.getByLabelText("Complete task: Quick Complete"));
 
       await waitFor(() => {
-        // Non-recurring task passes undefined for scheduledFor
-        expect(completeTask).toHaveBeenCalledWith("t-1", undefined);
+        // Non-recurring task passes undefined for scheduledFor and localDate
+        expect(completeTask).toHaveBeenCalledWith("t-1", undefined, undefined);
       });
     });
   });

@@ -270,9 +270,12 @@ export function TaskDetailView({
   onEdit,
   onViewTracking,
 }: TaskDetailViewProps): React.ReactElement {
-  const isPending = task.status === "pending";
-  const isCompleted = task.status === "completed";
-  const isSkipped = task.status === "skipped";
+  const isPending =
+    task.status === "pending" &&
+    !task.completed_for_today &&
+    !task.skipped_for_today;
+  const isCompleted = task.status === "completed" || task.completed_for_today;
+  const isSkipped = task.status === "skipped" || task.skipped_for_today;
 
   return (
     <View style={styles.container}>

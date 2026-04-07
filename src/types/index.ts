@@ -683,6 +683,10 @@ export interface Task {
   skipped_times_today?: string[];
   // For recurring tasks, skips indexed by date (YYYY-MM-DD) -> list of skip timestamps
   skips_by_date?: Record<string, string[]>;
+  // For recurring tasks, the skip reason for today
+  skip_reason_today?: string | null;
+  // For recurring tasks, skip reasons indexed by date (YYYY-MM-DD)
+  skip_reasons_by_date?: Record<string, string | null>;
   // For virtual occurrences generated in Upcoming view
   isVirtualOccurrence?: boolean;
   virtualOccurrenceDate?: string; // YYYY-MM-DD format
@@ -725,15 +729,18 @@ export interface UpdateTaskRequest {
 export interface CompleteTaskRequest {
   completed_at?: string | null;
   scheduled_for?: string | null; // For recurring tasks: which occurrence was completed
+  local_date?: string | null; // Client's local date (YYYY-MM-DD) for this occurrence
 }
 
 export interface SkipTaskRequest {
   reason?: string | null;
   scheduled_for?: string | null; // For recurring tasks: which occurrence was skipped
+  local_date?: string | null; // Client's local date (YYYY-MM-DD) for this occurrence
 }
 
 export interface ReopenTaskRequest {
   scheduled_for?: string | null; // For recurring tasks: which occurrence to undo
+  local_date?: string | null; // Client's local date (YYYY-MM-DD) for this occurrence
 }
 
 // Phase 4b: Task completion history (for recurring tasks)
@@ -826,13 +833,22 @@ export interface UseTasksReturn {
   refetch: () => Promise<void>;
   createTask: (data: CreateTaskRequest) => Promise<Task>;
   updateTask: (id: string, data: UpdateTaskRequest) => Promise<Task>;
-  completeTask: (id: string, scheduledFor?: string) => Promise<Task>;
+  completeTask: (
+    id: string,
+    scheduledFor?: string,
+    localDate?: string,
+  ) => Promise<Task>;
   skipTask: (
     id: string,
     reason?: string,
     scheduledFor?: string,
+    localDate?: string,
   ) => Promise<Task>;
-  reopenTask: (id: string, scheduledFor?: string) => Promise<Task>;
+  reopenTask: (
+    id: string,
+    scheduledFor?: string,
+    localDate?: string,
+  ) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
 }
 
