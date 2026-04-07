@@ -708,7 +708,13 @@ export default function TasksScreen({
 
   const handleDelete = useCallback(
     async (task: Task) => {
-      if (await showConfirm("Delete Task", `Delete "${task.title}"?`)) {
+      // Build confirmation message - warn about completion history for recurring tasks
+      let message = `Delete "${task.title}"?`;
+      if (task.is_recurring) {
+        message = `Delete "${task.title}" and all its completion history?\n\nThis recurring task's entire history will be permanently removed.`;
+      }
+
+      if (await showConfirm("Delete Task", message)) {
         try {
           // Use originalTaskId for virtual occurrences, otherwise use task.id
           const taskId = task.originalTaskId || task.id;
