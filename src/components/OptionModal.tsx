@@ -4,7 +4,7 @@
  * Works on both web and native platforms using React Native's Modal component.
  * Provides a consistent UX for confirmation dialogs with custom buttons.
  */
-import React from "react";
+import React, { useCallback } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,15 @@ import {
   Modal,
   StyleSheet,
   Pressable,
+  Platform,
 } from "react-native";
+
+// Blur active element to avoid aria-hidden focus warning on web
+const blurActiveElement = () => {
+  if (Platform.OS === "web" && typeof document !== "undefined") {
+    (document.activeElement as HTMLElement)?.blur?.();
+  }
+};
 
 export interface OptionModalButton {
   /** Button label */
@@ -59,16 +67,28 @@ export function OptionModal({
   buttons,
   onDismiss,
 }: OptionModalProps): React.ReactElement {
+  // Wrap onDismiss to blur first
+  const handleDismiss = useCallback(() => {
+    blurActiveElement();
+    onDismiss?.();
+  }, [onDismiss]);
+
+  // Wrap button onPress to blur first
+  const handleButtonPress = useCallback((onPress: () => void) => {
+    blurActiveElement();
+    onPress();
+  }, []);
+
   return (
     <Modal
       visible={visible}
       animationType="fade"
       transparent
-      onRequestClose={onDismiss}
+      onRequestClose={handleDismiss}
     >
       <Pressable
         style={styles.overlay}
-        onPress={onDismiss}
+        onPress={handleDismiss}
         testID="option-modal-overlay"
       >
         <Pressable
@@ -83,7 +103,7 @@ export function OptionModal({
               <TouchableOpacity
                 key={index}
                 style={[styles.button, getButtonStyle(button.style)]}
-                onPress={button.onPress}
+                onPress={() => handleButtonPress(button.onPress)}
                 testID={`option-modal-button-${index}`}
               >
                 <Text

@@ -58,6 +58,13 @@ interface TasksScreenProps {
   navigation: NativeStackNavigationProp<RootStackParamList>;
 }
 
+// Blur active element to avoid aria-hidden focus warning on web
+const blurActiveElement = (): void => {
+  if (Platform.OS === "web" && typeof document !== "undefined") {
+    (document.activeElement as HTMLElement | null)?.blur?.();
+  }
+};
+
 type ScreenMode = "list" | "create" | "detail" | "edit";
 type ListViewMode = "today" | "upcoming" | "anytime";
 type StatusFilter = "all" | "pending" | "completed" | "skipped";
@@ -898,6 +905,7 @@ export default function TasksScreen({
       };
     });
 
+    blurActiveElement();
     navigation.navigate("ReorderTasks", {
       date: todayDateStr,
       dateDisplay: "Today",
@@ -992,12 +1000,6 @@ export default function TasksScreen({
     },
     [deleteTask],
   );
-
-  const blurActiveElement = (): void => {
-    if (Platform.OS === "web" && typeof document !== "undefined") {
-      (document.activeElement as HTMLElement | null)?.blur?.();
-    }
-  };
 
   if (screenMode === "create") {
     return (
@@ -1158,12 +1160,12 @@ export default function TasksScreen({
         )}
         {hasReorderableUntimedTasks && (
           <TouchableOpacity
-            style={styles.condenseToggle}
+            style={styles.summaryReorderButton}
             onPress={handleNavigateToReorder}
             accessibilityLabel="Reorder untimed tasks"
             accessibilityRole="button"
           >
-            <Text style={styles.condenseToggleText}>Reorder</Text>
+            <Text style={styles.summaryReorderButtonText}>Reorder</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity
@@ -1303,6 +1305,7 @@ export default function TasksScreen({
                   key: `${task.id}-${occIndex}`,
                 };
               });
+              blurActiveElement();
               navigation.navigate("ReorderTasks", {
                 date: section.dateKey,
                 dateDisplay: section.title,

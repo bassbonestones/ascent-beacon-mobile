@@ -17,6 +17,13 @@ import {
   FlatList,
   ActivityIndicator,
 } from "react-native";
+
+// Blur active element to avoid aria-hidden focus warning on web
+const blurActiveElement = () => {
+  if (Platform.OS === "web" && typeof document !== "undefined") {
+    (document.activeElement as HTMLElement)?.blur?.();
+  }
+};
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type {
   OccurrenceItem,
@@ -190,18 +197,21 @@ export default function ReorderTasksScreen({
 
   // Handle permanent only option
   const handlePermanentOnly = useCallback(() => {
+    blurActiveElement();
     setShowPermanentModal(false);
     performSave("permanent", false);
   }, [performSave]);
 
   // Handle override all option - show confirmation first
   const handleOverrideAllOption = useCallback(() => {
+    blurActiveElement();
     setShowPermanentModal(false);
     setShowConfirmOverrideModal(true);
   }, []);
 
   // Handle confirmed override all
   const handleConfirmOverrideAll = useCallback(() => {
+    blurActiveElement();
     setShowConfirmOverrideModal(false);
     performSave("permanent", true);
   }, [performSave]);
@@ -478,11 +488,17 @@ export default function ReorderTasksScreen({
         visible={showPermanentModal}
         title="Save Permanent Preferences"
         message="How would you like to save your preferred order?"
-        onDismiss={() => setShowPermanentModal(false)}
+        onDismiss={() => {
+          blurActiveElement();
+          setShowPermanentModal(false);
+        }}
         buttons={[
           {
             label: "Cancel",
-            onPress: () => setShowPermanentModal(false),
+            onPress: () => {
+              blurActiveElement();
+              setShowPermanentModal(false);
+            },
             style: "cancel",
           },
           {
@@ -503,11 +519,17 @@ export default function ReorderTasksScreen({
         visible={showConfirmOverrideModal}
         title="Confirm Override"
         message="This will delete all daily overrides from today onward, so future dates will use this permanent order."
-        onDismiss={() => setShowConfirmOverrideModal(false)}
+        onDismiss={() => {
+          blurActiveElement();
+          setShowConfirmOverrideModal(false);
+        }}
         buttons={[
           {
             label: "Cancel",
-            onPress: () => setShowConfirmOverrideModal(false),
+            onPress: () => {
+              blurActiveElement();
+              setShowConfirmOverrideModal(false);
+            },
             style: "cancel",
           },
           {

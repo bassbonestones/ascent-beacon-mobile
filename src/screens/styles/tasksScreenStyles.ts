@@ -120,15 +120,15 @@ export const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   sectionReorderButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    backgroundColor: "#374151",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: "#4B5563",
   },
   sectionReorderButtonText: {
     fontSize: 12,
-    fontWeight: "500",
-    color: "#9CA3AF",
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
   summaryRow: {
     flexDirection: "row",
@@ -173,6 +173,20 @@ export const styles = StyleSheet.create({
     fontWeight: "500",
   },
   condenseToggleTextActive: {
+    color: "#FFFFFF",
+  },
+  // Reorder button in Today summary row - matches section header style
+  summaryReorderButton: {
+    marginLeft: "auto",
+    marginRight: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: "#4B5563",
+  },
+  summaryReorderButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
     color: "#FFFFFF",
   },
   loader: {
