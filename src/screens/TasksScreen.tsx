@@ -327,18 +327,12 @@ export default function TasksScreen({
         ).length;
 
         if (statusFilter === "pending") {
-          // For recurring tasks, we need to generate occurrences FIRST,
-          // then filter for upcoming (today + future).
-          if (!condenseRecurring) {
-            // Filter to show today and future dates AND pending status (exclude skipped)
-            upcomingTasks = allUpcoming.filter(
-              (t) => t.status === "pending" && !t.skipped_for_today,
-            );
-          } else {
-            // Condense mode: filter first, then condense
-            upcomingTasks = filterTasksForUpcoming(tasks, currentDate).filter(
-              (t) => t.status === "pending" && !t.skipped_for_today,
-            );
+          // Filter to show today and future dates AND pending status (exclude skipped)
+          upcomingTasks = allUpcoming.filter(
+            (t) => t.status === "pending" && !t.skipped_for_today,
+          );
+          if (condenseRecurring) {
+            // Condense mode: show only first occurrence of each recurring task
             upcomingTasks = condenseRecurringTasks(upcomingTasks);
           }
         } else if (statusFilter === "completed") {
