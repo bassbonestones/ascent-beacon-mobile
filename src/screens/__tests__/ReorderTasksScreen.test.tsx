@@ -234,29 +234,6 @@ describe("ReorderTasksScreen", () => {
   });
 
   it("calls API with permanent when Save Permanent is pressed", async () => {
-    // Mock Alert.alert to auto-press "Permanent Only" button
-    const RNAlert = require("react-native").Alert;
-    const originalAlert = RNAlert.alert;
-    RNAlert.alert = jest.fn(
-      (
-        _title: string,
-        _message?: string,
-        buttons?: Array<{
-          text?: string;
-          style?: string;
-          onPress?: () => void;
-        }>,
-      ) => {
-        // Find and call the "Permanent Only" button
-        const permanentOnlyButton = buttons?.find(
-          (b) => b.text === "Permanent Only",
-        );
-        if (permanentOnlyButton?.onPress) {
-          permanentOnlyButton.onPress();
-        }
-      },
-    );
-
     render(
       <ReorderTasksScreen
         navigation={mockNavigation}
@@ -264,7 +241,15 @@ describe("ReorderTasksScreen", () => {
       />,
     );
 
+    // Press Save Permanent to open modal
     fireEvent.press(screen.getByText("Save Permanent"));
+
+    // Wait for modal to appear and press "Permanent Only"
+    await waitFor(() => {
+      expect(screen.getByText("Permanent Only")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("Permanent Only"));
 
     await waitFor(() => {
       expect(mockedApi.reorderOccurrences).toHaveBeenCalledWith({
@@ -278,7 +263,6 @@ describe("ReorderTasksScreen", () => {
     });
 
     expect(mockGoBack).toHaveBeenCalled();
-    RNAlert.alert = originalAlert;
   });
 
   it("shows error message when API fails", async () => {
@@ -413,5 +397,106 @@ describe("ReorderTasksScreen", () => {
       expect(reorderedTexts[0]).toBe("Task 2");
       expect(reorderedTexts[1]).toBe("Task 1");
     });
+  });
+
+  it("shows confirmation modal when Override All is selected", async () => {
+    render(
+      <ReorderTasksScreen
+        navigation={mockNavigation}
+        route={createMockRoute(recurringItems)}
+      />,
+    );
+
+    // Press Save Permanent to open first modal
+    fireEvent.press(screen.getByText("Save Permanent"));
+
+    // Wait for modal and press "Override All Future"
+    await waitFor(() => {
+      expect(screen.getByText("Override All Future")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("Override All Future"));
+
+    // Should show confirmation modal
+    await waitFor(() => {
+      expect(screen.getByText("Confirm Override")).toBeTruthy();
+      expect(
+        screen.getByText(/delete all daily overrides from today onward/),
+      ).toBeTruthy();
+    });
+  });
+
+  it("clears overrides and saves when Override All is confirmed", async () => {
+    mockedApi.clearOccurrenceOrderFrom.mockResolvedValueOnce(undefined);
+
+    render(
+      <ReorderTasksScreen
+        navigation={mockNavigation}
+        route={createMockRoute(recurringItems)}
+      />,
+    );
+
+    // Open first modal
+    fireEvent.press(screen.getByText("Save Permanent"));
+    await waitFor(() => {
+      expect(screen.getByText("Override All Future")).toBeTruthy();
+    });
+
+    // Click Override All Future
+    fireEvent.press(screen.getByText("Override All Future"));
+
+    // Wait for confirmation modal
+    await waitFor(() => {
+      expect(screen.getByText("Confirm Override")).toBeTruthy();
+    });
+
+    // Confirm the override - find the Override All button in confirmation modal
+    const overrideButtons = screen.getAllByText("Override All");
+    fireEvent.press(overrideButtons[overrideButtons.length - 1]);
+
+    // Should call clearOccurrenceOrderFrom and then reorderOccurrences
+    await waitFor(() => {
+      expect(mockedApi.clearOccurrenceOrderFrom).toHaveBeenCalledWith(
+        "2024-01-15",
+      );
+      expect(mockedApi.reorderOccurrences).toHaveBeenCalledWith({
+        date: "2024-01-15",
+        occurrences: [
+          { task_id: "r1", occurrence_index: 0 },
+          { task_id: "r2", occurrence_index: 0 },
+        ],
+        save_mode: "permanent",
+      });
+    });
+
+    expect(mockGoBack).toHaveBeenCalled();
+  });
+
+  it("closes modal when Cancel is pressed", async () => {
+    render(
+      <ReorderTasksScreen
+        navigation={mockNavigation}
+        route={createMockRoute(recurringItems)}
+      />,
+    );
+
+    // Open modal
+    fireEvent.press(screen.getByText("Save Permanent"));
+    await waitFor(() => {
+      expect(screen.getByText("Save Permanent Preferences")).toBeTruthy();
+    });
+
+    // Press Cancel in modal
+    const cancelButtons = screen.getAllByText("Cancel");
+    // Find the Cancel in the modal (last one)
+    fireEvent.press(cancelButtons[cancelButtons.length - 1]);
+
+    // Modal should close
+    await waitFor(() => {
+      expect(screen.queryByText("Save Permanent Preferences")).toBeNull();
+    });
+
+    // API should not be called
+    expect(mockedApi.reorderOccurrences).not.toHaveBeenCalled();
   });
 });

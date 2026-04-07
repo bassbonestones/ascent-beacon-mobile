@@ -16,18 +16,16 @@ import {
   Platform,
   FlatList,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type {
-  Task,
   OccurrenceItem,
   SaveMode,
   ReorderItem,
   RootStackParamList,
-  PermanentOrderItem,
 } from "../types";
 import api from "../services/api";
+import { OptionModal } from "../components/OptionModal";
 
 // Only require the draggable library on native platforms
 let DraggableFlatList: any = null;
@@ -63,6 +61,9 @@ export default function ReorderTasksScreen({
   const [saving, setSaving] = useState(false);
   const [reverting, setReverting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPermanentModal, setShowPermanentModal] = useState(false);
+  const [showConfirmOverrideModal, setShowConfirmOverrideModal] =
+    useState(false);
 
   // Check if there are at least 2 recurring tasks - only show "Save Permanent" if so
   // (need at least 2 to have a meaningful order on future days)
@@ -182,68 +183,27 @@ export default function ReorderTasksScreen({
     performSave("today");
   }, [performSave]);
 
-  // Handle save permanent with prompt for options
+  // Handle save permanent - show modal with options
   const handleSavePermanent = useCallback(() => {
-    const showPrompt = () => {
-      if (Platform.OS === "web") {
-        // Web: use sequential confirms (simple approach)
-        const choice = window.confirm(
-          "Save Permanent Preferences\n\n" +
-            "Click OK to save permanent preferences only.\n" +
-            "Click Cancel to also override all future daily overrides.",
-        );
-        if (choice) {
-          // OK = save permanent preferences only
-          performSave("permanent", false);
-        } else {
-          // Cancel in first dialog means they want to clear overrides
-          const confirmClear = window.confirm(
-            "This will delete all daily overrides from today onward " +
-              "so future dates use this permanent order.\n\n" +
-              "Continue?",
-          );
-          if (confirmClear) {
-            performSave("permanent", true);
-          }
-        }
-      } else {
-        // Native: use Alert with buttons
-        Alert.alert(
-          "Save Permanent Preferences",
-          "How would you like to save?",
-          [
-            {
-              text: "Cancel",
-              style: "cancel",
-            },
-            {
-              text: "Permanent Only",
-              onPress: () => performSave("permanent", false),
-            },
-            {
-              text: "Override All",
-              style: "destructive",
-              onPress: () => {
-                Alert.alert(
-                  "Confirm Override",
-                  "This will delete all daily overrides from today onward so future dates use this permanent order.",
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Override All",
-                      style: "destructive",
-                      onPress: () => performSave("permanent", true),
-                    },
-                  ],
-                );
-              },
-            },
-          ],
-        );
-      }
-    };
+    setShowPermanentModal(true);
+  }, []);
 
-    showPrompt();
+  // Handle permanent only option
+  const handlePermanentOnly = useCallback(() => {
+    setShowPermanentModal(false);
+    performSave("permanent", false);
+  }, [performSave]);
+
+  // Handle override all option - show confirmation first
+  const handleOverrideAllOption = useCallback(() => {
+    setShowPermanentModal(false);
+    setShowConfirmOverrideModal(true);
+  }, []);
+
+  // Handle confirmed override all
+  const handleConfirmOverrideAll = useCallback(() => {
+    setShowConfirmOverrideModal(false);
+    performSave("permanent", true);
   }, [performSave]);
 
   // Render a single item in the list
@@ -512,6 +472,51 @@ export default function ReorderTasksScreen({
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Save Permanent Options Modal */}
+      <OptionModal
+        visible={showPermanentModal}
+        title="Save Permanent Preferences"
+        message="How would you like to save your preferred order?"
+        onDismiss={() => setShowPermanentModal(false)}
+        buttons={[
+          {
+            label: "Cancel",
+            onPress: () => setShowPermanentModal(false),
+            style: "cancel",
+          },
+          {
+            label: "Permanent Only",
+            onPress: handlePermanentOnly,
+            style: "primary",
+          },
+          {
+            label: "Override All Future",
+            onPress: handleOverrideAllOption,
+            style: "destructive",
+          },
+        ]}
+      />
+
+      {/* Confirm Override Modal */}
+      <OptionModal
+        visible={showConfirmOverrideModal}
+        title="Confirm Override"
+        message="This will delete all daily overrides from today onward, so future dates will use this permanent order."
+        onDismiss={() => setShowConfirmOverrideModal(false)}
+        buttons={[
+          {
+            label: "Cancel",
+            onPress: () => setShowConfirmOverrideModal(false),
+            style: "cancel",
+          },
+          {
+            label: "Override All",
+            onPress: handleConfirmOverrideAll,
+            style: "destructive",
+          },
+        ]}
+      />
     </View>
   );
 }
