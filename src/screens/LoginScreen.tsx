@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ImageSourcePropType,
+  useWindowDimensions,
 } from "react-native";
 import TermsModal from "../components/TermsModal";
 import VerifyCodeScreen from "../components/login/VerifyCodeScreen";
@@ -42,11 +43,20 @@ interface LoginScreenProps {
   onLoginSuccess: (user: User) => void;
 }
 
+const IMAGE_ASPECT_RATIO = 1024 / 1536; // Actual image dimensions: 1024x1536 (2:3)
+
 export default function LoginScreen({
   onLoginSuccess,
 }: LoginScreenProps): React.ReactElement {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const kite = useKiteAnimation();
   const auth = useLoginAuth(onLoginSuccess);
+
+  // Calculate image width based on screen height and aspect ratio
+  const imageWidth = screenHeight * IMAGE_ASPECT_RATIO;
+  // Content maxWidth = min(imageWidth, screenWidth)
+  // The paddingHorizontal: 24 in styles.content handles the inset from edges
+  const contentMaxWidth = Math.min(imageWidth, screenWidth);
 
   return (
     <View style={styles.background}>
@@ -56,7 +66,7 @@ export default function LoginScreen({
           source={
             require("../../assets/login-background.png") as ImageSourcePropType
           }
-          style={styles.backgroundImage}
+          style={[styles.backgroundImage, { width: imageWidth }]}
           resizeMode="stretch"
         />
       </View>
@@ -89,7 +99,12 @@ export default function LoginScreen({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.container}
       >
-        <View style={styles.content}>
+        <View
+          style={[
+            styles.content,
+            { width: contentMaxWidth, alignSelf: "center" },
+          ]}
+        >
           {/* Logo/Title Area */}
           <View style={styles.header}>
             <TouchableOpacity

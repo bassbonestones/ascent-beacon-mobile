@@ -16,7 +16,7 @@ export const styles = StyleSheet.create({
   },
   backgroundImage: {
     height: "100%",
-    aspectRatio: 9 / 16, // Adjust this to match your image's actual aspect ratio
+    aspectRatio: 1024 / 1536, // Actual image dimensions: 1024x1536 (2:3)
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
