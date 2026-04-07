@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -82,6 +82,48 @@ export function CreateTaskForm({
 }: CreateTaskFormProps): React.ReactElement {
   const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
   const canSubmit = title.trim().length > 0;
+
+  // Track whether save was clicked (to distinguish from cancel)
+  const savedRef = useRef(false);
+  // Track whether this was a fresh toggle (not editing existing rule)
+  const wasFreshToggleRef = useRef(false);
+
+  // Auto-open recurrence picker when toggling recurring ON
+  const handleRecurringToggle = () => {
+    if (!isRecurring) {
+      // Turning ON: auto-open the picker
+      // Track that this is a fresh toggle (they're turning it on, not editing)
+      wasFreshToggleRef.current = true;
+      savedRef.current = false;
+      onRecurringToggle();
+      setShowRecurrencePicker(true);
+    } else {
+      // Turning OFF: just toggle
+      onRecurringToggle();
+    }
+  };
+
+  // Handle picker save: mark as saved, then call parent handler
+  const handleRecurrenceSave = (
+    rrule: string,
+    mode: SchedulingMode,
+    startDate: string | null,
+    startTime: string | null,
+  ) => {
+    savedRef.current = true;
+    onRecurrenceChange(rrule, mode, startDate, startTime);
+  };
+
+  // Handle picker close: if cancel on fresh toggle, turn off recurring
+  const handleRecurrencePickerClose = () => {
+    setShowRecurrencePicker(false);
+    // Turn off recurring if: cancel was clicked (not save) AND this was a fresh toggle
+    if (!savedRef.current && wasFreshToggleRef.current && isRecurring) {
+      onRecurringToggle();
+    }
+    // Reset the fresh toggle flag
+    wasFreshToggleRef.current = false;
+  };
 
   return (
     <View style={styles.container}>
@@ -208,7 +250,7 @@ export function CreateTaskForm({
         {/* Recurring Task Toggle */}
         <TouchableOpacity
           style={styles.lightningCheckbox}
-          onPress={onRecurringToggle}
+          onPress={handleRecurringToggle}
           accessibilityLabel={
             isRecurring ? "Make one-time task" : "Make recurring task"
           }
@@ -229,7 +271,10 @@ export function CreateTaskForm({
         {isRecurring && (
           <TouchableOpacity
             style={styles.recurrenceButton}
-            onPress={() => setShowRecurrencePicker(true)}
+            onPress={() => {
+              savedRef.current = false;
+              setShowRecurrencePicker(true);
+            }}
             accessibilityLabel="Configure recurrence"
             accessibilityRole="button"
           >
@@ -285,8 +330,8 @@ export function CreateTaskForm({
 
       <RecurrencePicker
         visible={showRecurrencePicker}
-        onClose={() => setShowRecurrencePicker(false)}
-        onSave={onRecurrenceChange}
+        onClose={handleRecurrencePickerClose}
+        onSave={handleRecurrenceSave}
         initialRRule={recurrenceRule}
         initialSchedulingMode={schedulingMode}
         taskDurationMinutes={isLightning ? 0 : parseInt(duration, 10) || 0}
