@@ -306,8 +306,8 @@ export function isTaskOverdue(task: Task, now: Date = new Date()): boolean {
   if (task.status !== "pending" || !task.scheduled_at) {
     return false;
   }
-  // Recurring tasks that are completed for today are not overdue
-  if (task.is_recurring && task.completed_for_today) {
+  // Recurring tasks that are completed or skipped for today are not overdue
+  if (task.is_recurring && (task.completed_for_today || task.skipped_for_today)) {
     return false;
   }
 
@@ -875,14 +875,26 @@ export function generateRecurringOccurrences(
         daysGenerated++;
       } else {
         // Single occurrence mode: create a virtual task for today with correct status
-        // based on completed_for_today (the original task stays status="pending")
+        // based on completed_for_today or skipped_for_today
         const todayStr = toLocalDateString(startDate);
         const isCompleted = completionsToday > 0 || task.completed_for_today;
+        const skipsToday = task.skips_today || 0;
+        const isSkipped = skipsToday > 0 || task.skipped_for_today;
+
+        // Determine status: completed > skipped > pending
+        let status: "completed" | "skipped" | "pending" = "pending";
+        if (isCompleted) {
+          status = "completed";
+        } else if (isSkipped) {
+          status = "skipped";
+        }
+
         const virtualTask: Task = {
           ...task,
           id: `${task.id}__${todayStr}`,
-          status: isCompleted ? "completed" : "pending",
+          status: status,
           completed_for_today: isCompleted,
+          skipped_for_today: isSkipped,
           isVirtualOccurrence: true,
           virtualOccurrenceDate: todayStr,
           originalTaskId: task.id,

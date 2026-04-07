@@ -675,6 +675,14 @@ export interface Task {
   // For recurring tasks, completions indexed by date (YYYY-MM-DD) -> list of completion timestamps
   // Used for Upcoming view to track which future occurrences are completed
   completions_by_date?: Record<string, string[]>;
+  // For recurring tasks, indicates if skipped for today
+  skipped_for_today?: boolean;
+  // For recurring tasks, count of skips today
+  skips_today?: number;
+  // For recurring tasks, the actual ISO datetime strings of skips today
+  skipped_times_today?: string[];
+  // For recurring tasks, skips indexed by date (YYYY-MM-DD) -> list of skip timestamps
+  skips_by_date?: Record<string, string[]>;
   // For virtual occurrences generated in Upcoming view
   isVirtualOccurrence?: boolean;
   virtualOccurrenceDate?: string; // YYYY-MM-DD format

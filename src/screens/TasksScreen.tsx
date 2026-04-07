@@ -42,7 +42,7 @@ interface TasksScreenProps {
 
 type ScreenMode = "list" | "create" | "detail" | "edit";
 type ListViewMode = "today" | "upcoming";
-type StatusFilter = "all" | "pending" | "completed";
+type StatusFilter = "all" | "pending" | "completed" | "skipped";
 
 export default function TasksScreen({
   user,
@@ -118,12 +118,21 @@ export default function TasksScreen({
         // Get today's LOCAL date as YYYY-MM-DD string for comparison
         const todayDateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
 
-        // Helper to check if task is "done" for Today view purposes
+        // Helper to check if task is "completed" for Today view purposes
         // Recurring tasks stay status="pending" but have completed_for_today=true
-        const isDoneForToday = (t: Task): boolean => {
+        // This does NOT include skipped tasks
+        const isCompletedForToday = (t: Task): boolean => {
           return (
             t.status === "completed" ||
             (t.is_recurring && t.completed_for_today === true)
+          );
+        };
+
+        // Helper to check if task is "skipped" for Today view purposes
+        const isSkippedForToday = (t: Task): boolean => {
+          return (
+            t.status === "skipped" ||
+            (t.is_recurring && t.skipped_for_today === true)
           );
         };
 
@@ -132,10 +141,13 @@ export default function TasksScreen({
           withOccurrences,
           currentDate,
         ).filter(
-          (t) => t.status === "pending" && !t.completed_for_today,
+          (t) =>
+            t.status === "pending" &&
+            !t.completed_for_today &&
+            !t.skipped_for_today,
         ).length;
         const todayCompleted = withOccurrences.filter((t) => {
-          if (!isDoneForToday(t)) return false;
+          if (!isCompletedForToday(t)) return false;
           const completionTimestamp = t.completed_at || t.updated_at;
           if (completionTimestamp) {
             const completedDate = parseAsUtc(completionTimestamp);
@@ -152,8 +164,13 @@ export default function TasksScreen({
 
         if (statusFilter === "pending") {
           let todayTasks = filterTasksForToday(withOccurrences, currentDate);
-          // Only show pending virtual occurrences
-          todayTasks = todayTasks.filter((t) => t.status === "pending");
+          // Only show pending virtual occurrences (exclude completed and skipped)
+          todayTasks = todayTasks.filter(
+            (t) =>
+              t.status === "pending" &&
+              !t.completed_for_today &&
+              !t.skipped_for_today,
+          );
           if (condenseRecurring) {
             todayTasks = condenseRecurringTasks(todayTasks);
           }
@@ -166,10 +183,11 @@ export default function TasksScreen({
         } else if (statusFilter === "completed") {
           // Show completed tasks that are relevant to today
           // Includes both status="completed" and recurring tasks with completed_for_today
+          // Does NOT include skipped tasks
 
           const completedTasks = withOccurrences.filter((t) => {
-            // Must be done for today (either completed status or recurring with completed_for_today)
-            if (!isDoneForToday(t)) return false;
+            // Must be completed for today (NOT skipped)
+            if (!isCompletedForToday(t)) return false;
 
             // Recurring tasks with completed_for_today: always show in Today completed
             if (t.is_recurring && t.completed_for_today) {
@@ -207,6 +225,35 @@ export default function TasksScreen({
             viewPendingCount: todayPending,
             viewCompletedCount: todayCompleted,
           };
+        } else if (statusFilter === "skipped") {
+          // Show skipped tasks that are relevant to today
+          const skippedTasks = withOccurrences.filter((t) => {
+            if (!isSkippedForToday(t)) return false;
+
+            // Recurring tasks with skipped_for_today: always show in Today skipped
+            if (t.is_recurring && t.skipped_for_today) {
+              return true;
+            }
+
+            // Single tasks: check if scheduled for today
+            if (t.scheduled_at) {
+              const scheduledDate = parseAsUtc(t.scheduled_at);
+              const scheduledDateStr = `${scheduledDate.getFullYear()}-${String(scheduledDate.getMonth() + 1).padStart(2, "0")}-${String(scheduledDate.getDate()).padStart(2, "0")}`;
+              if (scheduledDateStr === todayDateStr) {
+                return true;
+              }
+            }
+
+            // Include unscheduled skipped tasks
+            return !t.scheduled_at;
+          });
+
+          return {
+            sortedTasks: skippedTasks,
+            sections: null,
+            viewPendingCount: todayPending,
+            viewCompletedCount: todayCompleted,
+          };
         }
         // For "all", show all virtual occurrences for today
         return {
@@ -232,7 +279,7 @@ export default function TasksScreen({
           currentDate,
         );
         const upcomingPending = allUpcoming.filter(
-          (t) => t.status === "pending",
+          (t) => t.status === "pending" && !t.skipped_for_today,
         ).length;
         const upcomingCompleted = allUpcoming.filter(
           (t) => t.status === "completed",
@@ -242,25 +289,26 @@ export default function TasksScreen({
           // For recurring tasks, we need to generate occurrences FIRST,
           // then filter for upcoming (today + future).
           if (!condenseRecurring) {
-            // Filter to show today and future dates AND pending status
-            upcomingTasks = allUpcoming.filter((t) => t.status === "pending");
+            // Filter to show today and future dates AND pending status (exclude skipped)
+            upcomingTasks = allUpcoming.filter(
+              (t) => t.status === "pending" && !t.skipped_for_today,
+            );
           } else {
             // Condense mode: filter first, then condense
             upcomingTasks = filterTasksForUpcoming(tasks, currentDate).filter(
-              (t) => t.status === "pending",
+              (t) => t.status === "pending" && !t.skipped_for_today,
             );
             upcomingTasks = condenseRecurringTasks(upcomingTasks);
           }
+        } else if (statusFilter === "completed") {
+          // Show completed tasks scheduled for today and future dates
+          upcomingTasks = allUpcoming.filter((t) => t.status === "completed");
+        } else if (statusFilter === "skipped") {
+          // Show skipped tasks scheduled for today and future dates
+          upcomingTasks = allUpcoming.filter((t) => t.status === "skipped");
         } else {
-          // For completed/all status in Upcoming view:
-          // Use allUpcoming which includes virtual recurring occurrences
-          if (statusFilter === "completed") {
-            // Show completed tasks scheduled for today and future dates
-            upcomingTasks = allUpcoming.filter((t) => t.status === "completed");
-          } else {
-            // "all" - show all tasks today + future (pending + completed)
-            upcomingTasks = allUpcoming;
-          }
+          // "all" - show all tasks today + future (pending + completed + skipped)
+          upcomingTasks = allUpcoming;
         }
 
         const grouped = groupTasksByDate(upcomingTasks);
@@ -763,7 +811,7 @@ export default function TasksScreen({
       </View>
 
       <View style={styles.filterRow}>
-        {(["pending", "completed", "all"] as StatusFilter[]).map((filter) => (
+        {(["pending", "completed", "skipped", "all"] as StatusFilter[]).map((filter) => (
           <TouchableOpacity
             key={filter}
             style={[
