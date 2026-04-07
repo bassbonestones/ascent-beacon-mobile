@@ -20,6 +20,7 @@ import type {
   ReorderOccurrencesRequest,
   ReorderOccurrencesResponse,
   DayOrderResponse,
+  DateRangeOrderResponse,
 } from "../types";
 import type ApiServiceBase from "./apiBase";
 
@@ -86,6 +87,10 @@ export interface TasksMethods {
     data: ReorderOccurrencesRequest,
   ): Promise<ReorderOccurrencesResponse>;
   getOccurrenceOrder(date: string): Promise<DayOrderResponse>;
+  getOccurrenceOrderRange(
+    startDate: string,
+    endDate: string,
+  ): Promise<DateRangeOrderResponse>;
   clearOccurrenceOrder(date: string): Promise<void>;
 }
 
@@ -310,6 +315,15 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
     async getOccurrenceOrder(date: string): Promise<DayOrderResponse> {
       return await this.request<DayOrderResponse>(
         `/tasks/occurrence-order?date=${date}`,
+      );
+    }
+
+    async getOccurrenceOrderRange(
+      startDate: string,
+      endDate: string,
+    ): Promise<DateRangeOrderResponse> {
+      return await this.request<DateRangeOrderResponse>(
+        `/tasks/occurrence-order/range?start_date=${startDate}&end_date=${endDate}`,
       );
     }
 

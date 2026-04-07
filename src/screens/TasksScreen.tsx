@@ -26,6 +26,7 @@ import { useTasks } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
 import { useTaskForm } from "../hooks/useTaskForm";
 import { useOccurrenceOrder } from "../hooks/useOccurrenceOrder";
+import { useOccurrenceOrderRange } from "../hooks/useOccurrenceOrderRange";
 import { useTime } from "../context/TimeContext";
 import { styles } from "./styles/tasksScreenStyles";
 import {
@@ -156,26 +157,39 @@ export default function TasksScreen({
   // Get today's date string for occurrence ordering
   const todayDateStr = toLocalDateString(currentDate);
 
-  // Fetch occurrence order for Today view
-  const {
-    applySortOrder: applyTodayOrder,
-    applyPermanentOrder,
-    refetch: refetchOrder,
-  } = useOccurrenceOrder({
-    date: todayDateStr,
-    // Fetch order for both Today and Upcoming views (Upcoming uses it for Today section)
-    enabled: listViewMode === "today" || listViewMode === "upcoming",
-  });
+  // Calculate end date for Upcoming range (effectiveDaysAhead from today)
+  const endDate = useMemo(() => {
+    const d = new Date(currentDate);
+    d.setDate(d.getDate() + effectiveDaysAhead);
+    return toLocalDateString(d);
+  }, [currentDate, effectiveDaysAhead]);
+
+  // Fetch occurrence order for Today view (single date)
+  const { applySortOrder: applyTodayOrder, refetch: refetchTodayOrder } =
+    useOccurrenceOrder({
+      date: todayDateStr,
+      enabled: listViewMode === "today",
+    });
+
+  // Fetch occurrence order for Upcoming view (date range)
+  const { applyOrderForDate, refetch: refetchRangeOrder } =
+    useOccurrenceOrderRange({
+      startDate: todayDateStr,
+      endDate: endDate,
+      enabled: listViewMode === "upcoming",
+    });
 
   // Refetch occurrence order when screen gains focus (e.g., returning from reorder screen)
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
-      if (listViewMode === "today" || listViewMode === "upcoming") {
-        refetchOrder();
+      if (listViewMode === "today") {
+        refetchTodayOrder();
+      } else if (listViewMode === "upcoming") {
+        refetchRangeOrder();
       }
     });
     return unsubscribe;
-  }, [navigation, listViewMode, refetchOrder]);
+  }, [navigation, listViewMode, refetchTodayOrder, refetchRangeOrder]);
 
   // Filter and sort tasks based on view mode
   const { sortedTasks, sections, viewPendingCount, viewCompletedCount } =
@@ -495,12 +509,9 @@ export default function TasksScreen({
           });
 
           if (untimedTasks.length > 0) {
-            // For Today's section: apply full order (daily overrides + permanent)
-            // For future sections: apply only permanent preferences
-            const reorderedUntimed =
-              dateKey === todayDateStr
-                ? applyTodayOrder(untimedTasks)
-                : applyPermanentOrder(untimedTasks);
+            // Apply order for this specific date
+            // applyOrderForDate handles both daily overrides and permanent preferences
+            const reorderedUntimed = applyOrderForDate(untimedTasks, dateKey);
 
             // Put them back in their positions
             const finalSorted = [...sectionTasks];
@@ -515,41 +526,6 @@ export default function TasksScreen({
             dateKey,
             data: sectionTasks,
           };
-        });
-
-        console.log(
-          "[Upcoming] sections:",
-          sectionData.length,
-          "keys:",
-          dateKeys,
-        );
-        console.log(
-          "[Upcoming] allUpcoming:",
-          allUpcoming.length,
-          "upcomingTasks:",
-          upcomingTasks.length,
-        );
-        sectionData.forEach((s) => {
-          console.log(
-            "[Upcoming] Section:",
-            s.title,
-            "dateKey:",
-            s.dateKey,
-            "tasks:",
-            s.data.length,
-          );
-          s.data.forEach((t: Task) =>
-            console.log(
-              "  - Task:",
-              t.title,
-              "id:",
-              t.id,
-              "recurring:",
-              t.is_recurring,
-              "virtualOcc:",
-              t.isVirtualOccurrence,
-            ),
-          );
         });
 
         return {
@@ -567,7 +543,7 @@ export default function TasksScreen({
       currentDate,
       effectiveDaysAhead,
       applyTodayOrder,
-      applyPermanentOrder,
+      applyOrderForDate,
     ]);
 
   // Count overdue tasks

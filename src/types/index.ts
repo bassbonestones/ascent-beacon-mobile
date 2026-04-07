@@ -924,6 +924,26 @@ export interface DayOrderResponse {
   has_overrides: boolean;
 }
 
+// Range order types for efficient bulk loading
+export interface PermanentOrderItem {
+  task_id: string;
+  occurrence_index: number;
+  sequence_number: number;
+}
+
+export interface DateOverrideItem {
+  task_id: string;
+  occurrence_index: number;
+  sort_position: number;
+}
+
+export interface DateRangeOrderResponse {
+  start_date: string;
+  end_date: string;
+  permanent_order: PermanentOrderItem[];
+  daily_overrides: Record<string, DateOverrideItem[]>;
+}
+
 // Item for reorder screen
 export interface ReorderItem {
   task: Task;

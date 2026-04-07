@@ -44,12 +44,6 @@ export function useOccurrenceOrder({
 
     try {
       const response: DayOrderResponse = await api.getOccurrenceOrder(date);
-      console.log(
-        "[useOccurrenceOrder] Fetched order for",
-        date,
-        ":",
-        response.items,
-      );
       setOrder(response.items);
     } catch (err) {
       // 404 means no order saved, which is fine
@@ -84,10 +78,6 @@ export function useOccurrenceOrder({
         const key = `${item.task_id}-${item.occurrence_index}`;
         orderMap.set(key, index);
       });
-      console.log(
-        "[applySortOrder] orderMap keys:",
-        Array.from(orderMap.keys()),
-      );
 
       // Separate tasks into ordered and unordered
       const orderedTasks: Task[] = [];
@@ -99,18 +89,6 @@ export function useOccurrenceOrder({
         const taskId = (task as any).originalTaskId || task.id;
         const occurrenceIndex = (task as any).occurrenceIndex ?? 0;
         const key = `${taskId}-${occurrenceIndex}`;
-        console.log(
-          "[applySortOrder] Task",
-          task.title,
-          "-> taskId:",
-          taskId,
-          "occIdx:",
-          occurrenceIndex,
-          "key:",
-          key,
-          "match:",
-          orderMap.has(key),
-        );
 
         if (orderMap.has(key)) {
           orderedTasks.push(task);
@@ -132,12 +110,6 @@ export function useOccurrenceOrder({
         return aPos - bPos;
       });
 
-      console.log(
-        "[applySortOrder] Result order:",
-        orderedTasks
-          .map((t) => t.title)
-          .concat(unorderedTasks.map((t) => t.title)),
-      );
       // Return ordered first, then unordered
       return [...orderedTasks, ...unorderedTasks];
     },
