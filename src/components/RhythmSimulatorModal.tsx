@@ -564,7 +564,7 @@ export function RhythmSimulatorModal({
               </View>
             </View>
 
-            {selectedTaskId && selectedTask && (
+            {!!selectedTaskId && selectedTask && (
               <>
                 {/* Start Date Picker */}
                 <View style={styles.section}>
