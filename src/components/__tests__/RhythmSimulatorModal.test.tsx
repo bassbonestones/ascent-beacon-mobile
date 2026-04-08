@@ -131,6 +131,12 @@ describe("RhythmSimulatorModal", () => {
       pending_count: 1,
       completed_count: 0,
     });
+    mockedApi.getTaskCompletions.mockResolvedValue({
+      completions: [],
+      total: 0,
+      completed_count: 0,
+      skipped_count: 0,
+    });
     mockedShowConfirm.mockResolvedValue(true);
     mockedApi.createBulkCompletions.mockResolvedValue({
       task_id: "task-1",

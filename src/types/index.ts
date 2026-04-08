@@ -791,6 +791,7 @@ export interface TaskCompletion {
   skip_reason: string | null;
   scheduled_for: string | null;
   completed_at: string;
+  source?: "REAL" | "MOCK" | null;
 }
 
 export interface TaskCompletionListResponse {

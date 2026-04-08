@@ -12,7 +12,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 
 import api from "../services/api";
-import type { Task, BulkCompletionEntry, TaskListResponse } from "../types";
+import type {
+  Task,
+  BulkCompletionEntry,
+  TaskListResponse,
+  TaskCompletionListResponse,
+} from "../types";
 import { showAlert, showConfirm } from "../utils/alert";
 import { toLocalDateString } from "../utils/taskSorting";
 import { DatePicker } from "./tasks/DatePicker";
@@ -25,7 +30,8 @@ interface RhythmSimulatorModalProps {
 }
 
 // State for each occurrence: none | completed | skipped
-type OccurrenceState = "none" | "completed" | "skipped";
+// mixed is only for aggregate display (week/day/month), never set directly
+type OccurrenceState = "none" | "completed" | "skipped" | "mixed";
 
 // Key format: "YYYY-MM-DD:occIdx" e.g. "2026-04-08:0", "2026-04-08:1"
 type OccurrenceStates = Record<string, OccurrenceState>;
@@ -35,18 +41,21 @@ const STATE_COLORS = {
   none: "#E5E7EB", // gray
   completed: "#22C55E", // green
   skipped: "#F97316", // orange
+  mixed: "#EAB308", // yellow
 };
 
 const STATE_LABELS = {
   none: "None",
   completed: "Done",
   skipped: "Skip",
+  mixed: "Mixed",
 };
 
-// Cycle to next state
+// Cycle to next state (mixed cycles to completed since it's aggregate-only)
 function cycleState(current: OccurrenceState): OccurrenceState {
   if (current === "none") return "completed";
   if (current === "completed") return "skipped";
+  if (current === "mixed") return "completed";
   return "none";
 }
 
@@ -59,12 +68,18 @@ function getWeekKey(date: Date): string {
   return toLocalDateString(d);
 }
 
-// Get week label
-function getWeekLabel(weekStart: string): string {
-  const d = new Date(weekStart + "T00:00:00");
-  const month = d.toLocaleDateString("en-US", { month: "short" });
-  const day = d.getDate();
-  return `Week of ${month} ${day}`;
+// Get week label - always show date range
+function getWeekLabel(weekStart: string, days: { date: string }[]): string {
+  const firstDate = new Date(days[0].date + "T00:00:00");
+  const lastDate = new Date(days[days.length - 1].date + "T00:00:00");
+
+  const firstMonth = firstDate.toLocaleDateString("en-US", { month: "short" });
+  const lastMonth = lastDate.toLocaleDateString("en-US", { month: "short" });
+
+  if (firstMonth === lastMonth) {
+    return `${firstMonth} ${firstDate.getDate()} - ${lastDate.getDate()}`;
+  }
+  return `${firstMonth} ${firstDate.getDate()} - ${lastMonth} ${lastDate.getDate()}`;
 }
 
 // Get month label
@@ -127,6 +142,13 @@ function StateToggleBox({
           color="#fff"
         />
       )}
+      {state === "mixed" && (
+        <Ionicons
+          name="ellipsis-horizontal"
+          size={size === "small" ? 12 : 18}
+          color="#fff"
+        />
+      )}
     </TouchableOpacity>
   );
 }
@@ -138,6 +160,7 @@ export function RhythmSimulatorModal({
 }: RhythmSimulatorModalProps): React.ReactElement {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const [loadingCompletions, setLoadingCompletions] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string>("");
   const [startDate, setStartDate] = useState<string | null>(null);
   const [occurrenceStates, setOccurrenceStates] = useState<OccurrenceStates>(
@@ -165,6 +188,85 @@ export function RhythmSimulatorModal({
         });
     }
   }, [visible, tasks.length]);
+
+  // Fetch and load completions for the selected task
+  const loadCompletions = useCallback(async (taskId: string) => {
+    setLoadingCompletions(true);
+
+    // Paginate through all completions (backend limits to 200 per request)
+    const fetchAllCompletions = async (): Promise<
+      TaskCompletionListResponse["completions"]
+    > => {
+      const allCompletions: TaskCompletionListResponse["completions"] = [];
+      let offset = 0;
+      const limit = 200;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await api.getTaskCompletions(taskId, limit, offset);
+        allCompletions.push(...response.completions);
+        offset += limit;
+        hasMore = response.completions.length === limit;
+      }
+
+      return allCompletions;
+    };
+
+    try {
+      const completions = await fetchAllCompletions();
+      // Convert completions to occurrence states
+      const newStates: OccurrenceStates = {};
+
+      // Group completions by date to handle multi-occurrence days
+      const byDate = new Map<string, { completed: number; skipped: number }>();
+
+      for (const completion of completions) {
+        if (!completion.scheduled_for) continue;
+        // scheduled_for is ISO datetime, extract just the date part
+        const date = completion.scheduled_for.split("T")[0];
+
+        if (!byDate.has(date)) {
+          byDate.set(date, { completed: 0, skipped: 0 });
+        }
+
+        const counts = byDate.get(date)!;
+        if (completion.status === "completed") {
+          counts.completed++;
+        } else if (completion.status === "skipped") {
+          counts.skipped++;
+        }
+      }
+
+      // Convert to occurrence states
+      // For each date, fill occurrences based on counts
+      byDate.forEach((counts, date) => {
+        let occIdx = 0;
+        // First add completed occurrences
+        for (let i = 0; i < counts.completed; i++) {
+          newStates[`${date}:${occIdx}`] = "completed";
+          occIdx++;
+        }
+        // Then add skipped occurrences
+        for (let i = 0; i < counts.skipped; i++) {
+          newStates[`${date}:${occIdx}`] = "skipped";
+          occIdx++;
+        }
+      });
+
+      setOccurrenceStates(newStates);
+    } catch {
+      // Silent fail - just start with empty states
+      setOccurrenceStates({});
+    } finally {
+      setLoadingCompletions(false);
+    }
+  }, []);
+
+  // Fetch existing completions when task is selected
+  useEffect(() => {
+    if (!selectedTaskId) return;
+    loadCompletions(selectedTaskId);
+  }, [selectedTaskId, loadCompletions]);
 
   // Reset state when modal closes
   useEffect(() => {
@@ -293,12 +395,14 @@ export function RhythmSimulatorModal({
       for (let i = 0; i < occurrencesPerDay; i++) {
         states.push(getOccState(date, i));
       }
-      // All same = that state, mixed = none
+      // All same = that state, otherwise mixed
+      const allNone = states.every((s) => s === "none");
       const allCompleted = states.every((s) => s === "completed");
       const allSkipped = states.every((s) => s === "skipped");
+      if (allNone) return "none";
       if (allCompleted) return "completed";
       if (allSkipped) return "skipped";
-      return "none";
+      return "mixed";
     },
     [getOccState, occurrencesPerDay],
   );
@@ -319,11 +423,13 @@ export function RhythmSimulatorModal({
   const getWeekState = useCallback(
     (days: { date: string }[]): OccurrenceState => {
       const dayStates = days.map((d) => getDayState(d.date));
+      const allNone = dayStates.every((s) => s === "none");
       const allCompleted = dayStates.every((s) => s === "completed");
       const allSkipped = dayStates.every((s) => s === "skipped");
+      if (allNone) return "none";
       if (allCompleted) return "completed";
       if (allSkipped) return "skipped";
-      return "none";
+      return "mixed";
     },
     [getDayState],
   );
@@ -347,11 +453,13 @@ export function RhythmSimulatorModal({
     (weeks: { days: { date: string }[] }[]): OccurrenceState => {
       const allDays = weeks.flatMap((w) => w.days);
       const dayStates = allDays.map((d) => getDayState(d.date));
+      const allNone = dayStates.every((s) => s === "none");
       const allCompleted = dayStates.every((s) => s === "completed");
       const allSkipped = dayStates.every((s) => s === "skipped");
+      if (allNone) return "none";
       if (allCompleted) return "completed";
       if (allSkipped) return "skipped";
-      return "none";
+      return "mixed";
     },
     [getDayState],
   );
@@ -466,7 +574,8 @@ export function RhythmSimulatorModal({
         }`,
       );
 
-      setOccurrenceStates({});
+      // Reload the completions to show current state
+      await loadCompletions(selectedTaskId);
       onDataChanged?.();
     } catch (err) {
       showAlert(
@@ -476,7 +585,13 @@ export function RhythmSimulatorModal({
     } finally {
       setSaving(false);
     }
-  }, [selectedTaskId, occurrenceStates, startDate, onDataChanged]);
+  }, [
+    selectedTaskId,
+    occurrenceStates,
+    startDate,
+    onDataChanged,
+    loadCompletions,
+  ]);
 
   // Clear mock data
   const handleClear = useCallback(async () => {
@@ -496,7 +611,8 @@ export function RhythmSimulatorModal({
     try {
       const result = await api.deleteMockCompletions(selectedTaskId);
       showAlert("Success", `Deleted ${result.deleted_count} mock completions.`);
-      setOccurrenceStates({});
+      // Reload completions to show remaining real completions
+      await loadCompletions(selectedTaskId);
       onDataChanged?.();
     } catch (err) {
       showAlert(
@@ -506,7 +622,7 @@ export function RhythmSimulatorModal({
     } finally {
       setClearing(false);
     }
-  }, [selectedTaskId, onDataChanged]);
+  }, [selectedTaskId, onDataChanged, loadCompletions]);
 
   // Auto-expand current month
   useEffect(() => {
@@ -632,6 +748,21 @@ export function RhythmSimulatorModal({
                       </View>
                       <Text style={styles.legendText}>Skipped</Text>
                     </View>
+                    <View style={styles.legendItem}>
+                      <View
+                        style={[
+                          styles.legendBox,
+                          { backgroundColor: STATE_COLORS.mixed },
+                        ]}
+                      >
+                        <Ionicons
+                          name="ellipsis-horizontal"
+                          size={12}
+                          color="#fff"
+                        />
+                      </View>
+                      <Text style={styles.legendText}>Mixed</Text>
+                    </View>
                   </View>
                 </View>
 
@@ -644,108 +775,132 @@ export function RhythmSimulatorModal({
                   </View>
                 )}
 
-                {/* Hierarchical View */}
-                <View style={styles.hierarchySection}>
-                  {hierarchyData.months.map((month) => (
-                    <View key={month.yearMonth} style={styles.monthBlock}>
-                      {/* Month Header */}
-                      <TouchableOpacity
-                        style={styles.monthHeader}
-                        onPress={() => toggleMonthExpanded(month.yearMonth)}
-                      >
-                        <StateToggleBox
-                          state={getMonthState(month.weeks)}
-                          onToggle={() => toggleMonth(month.weeks)}
-                          size="large"
-                        />
-                        <Ionicons
-                          name={
-                            expandedMonths.has(month.yearMonth)
-                              ? "chevron-down"
-                              : "chevron-forward"
-                          }
-                          size={20}
-                          color="#6366f1"
-                          style={styles.expandIcon}
-                        />
-                        <Text style={styles.monthLabel}>
-                          {getMonthLabel(month.yearMonth)}
-                        </Text>
-                      </TouchableOpacity>
+                {/* Loading completions */}
+                {loadingCompletions ? (
+                  <View style={styles.loadingCompletions}>
+                    <ActivityIndicator size="small" color="#6366f1" />
+                    <Text style={styles.loadingCompletionsText}>
+                      Loading existing history...
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    {/* Hierarchical View */}
+                    <View style={styles.hierarchySection}>
+                      {hierarchyData.months.map((month) => (
+                        <View key={month.yearMonth} style={styles.monthBlock}>
+                          {/* Month Header */}
+                          <TouchableOpacity
+                            style={styles.monthHeader}
+                            onPress={() => toggleMonthExpanded(month.yearMonth)}
+                          >
+                            <StateToggleBox
+                              state={getMonthState(month.weeks)}
+                              onToggle={() => toggleMonth(month.weeks)}
+                              size="large"
+                            />
+                            <Ionicons
+                              name={
+                                expandedMonths.has(month.yearMonth)
+                                  ? "chevron-down"
+                                  : "chevron-forward"
+                              }
+                              size={20}
+                              color="#6366f1"
+                              style={styles.expandIcon}
+                            />
+                            <Text style={styles.monthLabel}>
+                              {getMonthLabel(month.yearMonth)}
+                            </Text>
+                          </TouchableOpacity>
 
-                      {expandedMonths.has(month.yearMonth) && (
-                        <View style={styles.weeksContainer}>
-                          {month.weeks.map((week) => (
-                            <View key={week.weekStart} style={styles.weekBlock}>
-                              {/* Week Header */}
-                              <TouchableOpacity
-                                style={styles.weekHeader}
-                                onPress={() =>
-                                  toggleWeekExpanded(week.weekStart)
-                                }
-                              >
-                                <StateToggleBox
-                                  state={getWeekState(week.days)}
-                                  onToggle={() => toggleWeek(week.days)}
-                                  size="medium"
-                                />
-                                <Ionicons
-                                  name={
-                                    expandedWeeks.has(week.weekStart)
-                                      ? "chevron-down"
-                                      : "chevron-forward"
-                                  }
-                                  size={16}
-                                  color="#9CA3AF"
-                                  style={styles.expandIcon}
-                                />
-                                <Text style={styles.weekLabel}>
-                                  {getWeekLabel(week.weekStart)}
-                                </Text>
-                              </TouchableOpacity>
+                          {expandedMonths.has(month.yearMonth) && (
+                            <View style={styles.weeksContainer}>
+                              {month.weeks.map((week) => (
+                                <View
+                                  key={week.weekStart}
+                                  style={styles.weekBlock}
+                                >
+                                  {/* Week Header */}
+                                  <TouchableOpacity
+                                    style={styles.weekHeader}
+                                    onPress={() =>
+                                      toggleWeekExpanded(week.weekStart)
+                                    }
+                                  >
+                                    <StateToggleBox
+                                      state={getWeekState(week.days)}
+                                      onToggle={() => toggleWeek(week.days)}
+                                      size="medium"
+                                    />
+                                    <Ionicons
+                                      name={
+                                        expandedWeeks.has(week.weekStart)
+                                          ? "chevron-down"
+                                          : "chevron-forward"
+                                      }
+                                      size={16}
+                                      color="#9CA3AF"
+                                      style={styles.expandIcon}
+                                    />
+                                    <Text style={styles.weekLabel}>
+                                      {getWeekLabel(week.weekStart, week.days)}
+                                    </Text>
+                                  </TouchableOpacity>
 
-                              {expandedWeeks.has(week.weekStart) && (
-                                <View style={styles.daysContainer}>
-                                  {week.days.map((day) => (
-                                    <View key={day.date} style={styles.dayRow}>
-                                      {/* Day toggle */}
-                                      <StateToggleBox
-                                        state={getDayState(day.date)}
-                                        onToggle={() => toggleDay(day.date)}
-                                        size="medium"
-                                      />
-                                      <Text style={styles.dayLabel}>
-                                        {DAY_LABELS[day.dayOfWeek]}{" "}
-                                        {day.date.split("-")[2]}
-                                      </Text>
-                                      {/* Individual occurrence checkboxes */}
-                                      <View style={styles.occurrencesRow}>
-                                        {Array.from(
-                                          { length: occurrencesPerDay },
-                                          (_, i) => (
-                                            <StateToggleBox
-                                              key={i}
-                                              state={getOccState(day.date, i)}
-                                              onToggle={() =>
-                                                toggleOccurrence(day.date, i)
-                                              }
-                                              size="small"
-                                              testID={`occ-${day.date}-${i}`}
-                                            />
-                                          ),
-                                        )}
-                                      </View>
+                                  {expandedWeeks.has(week.weekStart) && (
+                                    <View style={styles.daysContainer}>
+                                      {week.days.map((day) => (
+                                        <View
+                                          key={day.date}
+                                          style={styles.dayRow}
+                                        >
+                                          {/* Day toggle */}
+                                          <StateToggleBox
+                                            state={getDayState(day.date)}
+                                            onToggle={() => toggleDay(day.date)}
+                                            size="medium"
+                                          />
+                                          <Text style={styles.dayLabel}>
+                                            {DAY_LABELS[day.dayOfWeek]}{" "}
+                                            {day.date.split("-")[2]}
+                                          </Text>
+                                          {/* Individual occurrence checkboxes */}
+                                          <View style={styles.occurrencesRow}>
+                                            {Array.from(
+                                              { length: occurrencesPerDay },
+                                              (_, i) => (
+                                                <StateToggleBox
+                                                  key={i}
+                                                  state={getOccState(
+                                                    day.date,
+                                                    i,
+                                                  )}
+                                                  onToggle={() =>
+                                                    toggleOccurrence(
+                                                      day.date,
+                                                      i,
+                                                    )
+                                                  }
+                                                  size="small"
+                                                  testID={`occ-${day.date}-${i}`}
+                                                />
+                                              ),
+                                            )}
+                                          </View>
+                                        </View>
+                                      ))}
                                     </View>
-                                  ))}
+                                  )}
                                 </View>
-                              )}
+                              ))}
                             </View>
-                          ))}
+                          )}
                         </View>
-                      )}
+                      ))}
                     </View>
-                  ))}
-                </View>
+                  </>
+                )}
 
                 {/* Stats Preview */}
                 <View style={styles.statsSection}>
@@ -942,6 +1097,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#4F46E5",
     fontWeight: "500",
+  },
+  loadingCompletions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    gap: 8,
+  },
+  loadingCompletionsText: {
+    fontSize: 14,
+    color: "#6B7280",
   },
   hierarchySection: {
     padding: 16,
