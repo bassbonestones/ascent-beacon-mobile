@@ -13,10 +13,15 @@ export function toLocalDateString(date: Date): string {
 
 /**
  * Get the scheduled date string (YYYY-MM-DD) from a task.
- * Uses scheduled_date for date-only tasks, parses scheduled_at for timed tasks.
- * Returns null if the task is unscheduled.
+ * Uses virtualOccurrenceDate for virtual occurrences, scheduled_date for date-only tasks,
+ * parses scheduled_at for timed tasks. Returns null if the task is unscheduled.
  */
 export function getTaskScheduledDateStr(task: Task): string | null {
+  // For virtual occurrences, use virtualOccurrenceDate (not the original task's scheduled_date)
+  // The original task's scheduled_date is the recurrence START date, not this occurrence's date
+  if (task.isVirtualOccurrence && task.virtualOccurrenceDate) {
+    return task.virtualOccurrenceDate;
+  }
   // Date-only tasks: use scheduled_date directly
   if (task.scheduled_date) {
     return task.scheduled_date;
@@ -142,6 +147,16 @@ export function getTaskCategory(
   }
 
   const nowDateStr = toLocalDateString(now);
+
+  // For virtual occurrences, use virtualOccurrenceDate (not the original task's scheduled_date)
+  // The original task's scheduled_date is the recurrence START date, not this occurrence's date
+  if (task.isVirtualOccurrence && task.virtualOccurrenceDate) {
+    if (task.virtualOccurrenceDate < nowDateStr) {
+      return "overdue";
+    }
+    // Has a date, so goes in timed section
+    return "timed";
+  }
 
   // Date-only tasks: use scheduled_date
   if (task.scheduled_date) {
@@ -277,6 +292,13 @@ export function isTaskForToday(task: Task, today: Date = new Date()): boolean {
   }
 
   const todayStr = toLocalDateString(today);
+
+  // For virtual occurrences, use virtualOccurrenceDate (not the original task's scheduled_date)
+  // The original task's scheduled_date is the recurrence START date, not this occurrence's date
+  if (task.isVirtualOccurrence && task.virtualOccurrenceDate) {
+    // Task is for today if scheduled for today OR overdue (scheduled before today)
+    return task.virtualOccurrenceDate <= todayStr;
+  }
 
   // Date-only tasks: use scheduled_date
   if (task.scheduled_date) {
@@ -474,6 +496,12 @@ export function isTaskOverdue(task: Task, now: Date = new Date()): boolean {
   }
 
   const nowDateStr = toLocalDateString(now);
+
+  // For virtual occurrences, use virtualOccurrenceDate (not the original task's scheduled_date)
+  // The original task's scheduled_date is the recurrence START date, not this occurrence's date
+  if (task.isVirtualOccurrence && task.virtualOccurrenceDate) {
+    return task.virtualOccurrenceDate < nowDateStr;
+  }
 
   // Date-only tasks: compare against scheduled_date
   if (task.scheduled_date) {

@@ -100,6 +100,34 @@ describe("taskSorting", () => {
       const task = createMockTask({ status: "completed" });
       expect(getTaskCategory(task, now)).toBe("todo");
     });
+
+    it("uses virtualOccurrenceDate for virtual occurrences instead of original scheduled_date", () => {
+      // Virtual occurrence for today (June 15) but original task started April 1
+      const task = createMockTask({
+        id: "recurring-task__2024-06-15",
+        scheduled_date: "2024-04-01", // Original recurrence start date
+        isVirtualOccurrence: true,
+        virtualOccurrenceDate: "2024-06-15", // Today's occurrence
+        is_recurring: true,
+        status: "pending",
+      });
+      // Should be "timed" (today) not "overdue"
+      const todayNoon = new Date(2024, 5, 15, 12, 0, 0, 0);
+      expect(getTaskCategory(task, todayNoon)).toBe("timed");
+    });
+
+    it("marks virtual occurrence as overdue when virtualOccurrenceDate is in the past", () => {
+      const task = createMockTask({
+        id: "recurring-task__2024-06-14",
+        scheduled_date: "2024-04-01", // Original recurrence start date
+        isVirtualOccurrence: true,
+        virtualOccurrenceDate: "2024-06-14", // Yesterday's occurrence
+        is_recurring: true,
+        status: "pending",
+      });
+      const todayNoon = new Date(2024, 5, 15, 12, 0, 0, 0);
+      expect(getTaskCategory(task, todayNoon)).toBe("overdue");
+    });
   });
 
   describe("sortTasksForTodayView", () => {
@@ -281,6 +309,36 @@ describe("taskSorting", () => {
       });
       const noonLocal = new Date(2024, 5, 15, 12, 0, 0, 0);
       expect(isTaskOverdue(task, noonLocal)).toBe(true);
+    });
+
+    it("uses virtualOccurrenceDate for virtual occurrences instead of original scheduled_date", () => {
+      // Virtual occurrence for today (June 15) but original task started April 1
+      const task = createMockTask({
+        id: "recurring-task__2024-06-15",
+        scheduled_date: "2024-04-01", // Original recurrence start date
+        isVirtualOccurrence: true,
+        virtualOccurrenceDate: "2024-06-15", // Today's occurrence
+        is_recurring: true,
+        status: "pending",
+      });
+      // Should NOT be overdue since virtualOccurrenceDate is today
+      const todayNoon = new Date(2024, 5, 15, 12, 0, 0, 0);
+      expect(isTaskOverdue(task, todayNoon)).toBe(false);
+    });
+
+    it("marks virtual occurrence as overdue when virtualOccurrenceDate is before today", () => {
+      // Virtual occurrence for yesterday (June 14)
+      const task = createMockTask({
+        id: "recurring-task__2024-06-14",
+        scheduled_date: "2024-04-01", // Original recurrence start date
+        isVirtualOccurrence: true,
+        virtualOccurrenceDate: "2024-06-14", // Yesterday's occurrence
+        is_recurring: true,
+        status: "pending",
+      });
+      // Should be overdue since virtualOccurrenceDate is yesterday
+      const todayNoon = new Date(2024, 5, 15, 12, 0, 0, 0);
+      expect(isTaskOverdue(task, todayNoon)).toBe(true);
     });
   });
 
