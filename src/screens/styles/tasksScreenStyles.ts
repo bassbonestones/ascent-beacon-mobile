@@ -130,6 +130,26 @@ export const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#FFFFFF",
   },
+  // Subtitle row for Scheduled vs To-Do within each day
+  subtitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 4,
+  },
+  subtitleText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#6B7280",
+    marginHorizontal: 10,
+    letterSpacing: 0.5,
+  },
+  subtitleBookend: {
+    fontSize: 10,
+    color: "#4B5563",
+  },
   summaryRow: {
     flexDirection: "row",
     paddingHorizontal: 16,

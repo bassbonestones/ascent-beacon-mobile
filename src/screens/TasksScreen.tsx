@@ -69,6 +69,58 @@ type ScreenMode = "list" | "create" | "detail" | "edit";
 type ListViewMode = "today" | "upcoming" | "anytime";
 type StatusFilter = "all" | "pending" | "completed" | "skipped";
 
+// Subtitle marker for separating Scheduled vs To-Do tasks within a day
+interface SubtitleMarker {
+  _type: "subtitle";
+  subtitle: "scheduled" | "todo";
+  key: string;
+}
+
+// Union type for section items - either a Task or a SubtitleMarker
+type SectionItem = Task | SubtitleMarker;
+
+// Type guard to check if an item is a subtitle marker
+const isSubtitleMarker = (item: SectionItem): item is SubtitleMarker => {
+  return (item as SubtitleMarker)._type === "subtitle";
+};
+
+// Helper to check if a task is timed (has scheduled_at)
+const isTimedTask = (task: Task): boolean => {
+  return !!task.scheduled_at;
+};
+
+// Helper to create section data with subtitle markers
+const createSectionDataWithSubtitles = (
+  tasks: Task[],
+  dateKey?: string,
+): SectionItem[] => {
+  const timedTasks = tasks.filter(isTimedTask);
+  const untimedTasks = tasks.filter((t) => !isTimedTask(t));
+
+  const items: SectionItem[] = [];
+  const suffix = dateKey ? `-${dateKey}` : "";
+
+  if (timedTasks.length > 0) {
+    items.push({
+      _type: "subtitle",
+      subtitle: "scheduled",
+      key: `subtitle-scheduled${suffix}`,
+    });
+    items.push(...timedTasks);
+  }
+
+  if (untimedTasks.length > 0) {
+    items.push({
+      _type: "subtitle",
+      subtitle: "todo",
+      key: `subtitle-todo${suffix}`,
+    });
+    items.push(...untimedTasks);
+  }
+
+  return items;
+};
+
 export default function TasksScreen({
   user,
   navigation,
@@ -307,10 +359,11 @@ export default function TasksScreen({
           }
 
           // Create section for Today view with formatted header
+          // Use subtitle markers to separate Scheduled vs To-Do tasks
           const todaySection = {
             title: formatDateHeader(todayDateStr, currentDate),
             dateKey: todayDateStr,
-            data: sorted,
+            data: createSectionDataWithSubtitles(sorted, todayDateStr),
           };
 
           return {
@@ -359,7 +412,7 @@ export default function TasksScreen({
           const todaySection = {
             title: formatDateHeader(todayDateStr, currentDate),
             dateKey: todayDateStr,
-            data: completedTasks,
+            data: createSectionDataWithSubtitles(completedTasks, todayDateStr),
           };
 
           return {
@@ -392,7 +445,7 @@ export default function TasksScreen({
           const todaySection = {
             title: formatDateHeader(todayDateStr, currentDate),
             dateKey: todayDateStr,
-            data: skippedTasks,
+            data: createSectionDataWithSubtitles(skippedTasks, todayDateStr),
           };
 
           return {
@@ -407,7 +460,7 @@ export default function TasksScreen({
         const todaySection = {
           title: formatDateHeader(todayDateStr, currentDate),
           dateKey: todayDateStr,
-          data: allTodayTasks,
+          data: createSectionDataWithSubtitles(allTodayTasks, todayDateStr),
         };
         return {
           sortedTasks: allTodayTasks,
@@ -558,7 +611,7 @@ export default function TasksScreen({
           return {
             title: formatDateHeader(dateKey, currentDate),
             dateKey,
-            data: sectionTasks,
+            data: createSectionDataWithSubtitles(sectionTasks, dateKey),
           };
         });
 
@@ -1249,9 +1302,13 @@ export default function TasksScreen({
           sections={sections}
           extraData={tasks}
           renderSectionHeader={({ section }) => {
+            // Filter out subtitle markers and get actual tasks
+            const tasksOnly = section.data.filter(
+              (item: SectionItem): item is Task => !isSubtitleMarker(item),
+            );
             // Get untimed tasks for reorder functionality
             // Untimed = has date but no specific time (must have scheduled_date)
-            const untimedTasks = section.data.filter(
+            const untimedTasks = tasksOnly.filter(
               (t: Task) =>
                 t.scheduling_mode !== "anytime" &&
                 (t.scheduled_date || t.virtualOccurrenceDate) &&
@@ -1294,23 +1351,43 @@ export default function TasksScreen({
               </View>
             );
           }}
-          renderItem={({ item }) => (
-            <TaskCard
-              task={item}
-              currentDate={currentDate}
-              onPress={(t) => {
-                // Show overdue modal for overdue tasks in Today view
-                if (listViewMode === "today" && isTaskOverdue(t, currentDate)) {
-                  setOverdueModalTask(t);
-                } else {
-                  setSelectedTask(t);
-                  setScreenMode("detail");
-                }
-              }}
-              onComplete={handleComplete}
-            />
-          )}
-          keyExtractor={(item, index) => `section-${item.id}-${index}`}
+          renderItem={({ item }: { item: SectionItem }) => {
+            // Render subtitle marker
+            if (isSubtitleMarker(item)) {
+              const label =
+                item.subtitle === "scheduled" ? "Scheduled" : "To-Do";
+              return (
+                <View style={styles.subtitleRow}>
+                  <Text style={styles.subtitleBookend}>── ✦ ──</Text>
+                  <Text style={styles.subtitleText}>{label}</Text>
+                  <Text style={styles.subtitleBookend}>── ✦ ──</Text>
+                </View>
+              );
+            }
+            // Render task card
+            return (
+              <TaskCard
+                task={item}
+                currentDate={currentDate}
+                onPress={(t) => {
+                  // Show overdue modal for overdue tasks in Today view
+                  if (
+                    listViewMode === "today" &&
+                    isTaskOverdue(t, currentDate)
+                  ) {
+                    setOverdueModalTask(t);
+                  } else {
+                    setSelectedTask(t);
+                    setScreenMode("detail");
+                  }
+                }}
+                onComplete={handleComplete}
+              />
+            );
+          }}
+          keyExtractor={(item: SectionItem, index) =>
+            isSubtitleMarker(item) ? item.key : `section-${item.id}-${index}`
+          }
           contentContainerStyle={styles.listContent}
           refreshing={loading && !loadingMore}
           onRefresh={refetch}
