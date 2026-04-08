@@ -330,7 +330,8 @@ describe("TasksScreen", () => {
       });
       render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
       fireEvent.press(screen.getByLabelText("Show upcoming tasks"));
-      expect(screen.getByText("Tomorrow")).toBeTruthy();
+      // Date headers now show "TOMORROW - WED, APR 8" format
+      expect(screen.getByText(/TOMORROW/)).toBeTruthy();
       expect(screen.getByText("Tomorrow Task")).toBeTruthy();
     });
   });
@@ -397,6 +398,7 @@ describe("TasksScreen", () => {
       fireEvent.press(screen.getByLabelText("Create task"));
 
       // Goal is optional and not auto-selected, so goal_id is undefined
+      // Task defaults to today's date when no date selected
       await waitFor(() => {
         expect(createTask).toHaveBeenCalledWith({
           goal_id: undefined,
@@ -405,9 +407,9 @@ describe("TasksScreen", () => {
           duration_minutes: 30,
           is_recurring: false,
           recurrence_rule: undefined,
-          scheduling_mode: undefined,
+          scheduling_mode: "date_only",
           scheduled_at: null,
-          scheduled_date: null,
+          scheduled_date: "2026-04-07",
         });
       });
     });
@@ -431,6 +433,7 @@ describe("TasksScreen", () => {
       fireEvent.changeText(screen.getByLabelText("Task title"), "Aligned Task");
       fireEvent.press(screen.getByLabelText("Create task"));
 
+      // Task defaults to today's date when no date specifically selected
       await waitFor(() => {
         expect(createTask).toHaveBeenCalledWith({
           goal_id: "goal-1",
@@ -439,9 +442,9 @@ describe("TasksScreen", () => {
           duration_minutes: 30,
           is_recurring: false,
           recurrence_rule: undefined,
-          scheduling_mode: undefined,
+          scheduling_mode: "date_only",
           scheduled_at: null,
-          scheduled_date: null,
+          scheduled_date: "2026-04-07",
         });
       });
     });
