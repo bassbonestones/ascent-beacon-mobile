@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import type { Task, TaskStatus } from "../../types";
 import { styles } from "../../screens/styles/tasksScreenStyles";
 import { parseAsUtc, getTimezoneAbbreviation } from "../../utils/taskSorting";
+import { useTimezone } from "../../hooks/useTimezone";
 
 interface TaskDetailViewProps {
   task: Task;
@@ -59,17 +60,59 @@ const formatDate = (dateString: string): string => {
   return `${weekday}, ${month} ${day}, ${year}`;
 };
 
-const formatDateTime = (dateString: string): string => {
+const formatDateTime = (
+  dateString: string,
+  overrideTimezone?: string,
+): string => {
   const date = parseAsUtc(dateString);
-  const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
-  const month = date.toLocaleDateString("en-US", { month: "short" });
-  const day = date.getDate();
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
+
+  // Get time components in target timezone
+  let hours: number,
+    minutes: number,
+    weekday: string,
+    month: string,
+    day: number;
+
+  if (overrideTimezone) {
+    try {
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: overrideTimezone,
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: false,
+      });
+      const parts = formatter.formatToParts(date);
+      weekday = parts.find((p) => p.type === "weekday")?.value || "";
+      month = parts.find((p) => p.type === "month")?.value || "";
+      day = parseInt(parts.find((p) => p.type === "day")?.value || "0", 10);
+      hours = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+      minutes = parseInt(
+        parts.find((p) => p.type === "minute")?.value || "0",
+        10,
+      );
+    } catch {
+      // Fallback to local
+      weekday = date.toLocaleDateString("en-US", { weekday: "short" });
+      month = date.toLocaleDateString("en-US", { month: "short" });
+      day = date.getDate();
+      hours = date.getHours();
+      minutes = date.getMinutes();
+    }
+  } else {
+    weekday = date.toLocaleDateString("en-US", { weekday: "short" });
+    month = date.toLocaleDateString("en-US", { month: "short" });
+    day = date.getDate();
+    hours = date.getHours();
+    minutes = date.getMinutes();
+  }
+
   const ampm = hours >= 12 ? "PM" : "AM";
   const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
   const displayMinute = minutes.toString().padStart(2, "0");
-  const tz = getTimezoneAbbreviation(date);
+  const tz = getTimezoneAbbreviation(date, overrideTimezone);
   return `${weekday}, ${month} ${day} at ${displayHour}:${displayMinute} ${ampm} ${tz}`;
 };
 
@@ -80,34 +123,82 @@ const formatDateTime = (dateString: string): string => {
 const formatScheduledAt = (
   dateString: string,
   schedulingMode?: string | null,
+  overrideTimezone?: string,
 ): string => {
   const date = parseAsUtc(dateString);
+
+  // Get time components for midnight check
+  let hours: number, minutes: number, seconds: number, milliseconds: number;
+  let weekday: string, month: string, day: number, year: number;
+
+  if (overrideTimezone) {
+    try {
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: overrideTimezone,
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      });
+      const parts = formatter.formatToParts(date);
+      weekday = parts.find((p) => p.type === "weekday")?.value || "";
+      month = parts.find((p) => p.type === "month")?.value || "";
+      day = parseInt(parts.find((p) => p.type === "day")?.value || "0", 10);
+      year = parseInt(parts.find((p) => p.type === "year")?.value || "0", 10);
+      hours = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+      minutes = parseInt(
+        parts.find((p) => p.type === "minute")?.value || "0",
+        10,
+      );
+      seconds = parseInt(
+        parts.find((p) => p.type === "second")?.value || "0",
+        10,
+      );
+      milliseconds = date.getMilliseconds();
+    } catch {
+      // Fallback to local time
+      weekday = date.toLocaleDateString("en-US", { weekday: "short" });
+      month = date.toLocaleDateString("en-US", { month: "short" });
+      day = date.getDate();
+      year = date.getFullYear();
+      hours = date.getHours();
+      minutes = date.getMinutes();
+      seconds = date.getSeconds();
+      milliseconds = date.getMilliseconds();
+    }
+  } else {
+    weekday = date.toLocaleDateString("en-US", { weekday: "short" });
+    month = date.toLocaleDateString("en-US", { month: "short" });
+    day = date.getDate();
+    year = date.getFullYear();
+    hours = date.getHours();
+    minutes = date.getMinutes();
+    seconds = date.getSeconds();
+    milliseconds = date.getMilliseconds();
+  }
 
   // Check if this should be shown as date-only
   const isDateOnly =
     schedulingMode === "date_only" ||
     // Heuristic: midnight with no scheduling_mode = likely date-only
     (!schedulingMode &&
-      date.getHours() === 0 &&
-      date.getMinutes() === 0 &&
-      date.getSeconds() === 0 &&
-      date.getMilliseconds() === 0);
-
-  const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
-  const month = date.toLocaleDateString("en-US", { month: "short" });
-  const day = date.getDate();
+      hours === 0 &&
+      minutes === 0 &&
+      seconds === 0 &&
+      milliseconds === 0);
 
   if (isDateOnly) {
-    const year = date.getFullYear();
     return `${weekday}, ${month} ${day}, ${year}`;
   }
 
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
   const ampm = hours >= 12 ? "PM" : "AM";
   const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
   const displayMinute = minutes.toString().padStart(2, "0");
-  const tz = getTimezoneAbbreviation(date);
+  const tz = getTimezoneAbbreviation(date, overrideTimezone);
   return `${weekday}, ${month} ${day} at ${displayHour}:${displayMinute} ${ampm} ${tz}`;
 };
 
@@ -270,6 +361,7 @@ export function TaskDetailView({
   onEdit,
   onViewTracking,
 }: TaskDetailViewProps): React.ReactElement {
+  const { timezone } = useTimezone();
   const isPending =
     task.status === "pending" &&
     !task.completed_for_today &&
@@ -390,7 +482,11 @@ export function TaskDetailView({
             <View style={styles.detailMetaRow}>
               <Text style={styles.detailMetaLabel}>Scheduled</Text>
               <Text style={styles.detailMetaValue}>
-                {formatScheduledAt(task.scheduled_at, task.scheduling_mode)}
+                {formatScheduledAt(
+                  task.scheduled_at,
+                  task.scheduling_mode,
+                  timezone,
+                )}
               </Text>
             </View>
           )}
@@ -399,7 +495,7 @@ export function TaskDetailView({
             <View style={styles.detailMetaRow}>
               <Text style={styles.detailMetaLabel}>Completed</Text>
               <Text style={styles.detailMetaValue}>
-                {formatDateTime(task.completed_at)}
+                {formatDateTime(task.completed_at, timezone)}
               </Text>
             </View>
           )}

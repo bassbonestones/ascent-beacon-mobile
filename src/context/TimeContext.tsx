@@ -6,15 +6,19 @@ import React, {
   useCallback,
   type ReactNode,
 } from "react";
-import * as SecureStore from "expo-secure-store";
-import { Platform } from "react-native";
 import api from "../services/api";
 import { toLocalDateString } from "../utils/taskSorting";
+import { getDeviceTimezone } from "../utils/timezoneData";
+import {
+  getStoredValue,
+  setStoredValue,
+  removeStoredValue,
+  getDateInTimezone,
+} from "./timeStorage";
 
 const TIME_MACHINE_ENABLED_KEY = "time_machine_enabled";
 const TRAVEL_DATE_KEY = "time_travel_date";
-
-const isWeb = Platform.OS === "web";
+const TIMEZONE_KEY = "time_machine_timezone";
 
 /**
  * Time context value interface.
@@ -26,16 +30,24 @@ interface TimeContextValue {
   isTimeTravelActive: boolean;
   /** The overridden date, or null if using real time */
   travelDate: Date | null;
+  /** The overridden timezone, or null for device default */
+  overrideTimezone: string | null;
   /** Enable/reveal the time machine UI (e.g., via triple-tap) */
   enableTimeMachine: () => void;
   /** Disable/hide the time machine UI */
   disableTimeMachine: () => void;
   /** Set the travel date (pass null to return to real time) */
   setTravelDate: (date: Date | null) => void;
+  /** Set the timezone override (pass null to use device default) */
+  setTimezone: (timezone: string | null) => void;
+  /** Get the effective timezone (override or device default) */
+  getTimezone: () => string;
   /** Reset to today and exit time travel. If deleteCompletions is true, deletes future completions. */
   resetToToday: (
     deleteCompletions?: boolean,
   ) => Promise<{ deletedCount: number }>;
+  /** Full reset: exit time travel AND reset timezone to device default */
+  fullReset: (deleteCompletions?: boolean) => Promise<{ deletedCount: number }>;
   /** Revert to a specific date, stay in time machine. If deleteCompletions is true, deletes completions after that date. */
   revertToDate: (
     date: Date,
@@ -66,30 +78,6 @@ export function useTime(): TimeContextValue {
   return context;
 }
 
-// Storage helpers
-async function getStoredValue(key: string): Promise<string | null> {
-  if (isWeb) {
-    return localStorage.getItem(key);
-  }
-  return await SecureStore.getItemAsync(key);
-}
-
-async function setStoredValue(key: string, value: string): Promise<void> {
-  if (isWeb) {
-    localStorage.setItem(key, value);
-  } else {
-    await SecureStore.setItemAsync(key, value);
-  }
-}
-
-async function removeStoredValue(key: string): Promise<void> {
-  if (isWeb) {
-    localStorage.removeItem(key);
-  } else {
-    await SecureStore.deleteItemAsync(key);
-  }
-}
-
 /**
  * Provider component for time machine state.
  */
@@ -98,6 +86,9 @@ export function TimeProvider({
 }: TimeProviderProps): React.JSX.Element {
   const [isTimeMachineEnabled, setIsTimeMachineEnabled] = useState(false);
   const [travelDate, setTravelDateState] = useState<Date | null>(null);
+  const [overrideTimezone, setOverrideTimezoneState] = useState<string | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
 
   // Hydrate from storage on mount
@@ -106,6 +97,7 @@ export function TimeProvider({
       try {
         const enabledStr = await getStoredValue(TIME_MACHINE_ENABLED_KEY);
         const dateStr = await getStoredValue(TRAVEL_DATE_KEY);
+        const tzStr = await getStoredValue(TIMEZONE_KEY);
 
         if (enabledStr === "true") {
           setIsTimeMachineEnabled(true);
@@ -116,6 +108,10 @@ export function TimeProvider({
           if (!isNaN(parsed.getTime())) {
             setTravelDateState(parsed);
           }
+        }
+
+        if (tzStr) {
+          setOverrideTimezoneState(tzStr);
         }
       } catch {
         // Ignore storage errors on load
@@ -148,6 +144,19 @@ export function TimeProvider({
     }
   }, []);
 
+  const setTimezone = useCallback(async (timezone: string | null) => {
+    setOverrideTimezoneState(timezone);
+    if (timezone) {
+      await setStoredValue(TIMEZONE_KEY, timezone);
+    } else {
+      await removeStoredValue(TIMEZONE_KEY);
+    }
+  }, []);
+
+  const getTimezone = useCallback((): string => {
+    return overrideTimezone || getDeviceTimezone();
+  }, [overrideTimezone]);
+
   const resetToToday = useCallback(
     async (
       deleteCompletions: boolean = false,
@@ -162,9 +171,34 @@ export function TimeProvider({
         deletedCount = result.deletedCount;
       }
 
-      // Clear the travel date (exit time machine)
+      // Clear the travel date (exit time machine), but keep timezone
       setTravelDateState(null);
       await removeStoredValue(TRAVEL_DATE_KEY);
+
+      return { deletedCount };
+    },
+    [],
+  );
+
+  const fullReset = useCallback(
+    async (
+      deleteCompletions: boolean = false,
+    ): Promise<{
+      deletedCount: number;
+    }> => {
+      let deletedCount = 0;
+
+      // Only call API to delete if requested
+      if (deleteCompletions) {
+        const result = await api.deleteFutureCompletions();
+        deletedCount = result.deletedCount;
+      }
+
+      // Clear both travel date AND timezone override
+      setTravelDateState(null);
+      setOverrideTimezoneState(null);
+      await removeStoredValue(TRAVEL_DATE_KEY);
+      await removeStoredValue(TIMEZONE_KEY);
 
       return { deletedCount };
     },
@@ -204,12 +238,18 @@ export function TimeProvider({
     [],
   );
 
+  /**
+   * Get the current date/time, adjusted for timezone override.
+   * If timezone is overridden, returns a Date representing "now" in that timezone.
+   * For example: 8:26 PM CDT on April 7 → 1:26 AM UTC on April 8
+   */
   const getCurrentDate = useCallback((): Date => {
-    if (travelDate) {
-      return new Date(travelDate);
+    const baseDate = travelDate ? new Date(travelDate) : new Date();
+    if (!overrideTimezone) {
+      return baseDate;
     }
-    return new Date();
-  }, [travelDate]);
+    return getDateInTimezone(baseDate, overrideTimezone);
+  }, [travelDate, overrideTimezone]);
 
   const isTimeTravelActive = travelDate !== null;
 
@@ -217,10 +257,14 @@ export function TimeProvider({
     isTimeMachineEnabled,
     isTimeTravelActive,
     travelDate,
+    overrideTimezone,
     enableTimeMachine,
     disableTimeMachine,
     setTravelDate,
+    setTimezone,
+    getTimezone,
     resetToToday,
+    fullReset,
     revertToDate,
     getFutureCompletionsCount,
     getCurrentDate,

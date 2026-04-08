@@ -25,7 +25,6 @@ import type {
 import { useTasks } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
 import { useTaskForm } from "../hooks/useTaskForm";
-import { useOccurrenceOrder } from "../hooks/useOccurrenceOrder";
 import { useOccurrenceOrderRange } from "../hooks/useOccurrenceOrderRange";
 import { useTime } from "../context/TimeContext";
 import { styles } from "./styles/tasksScreenStyles";
@@ -39,7 +38,6 @@ import {
 } from "../components/tasks";
 import { showAlert, showConfirm } from "../utils/alert";
 import {
-  sortTasksForTodayView,
   filterTasksForToday,
   filterTasksForUpcoming,
   isTaskOverdue,
@@ -216,27 +214,41 @@ export default function TasksScreen({
   // Get today's date string for occurrence ordering
   const todayDateStr = toLocalDateString(currentDate);
 
+  // Calculate start date for Today view (7 days back for overdue tasks)
+  // This matches the daysBack used in generateRecurringOccurrences
+  const todayStartDate = useMemo(() => {
+    const d = new Date(currentDate);
+    d.setDate(d.getDate() - 7);
+    return toLocalDateString(d);
+  }, [currentDate]);
+
   // Calculate end date for Upcoming range (effectiveDaysAhead from today)
-  const endDate = useMemo(() => {
+  const upcomingEndDate = useMemo(() => {
     const d = new Date(currentDate);
     d.setDate(d.getDate() + effectiveDaysAhead);
     return toLocalDateString(d);
   }, [currentDate, effectiveDaysAhead]);
 
-  // Fetch occurrence order for Today view (single date)
-  const { applySortOrder: applyTodayOrder, refetch: refetchTodayOrder } =
-    useOccurrenceOrder({
-      date: todayDateStr,
-      enabled: listViewMode === "today",
-    });
+  // Fetch occurrence order for Today view (date range: 7 days back to today)
+  // This supports per-day ordering for overdue tasks
+  const {
+    applyOrderForDate: applyTodayOrderForDate,
+    refetch: refetchTodayOrder,
+  } = useOccurrenceOrderRange({
+    startDate: todayStartDate,
+    endDate: todayDateStr,
+    enabled: listViewMode === "today",
+  });
 
-  // Fetch occurrence order for Upcoming view (date range)
-  const { applyOrderForDate, refetch: refetchRangeOrder } =
-    useOccurrenceOrderRange({
-      startDate: todayDateStr,
-      endDate: endDate,
-      enabled: listViewMode === "upcoming",
-    });
+  // Fetch occurrence order for Upcoming view (date range: today to future)
+  const {
+    applyOrderForDate: applyUpcomingOrderForDate,
+    refetch: refetchRangeOrder,
+  } = useOccurrenceOrderRange({
+    startDate: todayDateStr,
+    endDate: upcomingEndDate,
+    enabled: listViewMode === "upcoming",
+  });
 
   // Refetch occurrence order when screen gains focus (e.g., returning from reorder screen)
   useEffect(() => {
@@ -322,53 +334,93 @@ export default function TasksScreen({
             todayTasks = condenseRecurringTasks(todayTasks);
           }
 
-          // Default sorting: overdue → timed → todo
-          let sorted = sortTasksForTodayView(todayTasks, currentDate);
+          // Group tasks by date (like Upcoming view)
+          // This allows overdue tasks to be grouped by their original date
+          const grouped = groupTasksByDate(todayTasks);
 
-          // Apply occurrence ordering to untimed tasks
-          // Untimed = has date but no specific time (must have scheduled_date)
-          // 1. Find untimed tasks in the sorted list
-          // 2. Apply saved order to them
-          // 3. Preserve position relative to timed/overdue tasks
-          const untimedIndices: number[] = [];
-          const untimedTasks: Task[] = [];
-          sorted.forEach((task, idx) => {
-            const hasDate = !!(
-              task.scheduled_date || task.virtualOccurrenceDate
-            );
-            const isUntimed =
-              task.scheduling_mode !== "anytime" &&
-              hasDate &&
-              !task.scheduled_at;
-            if (isUntimed) {
-              untimedIndices.push(idx);
-              untimedTasks.push(task);
+          // Get unscheduled tasks (no-date) - these go into today's section
+          const noDateTasks = grouped.get("no-date") || [];
+
+          // Get dated sections, sorted by date (oldest first for overdue)
+          const dateKeys = Array.from(grouped.keys())
+            .filter((k) => k !== "no-date")
+            .sort();
+
+          // Build sections for each date
+          const sectionData = dateKeys.map((dateKey) => {
+            let sectionTasks = grouped.get(dateKey) || [];
+
+            // If this is today's section, add unscheduled tasks
+            if (dateKey === todayDateStr && noDateTasks.length > 0) {
+              // Unscheduled tasks go after dated tasks (they're untimed)
+              sectionTasks = [...sectionTasks, ...noDateTasks];
             }
+
+            // Extract untimed tasks for reordering
+            const untimedIndices: number[] = [];
+            const untimedTasks: Task[] = [];
+            sectionTasks.forEach((task, idx) => {
+              // Untimed = date-only scheduled OR unscheduled (no scheduled_at)
+              const isUntimed =
+                task.scheduling_mode !== "anytime" && !task.scheduled_at;
+              if (isUntimed) {
+                untimedIndices.push(idx);
+                untimedTasks.push(task);
+              }
+            });
+
+            if (untimedTasks.length > 0) {
+              // Apply order for this specific date
+              const reorderedUntimed = applyTodayOrderForDate(
+                untimedTasks,
+                dateKey,
+              );
+
+              // Put them back in their positions
+              const finalSorted = [...sectionTasks];
+              untimedIndices.forEach((originalIdx, i) => {
+                finalSorted[originalIdx] = reorderedUntimed[i];
+              });
+              sectionTasks = finalSorted;
+            }
+
+            // Dates before today are overdue
+            const isOverdue = dateKey < todayDateStr;
+
+            return {
+              title: formatDateHeader(dateKey, currentDate, isOverdue),
+              dateKey,
+              data: createSectionDataWithSubtitles(sectionTasks, dateKey),
+            };
           });
 
-          if (untimedTasks.length > 0) {
-            // Apply saved order to untimed tasks
-            const reorderedUntimed = applyTodayOrder(untimedTasks);
+          // If there are no dated sections but there are unscheduled tasks,
+          // create a today section just for them
+          if (sectionData.length === 0 && noDateTasks.length > 0) {
+            // Apply ordering to unscheduled tasks
+            const reorderedNoDate = applyTodayOrderForDate(
+              noDateTasks,
+              todayDateStr,
+            );
 
-            // Put them back in their positions
-            const finalSorted = [...sorted];
-            untimedIndices.forEach((originalIdx, i) => {
-              finalSorted[originalIdx] = reorderedUntimed[i];
+            sectionData.push({
+              title: formatDateHeader(todayDateStr, currentDate, false),
+              dateKey: todayDateStr,
+              data: createSectionDataWithSubtitles(
+                reorderedNoDate,
+                todayDateStr,
+              ),
             });
-            sorted = finalSorted;
           }
 
-          // Create section for Today view with formatted header
-          // Use subtitle markers to separate Scheduled vs To-Do tasks
-          const todaySection = {
-            title: formatDateHeader(todayDateStr, currentDate),
-            dateKey: todayDateStr,
-            data: createSectionDataWithSubtitles(sorted, todayDateStr),
-          };
+          // Flatten all tasks for sortedTasks (used by drag reordering)
+          const allSorted = sectionData.flatMap((section) =>
+            section.data.filter((item): item is Task => !("_type" in item)),
+          );
 
           return {
-            sortedTasks: sorted,
-            sections: [todaySection],
+            sortedTasks: allSorted,
+            sections: sectionData,
             viewPendingCount: todayPending,
             viewCompletedCount: todayCompleted,
           };
@@ -597,8 +649,11 @@ export default function TasksScreen({
 
           if (untimedTasks.length > 0) {
             // Apply order for this specific date
-            // applyOrderForDate handles both daily overrides and permanent preferences
-            const reorderedUntimed = applyOrderForDate(untimedTasks, dateKey);
+            // applyUpcomingOrderForDate handles both daily overrides and permanent preferences
+            const reorderedUntimed = applyUpcomingOrderForDate(
+              untimedTasks,
+              dateKey,
+            );
 
             // Put them back in their positions
             const finalSorted = [...sectionTasks];
@@ -629,8 +684,8 @@ export default function TasksScreen({
       listViewMode,
       currentDate,
       effectiveDaysAhead,
-      applyTodayOrder,
-      applyOrderForDate,
+      applyTodayOrderForDate,
+      applyUpcomingOrderForDate,
     ]);
 
   // Count overdue tasks

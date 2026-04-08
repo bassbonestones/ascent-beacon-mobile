@@ -159,3 +159,82 @@ export function ReturnConfirmModal({
     </Modal>
   );
 }
+
+interface FullResetConfirmModalProps {
+  visible: boolean;
+  isTimeTraveling: boolean;
+  completionsCount: number;
+  onCancel: () => void;
+  onConfirm: (deleteCompletions: boolean) => void;
+}
+
+export function FullResetConfirmModal({
+  visible,
+  isTimeTraveling,
+  completionsCount,
+  onCancel,
+  onConfirm,
+}: FullResetConfirmModalProps): React.ReactElement {
+  const hasCompletions = isTimeTraveling && completionsCount > 0;
+
+  return (
+    <Modal visible={visible} animationType="fade" transparent>
+      <View style={styles.confirmOverlay}>
+        <View style={styles.confirmBox}>
+          <Text style={styles.confirmTitle}>🔄 Full Reset?</Text>
+          <Text style={styles.confirmText}>
+            {isTimeTraveling
+              ? hasCompletions
+                ? `This will:\n• Return to present\n• Reset timezone to device default\n\nYou have ${completionsCount} completion${completionsCount === 1 ? "" : "s"} dated after today.`
+                : "This will:\n• Return to present\n• Reset timezone to device default"
+              : "Reset timezone to device default?"}
+          </Text>
+
+          {hasCompletions ? (
+            <>
+              <Text style={styles.confirmWarning}>
+                What would you like to do with these completions?
+              </Text>
+              <View style={styles.confirmButtons}>
+                <TouchableOpacity
+                  style={styles.confirmCancel}
+                  onPress={onCancel}
+                >
+                  <Text style={styles.confirmCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.confirmButtons}>
+                <TouchableOpacity
+                  style={styles.confirmKeep}
+                  onPress={() => onConfirm(false)}
+                >
+                  <Text style={styles.confirmKeepText}>Keep Completions</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.confirmDelete}
+                  onPress={() => onConfirm(true)}
+                >
+                  <Text style={styles.confirmDeleteText}>
+                    Remove Completions
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <View style={styles.confirmButtons}>
+              <TouchableOpacity style={styles.confirmCancel} onPress={onCancel}>
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmTravel}
+                onPress={() => onConfirm(false)}
+              >
+                <Text style={styles.confirmDeleteText}>Reset</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}

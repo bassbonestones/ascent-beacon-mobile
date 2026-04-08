@@ -326,21 +326,75 @@ export function parseAsUtc(dateString: string): Date {
 /**
  * Get timezone abbreviation for display (e.g., "EST", "PST").
  * Falls back to offset format (e.g., "GMT-5") if abbreviation unavailable.
+ * @param date - Date object to get timezone for
+ * @param overrideTimezone - Optional IANA timezone to use instead of local
  */
-export function getTimezoneAbbreviation(date: Date = new Date()): string {
-  // Try to get timezone abbreviation from toLocaleTimeString
-  const timeString = date.toLocaleTimeString("en-US", {
-    timeZoneName: "short",
-  });
-  const match = timeString.match(/\s([A-Z]{2,4})$/);
-  if (match) {
-    return match[1];
+export function getTimezoneAbbreviation(
+  date: Date = new Date(),
+  overrideTimezone?: string,
+): string {
+  try {
+    // Use Intl to get timezone name in specified timezone
+    const options: Intl.DateTimeFormatOptions = {
+      timeZoneName: "short",
+      ...(overrideTimezone && { timeZone: overrideTimezone }),
+    };
+    const timeString = date.toLocaleTimeString("en-US", options);
+    const match = timeString.match(/\s([A-Z]{2,5}|UTC[+-]?\d*)$/i);
+    if (match) {
+      return match[1];
+    }
+  } catch {
+    // Fall through to fallback
   }
-  // Fallback: calculate GMT offset
+  // Fallback: calculate GMT offset from date's local timezone
   const offset = -date.getTimezoneOffset();
   const hours = Math.floor(Math.abs(offset) / 60);
   const sign = offset >= 0 ? "+" : "-";
   return `GMT${sign}${hours}`;
+}
+
+/**
+ * Get time components in a specific timezone.
+ * @param date - UTC Date object
+ * @param timezone - IANA timezone identifier
+ */
+function getTimeInTimezone(
+  date: Date,
+  timezone: string,
+): { hours: number; minutes: number; seconds: number; ms: number } {
+  try {
+    // Parse the date in the target timezone
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+      hour12: false,
+    });
+    const parts = formatter.formatToParts(date);
+    const hours = parseInt(
+      parts.find((p) => p.type === "hour")?.value || "0",
+      10,
+    );
+    const minutes = parseInt(
+      parts.find((p) => p.type === "minute")?.value || "0",
+      10,
+    );
+    const seconds = parseInt(
+      parts.find((p) => p.type === "second")?.value || "0",
+      10,
+    );
+    return { hours, minutes, seconds, ms: date.getMilliseconds() };
+  } catch {
+    // Fallback to local time
+    return {
+      hours: date.getHours(),
+      minutes: date.getMinutes(),
+      seconds: date.getSeconds(),
+      ms: date.getMilliseconds(),
+    };
+  }
 }
 
 /**
@@ -349,21 +403,29 @@ export function getTimezoneAbbreviation(date: Date = new Date()): string {
  * @param scheduledAt - ISO datetime string
  * @param schedulingMode - If 'date_only', returns null (no time to show)
  * @param showTimezone - Whether to include timezone abbreviation (default: true)
+ * @param overrideTimezone - Optional IANA timezone to display time in
  */
 export function formatTaskTime(
   scheduledAt: string | null,
   schedulingMode?: string | null,
   showTimezone: boolean = true,
+  overrideTimezone?: string,
 ): string | null {
   if (!scheduledAt) return null;
   // 'date_only' means the user only set a date, not a specific time
   if (schedulingMode === "date_only") return null;
 
   const date = parseAsUtc(scheduledAt);
-  const hours = date.getHours(); // Local hours (0-23)
-  const minutes = date.getMinutes();
-  const seconds = date.getSeconds();
-  const ms = date.getMilliseconds();
+
+  // Get time components in the target timezone
+  const { hours, minutes, seconds, ms } = overrideTimezone
+    ? getTimeInTimezone(date, overrideTimezone)
+    : {
+        hours: date.getHours(),
+        minutes: date.getMinutes(),
+        seconds: date.getSeconds(),
+        ms: date.getMilliseconds(),
+      };
 
   // Heuristic: if time is exactly midnight and no scheduling_mode is set,
   // this is likely a date-only task (created before scheduling_mode was added)
@@ -384,7 +446,7 @@ export function formatTaskTime(
 
   const timeStr = `${displayHour}:${displayMinute} ${ampm}`;
   if (showTimezone) {
-    return `${timeStr} ${getTimezoneAbbreviation(date)}`;
+    return `${timeStr} ${getTimezoneAbbreviation(date, overrideTimezone)}`;
   }
   return timeStr;
 }
@@ -512,10 +574,14 @@ export function groupTasksByDate(tasks: Task[]): Map<string, Task[]> {
 
 /**
  * Format date for section header (e.g., "TODAY - THU, APR 7", "TOMORROW - FRI, APR 8", "Mon, Apr 7").
+ * @param dateKey - Date string in YYYY-MM-DD format
+ * @param today - Reference date for today/tomorrow calculation
+ * @param isOverdue - If true and date is before today, format as "OVERDUE - MON, APR 5"
  */
 export function formatDateHeader(
   dateKey: string,
   today: Date = new Date(),
+  isOverdue: boolean = false,
 ): string {
   if (dateKey === "no-date") {
     return "No Date";
@@ -533,7 +599,7 @@ export function formatDateHeader(
   const dayAfterTomorrow = new Date(todayStart);
   dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
 
-  // Format: "Mon, Apr 7" or "MON, APR 7" (uppercase for today/tomorrow)
+  // Format: "Mon, Apr 7" or "MON, APR 7" (uppercase for today/tomorrow/overdue)
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const monthNames = [
     "Jan",
@@ -556,6 +622,11 @@ export function formatDateHeader(
   }
   if (date >= tomorrowStart && date < dayAfterTomorrow) {
     return `TOMORROW - ${dateStr.toUpperCase()}`;
+  }
+
+  // Overdue dates (before today) get OVERDUE prefix
+  if (isOverdue && date < todayStart) {
+    return `OVERDUE - ${dateStr.toUpperCase()}`;
   }
 
   return dateStr;

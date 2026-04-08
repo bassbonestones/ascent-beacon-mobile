@@ -9,6 +9,7 @@ import HabitMetricsScreen from "../HabitMetricsScreen";
 import api from "../../services/api";
 import { useTime } from "../../context/TimeContext";
 import type { TaskStatsResponse, CompletionHistoryResponse } from "../../types";
+import { createMockTimeContext } from "../../testHelpers";
 
 jest.mock("../../services/api");
 jest.mock("../../context/TimeContext");
@@ -73,19 +74,7 @@ describe("HabitMetricsScreen", () => {
     jest.clearAllMocks();
     (api.getTaskStats as jest.Mock).mockResolvedValue(mockStats);
     (api.getCompletionHistory as jest.Mock).mockResolvedValue(mockHistory);
-    mockedUseTime.mockReturnValue({
-      isTimeMachineEnabled: false,
-      isTimeTravelActive: false,
-      travelDate: null,
-      enableTimeMachine: jest.fn(),
-      disableTimeMachine: jest.fn(),
-      setTravelDate: jest.fn(),
-      resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
-      revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
-      getFutureCompletionsCount: jest.fn().mockResolvedValue(0),
-      getCurrentDate: () => new Date(),
-      loading: false,
-    });
+    mockedUseTime.mockReturnValue(createMockTimeContext());
   });
 
   it("renders loading state initially", () => {

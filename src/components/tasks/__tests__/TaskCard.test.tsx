@@ -2,6 +2,12 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react-native";
 import { TaskCard } from "../TaskCard";
 import type { Task } from "../../../types";
+import { useTime } from "../../../context/TimeContext";
+import { createMockTimeContext } from "../../../testHelpers";
+
+// Mock the TimeContext
+jest.mock("../../../context/TimeContext");
+const mockedUseTime = jest.mocked(useTime);
 
 const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   id: "task-1",
@@ -33,6 +39,7 @@ describe("TaskCard", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedUseTime.mockReturnValue(createMockTimeContext());
   });
 
   it("renders task title", () => {

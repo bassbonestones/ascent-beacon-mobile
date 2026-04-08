@@ -19,6 +19,7 @@ interface UseTimeMachineActionsReturn {
   handleQuickTravel: (days: number) => void;
   handleConfirmTravel: (deleteCompletions: boolean) => Promise<void>;
   handleReturnToPresent: (deleteCompletions: boolean) => Promise<void>;
+  handleFullReset: (deleteCompletions: boolean) => Promise<void>;
   handleCancelPending: () => void;
   openConfirmModal: () => Promise<void>;
   openReturnConfirmModal: () => Promise<void>;
@@ -29,8 +30,13 @@ interface UseTimeMachineActionsReturn {
 export function useTimeMachineActions(
   onClose: () => void,
 ): UseTimeMachineActionsReturn {
-  const { travelDate, resetToToday, revertToDate, getFutureCompletionsCount } =
-    useTime();
+  const {
+    travelDate,
+    resetToToday,
+    fullReset,
+    revertToDate,
+    getFutureCompletionsCount,
+  } = useTime();
 
   const [pendingDate, setPendingDate] = useState<Date | null>(null);
   const [pendingHour, setPendingHour] = useState(12);
@@ -169,6 +175,26 @@ export function useTimeMachineActions(
     [resetToToday, onClose],
   );
 
+  const handleFullReset = useCallback(
+    async (deleteCompletions: boolean) => {
+      try {
+        const result = await fullReset(deleteCompletions);
+        setPendingDate(null);
+        const message =
+          deleteCompletions && result.deletedCount > 0
+            ? `Full reset complete. Deleted ${result.deletedCount} future completion${result.deletedCount === 1 ? "" : "s"}.`
+            : "Full reset complete. Timezone reset to device default.";
+        showMessage("Full Reset", message);
+        onClose();
+      } catch (error) {
+        const msg =
+          error instanceof Error ? error.message : "Failed to perform reset";
+        showMessage("Error", msg);
+      }
+    },
+    [fullReset, onClose],
+  );
+
   const handleCancelPending = useCallback(() => {
     setPendingDate(null);
     setPendingHour(travelDate?.getHours() ?? 12);
@@ -190,6 +216,7 @@ export function useTimeMachineActions(
     handleQuickTravel,
     handleConfirmTravel,
     handleReturnToPresent,
+    handleFullReset,
     handleCancelPending,
     openConfirmModal,
     openReturnConfirmModal,

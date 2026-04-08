@@ -8,7 +8,7 @@ import {
 import TasksScreen from "../TasksScreen";
 import { useTasks } from "../../hooks/useTasks";
 import { useGoals } from "../../hooks/useGoals";
-import { useOccurrenceOrder } from "../../hooks/useOccurrenceOrder";
+import { useOccurrenceOrderRange } from "../../hooks/useOccurrenceOrderRange";
 import { useTime } from "../../context/TimeContext";
 import type {
   Task,
@@ -18,16 +18,17 @@ import type {
   UseGoalsReturn,
 } from "../../types";
 import { showAlert, showConfirm } from "../../utils/alert";
+import { createMockTimeContext } from "../../testHelpers";
 
 jest.mock("../../hooks/useTasks");
 jest.mock("../../hooks/useGoals");
-jest.mock("../../hooks/useOccurrenceOrder");
+jest.mock("../../hooks/useOccurrenceOrderRange");
 jest.mock("../../utils/alert");
 jest.mock("../../context/TimeContext");
 
 const mockedUseTasks = jest.mocked(useTasks);
 const mockedUseGoals = jest.mocked(useGoals);
-const mockedUseOccurrenceOrder = jest.mocked(useOccurrenceOrder);
+const mockedUseOccurrenceOrderRange = jest.mocked(useOccurrenceOrderRange);
 const mockedShowAlert = jest.mocked(showAlert);
 const mockedShowConfirm = jest.mocked(showConfirm);
 const mockedUseTime = jest.mocked(useTime);
@@ -122,28 +123,16 @@ describe("TasksScreen", () => {
     jest.clearAllMocks();
     mockedUseTasks.mockReturnValue(defaultTasksHook);
     mockedUseGoals.mockReturnValue(defaultGoalsHook);
-    mockedUseOccurrenceOrder.mockReturnValue({
-      order: [],
+    mockedUseOccurrenceOrderRange.mockReturnValue({
+      data: null,
       loading: false,
       error: null,
       refetch: jest.fn(),
-      applySortOrder: (tasks) => tasks,
-      applyPermanentOrder: (tasks) => tasks,
+      applyOrderForDate: (tasks) => tasks,
+      hasOverridesForDate: () => false,
     });
     mockedShowConfirm.mockResolvedValue(false);
-    mockedUseTime.mockReturnValue({
-      isTimeMachineEnabled: false,
-      isTimeTravelActive: false,
-      travelDate: null,
-      enableTimeMachine: jest.fn(),
-      disableTimeMachine: jest.fn(),
-      setTravelDate: jest.fn(),
-      resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
-      revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
-      getFutureCompletionsCount: jest.fn().mockResolvedValue(0),
-      getCurrentDate: () => new Date(),
-      loading: false,
-    });
+    mockedUseTime.mockReturnValue(createMockTimeContext());
   });
 
   describe("List View", () => {

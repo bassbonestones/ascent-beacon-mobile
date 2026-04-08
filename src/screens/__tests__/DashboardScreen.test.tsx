@@ -4,6 +4,7 @@ import DashboardScreen from "../DashboardScreen";
 import { useTime } from "../../context/TimeContext";
 import type { User, RootStackParamList } from "../../types";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { createMockTimeContext } from "../../testHelpers";
 
 jest.mock("../../context/TimeContext");
 
@@ -45,19 +46,7 @@ describe("DashboardScreen", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedUseTime.mockReturnValue({
-      isTimeMachineEnabled: false,
-      isTimeTravelActive: false,
-      travelDate: null,
-      enableTimeMachine: jest.fn(),
-      disableTimeMachine: jest.fn(),
-      setTravelDate: jest.fn(),
-      resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
-      revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
-      getFutureCompletionsCount: jest.fn().mockResolvedValue(0),
-      getCurrentDate: () => new Date(),
-      loading: false,
-    });
+    mockedUseTime.mockReturnValue(createMockTimeContext());
   });
 
   it("renders welcome message", () => {
@@ -243,19 +232,9 @@ describe("DashboardScreen", () => {
   });
 
   it("shows gear icon when time machine is enabled", () => {
-    mockedUseTime.mockReturnValue({
-      isTimeMachineEnabled: true,
-      isTimeTravelActive: false,
-      travelDate: null,
-      enableTimeMachine: jest.fn(),
-      disableTimeMachine: jest.fn(),
-      setTravelDate: jest.fn(),
-      resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
-      revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
-      getFutureCompletionsCount: jest.fn().mockResolvedValue(0),
-      getCurrentDate: () => new Date(),
-      loading: false,
-    });
+    mockedUseTime.mockReturnValue(
+      createMockTimeContext({ isTimeMachineEnabled: true }),
+    );
 
     const { getByLabelText } = render(
       <DashboardScreen
@@ -269,19 +248,9 @@ describe("DashboardScreen", () => {
 
   it("enables time machine on triple tap of title", () => {
     const mockEnableTimeMachine = jest.fn();
-    mockedUseTime.mockReturnValue({
-      isTimeMachineEnabled: false,
-      isTimeTravelActive: false,
-      travelDate: null,
-      enableTimeMachine: mockEnableTimeMachine,
-      disableTimeMachine: jest.fn(),
-      setTravelDate: jest.fn(),
-      resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
-      revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
-      getFutureCompletionsCount: jest.fn().mockResolvedValue(0),
-      getCurrentDate: () => new Date(),
-      loading: false,
-    });
+    mockedUseTime.mockReturnValue(
+      createMockTimeContext({ enableTimeMachine: mockEnableTimeMachine }),
+    );
 
     const { getByLabelText } = render(
       <DashboardScreen

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, TouchableOpacity, Modal, ScrollView } from "react-native";
 import { Calendar, DateData } from "react-native-calendars";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,10 +9,13 @@ import { TimePicker } from "./TimePicker";
 import {
   TravelConfirmModal,
   ReturnConfirmModal,
+  FullResetConfirmModal,
 } from "./TimeMachineConfirmModals";
 import { TimeMachineStatus } from "./TimeMachineStatus";
 import { useTimeMachineActions } from "./useTimeMachineActions";
 import { toLocalDateString } from "../utils/taskSorting";
+import { TimezonePicker } from "./TimezonePicker";
+import { getTimezoneLabel } from "../utils/timezoneData";
 
 type Direction = "left" | "right";
 
@@ -46,7 +49,10 @@ export function TimeMachineModal({
   visible,
   onClose,
 }: TimeMachineModalProps): React.ReactElement {
-  const { travelDate, isTimeTravelActive } = useTime();
+  const { travelDate, isTimeTravelActive, overrideTimezone, setTimezone } =
+    useTime();
+  const [showTimezonePicker, setShowTimezonePicker] = useState(false);
+  const [showFullResetConfirm, setShowFullResetConfirm] = useState(false);
   const {
     pendingDate,
     pendingHour,
@@ -62,6 +68,7 @@ export function TimeMachineModal({
     handleQuickTravel,
     handleConfirmTravel,
     handleReturnToPresent,
+    handleFullReset,
     handleCancelPending,
     openConfirmModal,
     openReturnConfirmModal,
@@ -167,6 +174,40 @@ export function TimeMachineModal({
               onTimeChange={handleTimeChange}
             />
 
+            {/* Timezone Section */}
+            <View style={styles.timezoneSection}>
+              <TouchableOpacity
+                style={styles.timezoneHeader}
+                onPress={() => setShowTimezonePicker(!showTimezonePicker)}
+                accessibilityRole="button"
+                accessibilityLabel="Toggle timezone picker"
+              >
+                <View style={styles.timezoneHeaderContent}>
+                  <Text style={styles.sectionLabel}>Timezone</Text>
+                  <Text style={styles.timezoneValue}>
+                    {getTimezoneLabel(overrideTimezone)}
+                  </Text>
+                </View>
+                <Ionicons
+                  name={showTimezonePicker ? "chevron-up" : "chevron-down"}
+                  size={20}
+                  color="#666"
+                />
+              </TouchableOpacity>
+              {showTimezonePicker && (
+                <View style={styles.timezonePickerContainer}>
+                  <TimezonePicker
+                    selectedTimezone={overrideTimezone}
+                    onSelect={(tz) => {
+                      setTimezone(tz);
+                      setShowTimezonePicker(false);
+                    }}
+                    testID="timezone-picker"
+                  />
+                </View>
+              )}
+            </View>
+
             <View style={styles.actions}>
               {hasPendingChange && (
                 <>
@@ -194,14 +235,39 @@ export function TimeMachineModal({
                 </>
               )}
               {isTimeTravelActive && !hasPendingChange && (
+                <>
+                  <TouchableOpacity
+                    style={styles.returnButton}
+                    onPress={openReturnConfirmModal}
+                    disabled={loadingCount}
+                    accessibilityLabel="Return to present"
+                  >
+                    <Text style={styles.returnButtonText}>
+                      {loadingCount ? "Loading..." : "Return to Present"}
+                    </Text>
+                  </TouchableOpacity>
+                  {overrideTimezone && (
+                    <TouchableOpacity
+                      style={styles.fullResetButton}
+                      onPress={() => setShowFullResetConfirm(true)}
+                      disabled={loadingCount}
+                      accessibilityLabel="Full reset"
+                    >
+                      <Text style={styles.fullResetButtonText}>Full Reset</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+              {/* Show Full Reset when not time traveling but timezone is overridden */}
+              {!isTimeTravelActive && overrideTimezone && (
                 <TouchableOpacity
-                  style={styles.returnButton}
-                  onPress={openReturnConfirmModal}
+                  style={styles.fullResetButton}
+                  onPress={() => setShowFullResetConfirm(true)}
                   disabled={loadingCount}
-                  accessibilityLabel="Return to present"
+                  accessibilityLabel="Full reset"
                 >
-                  <Text style={styles.returnButtonText}>
-                    {loadingCount ? "Loading..." : "Return to Present"}
+                  <Text style={styles.fullResetButtonText}>
+                    Reset Timezone to Device
                   </Text>
                 </TouchableOpacity>
               )}
@@ -223,6 +289,16 @@ export function TimeMachineModal({
         completionsCount={futureCompletionsCount}
         onCancel={() => setShowReturnConfirm(false)}
         onConfirm={handleReturnToPresent}
+      />
+      <FullResetConfirmModal
+        visible={showFullResetConfirm}
+        isTimeTraveling={isTimeTravelActive}
+        completionsCount={futureCompletionsCount}
+        onCancel={() => setShowFullResetConfirm(false)}
+        onConfirm={async (deleteCompletions) => {
+          await handleFullReset(deleteCompletions);
+          setShowFullResetConfirm(false);
+        }}
       />
     </Modal>
   );

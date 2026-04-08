@@ -168,5 +168,46 @@ export const customRender = (
   return render(ui, options);
 };
 
+// Mock TimeContext value interface
+export interface MockTimeContextValue {
+  isTimeMachineEnabled: boolean;
+  isTimeTravelActive: boolean;
+  travelDate: Date | null;
+  overrideTimezone: string | null;
+  enableTimeMachine: jest.Mock;
+  disableTimeMachine: jest.Mock;
+  setTravelDate: jest.Mock;
+  setTimezone: jest.Mock;
+  getTimezone: jest.Mock;
+  resetToToday: jest.Mock;
+  fullReset: jest.Mock;
+  revertToDate: jest.Mock;
+  getFutureCompletionsCount: jest.Mock;
+  getCurrentDate: () => Date;
+  loading: boolean;
+}
+
+// Mock TimeContext factory
+export const createMockTimeContext = (
+  overrides: Partial<MockTimeContextValue> = {},
+): MockTimeContextValue => ({
+  isTimeMachineEnabled: false,
+  isTimeTravelActive: false,
+  travelDate: null,
+  overrideTimezone: null,
+  enableTimeMachine: jest.fn(),
+  disableTimeMachine: jest.fn(),
+  setTravelDate: jest.fn(),
+  setTimezone: jest.fn(),
+  getTimezone: jest.fn().mockReturnValue("America/New_York"),
+  resetToToday: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+  fullReset: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+  revertToDate: jest.fn().mockResolvedValue({ deletedCount: 0 }),
+  getFutureCompletionsCount: jest.fn().mockResolvedValue(0),
+  getCurrentDate: () => new Date(),
+  loading: false,
+  ...overrides,
+});
+
 export * from "@testing-library/react-native";
 export { customRender as render };

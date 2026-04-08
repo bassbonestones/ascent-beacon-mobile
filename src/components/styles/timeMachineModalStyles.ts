@@ -18,9 +18,16 @@ interface TimeMachineModalStyles {
   quickButton: ViewStyle;
   quickButtonText: TextStyle;
   calendarContainer: ViewStyle;
+  timezoneSection: ViewStyle;
+  timezoneHeader: ViewStyle;
+  timezoneHeaderContent: ViewStyle;
+  timezoneValue: TextStyle;
+  timezonePickerContainer: ViewStyle;
   actions: ViewStyle;
   returnButton: ViewStyle;
   returnButtonText: TextStyle;
+  fullResetButton: ViewStyle;
+  fullResetButtonText: TextStyle;
   confirmTravelButton: ViewStyle;
   confirmTravelButtonText: TextStyle;
   cancelButton: ViewStyle;
@@ -131,6 +138,31 @@ export const styles = StyleSheet.create<TimeMachineModalStyles>({
   calendarContainer: {
     paddingHorizontal: 16,
   },
+  timezoneSection: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 8,
+    backgroundColor: "#F5F5F5",
+  },
+  timezoneHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 12,
+  },
+  timezoneHeaderContent: {
+    flex: 1,
+  },
+  timezoneValue: {
+    fontSize: 15,
+    color: "#9C27B0",
+    fontWeight: "500",
+    marginTop: 4,
+  },
+  timezonePickerContainer: {
+    paddingHorizontal: 8,
+    paddingBottom: 12,
+  },
   actions: {
     padding: 16,
     gap: 12,
@@ -142,6 +174,17 @@ export const styles = StyleSheet.create<TimeMachineModalStyles>({
     alignItems: "center",
   },
   returnButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  fullResetButton: {
+    backgroundColor: "#FF5722",
+    padding: 16,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  fullResetButtonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",

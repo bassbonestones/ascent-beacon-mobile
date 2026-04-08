@@ -346,6 +346,64 @@ describe("taskSorting", () => {
       // The exact format depends on locale, but it should contain the time
       expect(typeof result).toBe("string");
     });
+
+    it("returns null for date_only scheduling mode", () => {
+      const result = formatTaskTime("2024-06-15T00:00:00Z", "date_only");
+      expect(result).toBeNull();
+    });
+
+    it("includes timezone abbreviation by default", () => {
+      const result = formatTaskTime("2024-06-15T14:30:00Z");
+      expect(result).toBeTruthy();
+      // Should include some timezone indicator
+      expect(result).toMatch(/[A-Z]{2,5}|GMT[+-]\d+/);
+    });
+
+    it("excludes timezone when showTimezone is false", () => {
+      const result = formatTaskTime("2024-06-15T14:30:00Z", undefined, false);
+      expect(result).toBeTruthy();
+      // Should be just time without timezone
+      expect(result).toMatch(/^\d{1,2}:\d{2} [AP]M$/);
+    });
+
+    it("respects timezone override for UTC", () => {
+      // 14:30 UTC should display as 2:30 PM UTC
+      const result = formatTaskTime(
+        "2024-06-15T14:30:00Z",
+        undefined,
+        true,
+        "UTC",
+      );
+      expect(result).toContain("2:30 PM");
+      expect(result).toMatch(/UTC/i);
+    });
+
+    it("respects timezone override for different timezone", () => {
+      // 14:30 UTC = 10:30 AM in New York (EDT, UTC-4 in summer)
+      // or 09:30 AM (EST, UTC-5 in winter)
+      const result = formatTaskTime(
+        "2024-06-15T14:30:00Z",
+        undefined,
+        true,
+        "America/New_York",
+      );
+      expect(result).toBeTruthy();
+      // Time should be adjusted for Eastern timezone
+      // In June it's EDT (UTC-4), so 14:30 UTC = 10:30 AM EDT
+      expect(result).toMatch(/10:30 AM|11:30 AM/); // Could be 10:30 or 11:30 depending on DST
+    });
+
+    it("respects timezone override for Tokyo", () => {
+      // 14:30 UTC = 23:30 in Tokyo (JST, UTC+9)
+      const result = formatTaskTime(
+        "2024-06-15T14:30:00Z",
+        undefined,
+        true,
+        "Asia/Tokyo",
+      );
+      expect(result).toBeTruthy();
+      expect(result).toMatch(/11:30 PM/);
+    });
   });
 
   describe("filterTasksForUpcoming", () => {

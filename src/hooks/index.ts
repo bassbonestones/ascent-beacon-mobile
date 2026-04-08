@@ -16,3 +16,4 @@ export {
 } from "./useFetchOnFocus";
 export { useGoals, type UseGoalsOptions } from "./useGoals";
 export { useTasks, type UseTasksOptions } from "./useTasks";
+export { useTimezone, type UseTimezoneReturn } from "./useTimezone";

@@ -7,6 +7,7 @@ import {
   formatTaskTime,
   getTaskWindow,
 } from "../../utils/taskSorting";
+import { useTimezone } from "../../hooks/useTimezone";
 
 /**
  * Format a date for overdue display (e.g., "Apr 7" or "April 7, 2026" if different year).
@@ -91,10 +92,16 @@ export function TaskCard({
   drag,
   isActive = false,
 }: TaskCardProps): React.ReactElement {
+  const { timezone } = useTimezone();
   const isCompleted = task.status === "completed";
   const isPending = task.status === "pending";
   const overdue = isTaskOverdue(task, currentDate);
-  const scheduledTime = formatTaskTime(task.scheduled_at, task.scheduling_mode);
+  const scheduledTime = formatTaskTime(
+    task.scheduled_at,
+    task.scheduling_mode,
+    true,
+    timezone,
+  );
   const taskWindow = getTaskWindow(task.recurrence_rule);
 
   const overdueDate =
