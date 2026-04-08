@@ -642,6 +642,11 @@ export type TaskStatus = "pending" | "completed" | "skipped";
 // 'anytime' = no schedule, backlog task with manual ordering (Phase 4e)
 export type SchedulingMode = "floating" | "fixed" | "date_only" | "anytime";
 
+// Phase 4g: Recurrence behavior for recurring tasks
+// 'habitual' = auto-skip missed occurrences on app open
+// 'essential' = stays overdue until manually actioned
+export type RecurrenceBehavior = "habitual" | "essential";
+
 export interface TaskGoalInfo {
   id: string;
   title: string;
@@ -670,6 +675,8 @@ export interface Task {
   // Phase 4b fields
   scheduling_mode: SchedulingMode | null;
   skip_reason: string | null;
+  // Phase 4g: Recurrence behavior for recurring tasks
+  recurrence_behavior: RecurrenceBehavior | null;
   // Phase 4e: Sort order for anytime tasks (lower = higher in list)
   sort_order: number | null;
   // For recurring tasks, indicates if completed for today
@@ -724,6 +731,8 @@ export interface CreateTaskRequest {
   is_recurring?: boolean;
   recurrence_rule?: string | null;
   scheduling_mode?: SchedulingMode | null;
+  // Phase 4g: Required for recurring tasks
+  recurrence_behavior?: RecurrenceBehavior | null;
 }
 
 export interface UpdateTaskRequest {
@@ -739,6 +748,8 @@ export interface UpdateTaskRequest {
   is_recurring?: boolean;
   recurrence_rule?: string | null;
   scheduling_mode?: SchedulingMode | null;
+  // Phase 4g: Recurrence behavior
+  recurrence_behavior?: RecurrenceBehavior | null;
 }
 
 export interface CompleteTaskRequest {

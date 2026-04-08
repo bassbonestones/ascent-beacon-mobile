@@ -40,6 +40,7 @@ describe("CreateTaskForm", () => {
     onRecurringToggle: jest.fn(),
     recurrenceRule: "",
     schedulingMode: null,
+    recurrenceBehavior: null,
     scheduledTime: null,
     onScheduledTimeChange: jest.fn(),
     scheduledDate: null,

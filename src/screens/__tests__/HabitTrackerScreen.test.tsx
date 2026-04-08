@@ -41,6 +41,7 @@ const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   scheduled_at: "2024-06-15T08:00:00Z",
   is_recurring: true,
   recurrence_rule: "FREQ=DAILY",
+  recurrence_behavior: null,
   notify_before_minutes: null,
   completed_at: null,
   created_at: "2024-01-01T00:00:00Z",

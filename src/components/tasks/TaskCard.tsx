@@ -184,7 +184,13 @@ export function TaskCard({
         )}
         {task.is_recurring && (
           <View style={styles.recurringBadge}>
-            <Text style={styles.recurringText}>🔄 Recurring</Text>
+            <Text style={styles.recurringText}>
+              {task.recurrence_behavior === "habitual"
+                ? "🔁 Habitual"
+                : task.recurrence_behavior === "essential"
+                  ? "🛡️ Essential"
+                  : "🔄 Recurring"}
+            </Text>
           </View>
         )}
         {task.scheduling_mode === "anytime" && (

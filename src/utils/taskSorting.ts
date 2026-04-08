@@ -487,6 +487,12 @@ export function isTaskOverdue(task: Task, now: Date = new Date()): boolean {
     return false;
   }
 
+  // Phase 4g: Habitual recurring tasks are never overdue - they auto-skip
+  // Only essential recurring tasks show as overdue
+  if (task.is_recurring && task.recurrence_behavior === "habitual") {
+    return false;
+  }
+
   // Recurring tasks that are completed or skipped for today are not overdue
   if (
     task.is_recurring &&
@@ -673,6 +679,12 @@ export function filterTasksForUpcoming(
     // Anytime tasks never appear in Upcoming view - they have their own tab
     if (task.scheduling_mode === "anytime") {
       return false;
+    }
+
+    // For virtual occurrences, use virtualOccurrenceDate (not the original task's scheduled_date)
+    // The original task's scheduled_date is the recurrence START date, not this occurrence's date
+    if (task.isVirtualOccurrence && task.virtualOccurrenceDate) {
+      return task.virtualOccurrenceDate >= todayDateStr;
     }
 
     // Check scheduled_date first (date-only tasks)
@@ -1260,7 +1272,9 @@ export function generateRecurringOccurrences(
 
     // Generate PAST occurrences for overdue detection (only if daysBack > 0)
     // This creates virtual occurrences for missed days that the user can catch up on
-    if (daysBack > 0) {
+    // Phase 4g: Skip past occurrences for habitual tasks - they are auto-skipped silently
+    // Only essential tasks should show as overdue (requiring user action)
+    if (daysBack > 0 && task.recurrence_behavior !== "habitual") {
       // Determine the effective start date for past occurrence generation
       // Use scheduled_at if set, otherwise fall back to created_at
       // This prevents generating past occurrences for dates before the task existed

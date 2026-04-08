@@ -262,6 +262,73 @@ export default function TasksScreen({
     return unsubscribe;
   }, [navigation, listViewMode, refetchTodayOrder, refetchRangeOrder]);
 
+  // Phase 4g: Auto-skip missed habitual task occurrences on mount/tasks change
+  // This runs when tasks are loaded and silently skips overdue habitual occurrences
+  const autoSkippedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (loading || tasks.length === 0) return;
+
+    const todayDateStr = toLocalDateString(currentDate);
+
+    // Find overdue habitual task occurrences that haven't been skipped yet
+    const overdueHabitualOccurrences = tasks.filter((task) => {
+      // Only process habitual recurring tasks
+      if (!task.is_recurring || task.recurrence_behavior !== "habitual") {
+        return false;
+      }
+      // Check if this task/occurrence has already been auto-skipped this session
+      const skipKey = task.isVirtualOccurrence
+        ? `${task.originalTaskId}-${task.virtualOccurrenceDate}`
+        : task.id;
+      if (autoSkippedRef.current.has(skipKey)) {
+        return false;
+      }
+      // Get the scheduled date for this occurrence
+      const taskDateStr =
+        task.virtualOccurrenceDate || getTaskScheduledDateStr(task);
+      if (!taskDateStr) return false;
+      // Check if it's overdue (before today) and not already completed/skipped for that date
+      if (taskDateStr >= todayDateStr) return false;
+      // Check if already completed or skipped for this date
+      if (task.completions_by_date?.[taskDateStr]?.length) return false;
+      if (task.skips_by_date?.[taskDateStr]?.length) return false;
+      return true;
+    });
+
+    // Auto-skip each overdue habitual occurrence silently
+    overdueHabitualOccurrences.forEach(async (task) => {
+      const taskId = task.originalTaskId || task.id;
+      const taskDateStr =
+        task.virtualOccurrenceDate || getTaskScheduledDateStr(task);
+      if (!taskDateStr) return;
+      const skipKey = task.isVirtualOccurrence
+        ? `${task.originalTaskId}-${task.virtualOccurrenceDate}`
+        : task.id;
+      // Mark as auto-skipped to avoid duplicate processing
+      autoSkippedRef.current.add(skipKey);
+      try {
+        // Create a datetime for the scheduled_for parameter
+        const [year, month, day] = taskDateStr.split("-").map(Number);
+        const scheduledFor = new Date(
+          year,
+          month - 1,
+          day,
+          0,
+          0,
+          0,
+        ).toISOString();
+        await skipTask(
+          taskId,
+          "Auto-skipped (missed)",
+          scheduledFor,
+          taskDateStr,
+        );
+      } catch {
+        // Silently fail - don't show error to user
+      }
+    });
+  }, [tasks, loading, currentDate, skipTask]);
+
   // Filter and sort tasks based on view mode
   const { sortedTasks, sections, viewPendingCount, viewCompletedCount } =
     useMemo(() => {
@@ -781,6 +848,9 @@ export default function TasksScreen({
         is_recurring: taskForm.isRecurring,
         recurrence_rule: recurrenceRule,
         scheduling_mode: schedulingMode,
+        recurrence_behavior: taskForm.isRecurring
+          ? taskForm.recurrenceBehavior
+          : undefined,
       });
       taskForm.resetForm();
       setScreenMode("list");
@@ -848,6 +918,9 @@ export default function TasksScreen({
         is_recurring: taskForm.isRecurring,
         recurrence_rule: recurrenceRule,
         scheduling_mode: schedulingMode,
+        recurrence_behavior: taskForm.isRecurring
+          ? taskForm.recurrenceBehavior
+          : undefined,
       });
       taskForm.resetForm();
       setEditingTask(null);
@@ -1103,6 +1176,7 @@ export default function TasksScreen({
         onRecurringToggle={taskForm.toggleRecurring}
         recurrenceRule={taskForm.recurrenceRule}
         schedulingMode={taskForm.schedulingMode}
+        recurrenceBehavior={taskForm.recurrenceBehavior}
         scheduledTime={taskForm.scheduledTime}
         onScheduledTimeChange={taskForm.setScheduledTime}
         scheduledDate={taskForm.scheduledDate}
@@ -1138,6 +1212,7 @@ export default function TasksScreen({
         onRecurringToggle={taskForm.toggleRecurring}
         recurrenceRule={taskForm.recurrenceRule}
         schedulingMode={taskForm.schedulingMode}
+        recurrenceBehavior={taskForm.recurrenceBehavior}
         scheduledTime={taskForm.scheduledTime}
         onScheduledTimeChange={taskForm.setScheduledTime}
         scheduledDate={taskForm.scheduledDate}

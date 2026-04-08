@@ -14,6 +14,7 @@ const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   scheduled_at: "2026-04-05T14:30:00.000Z",
   is_recurring: true,
   recurrence_rule: "FREQ=DAILY;INTERVAL=1",
+  recurrence_behavior: null,
   notify_before_minutes: null,
   completed_at: null,
   created_at: "2024-01-01T00:00:00Z",
@@ -234,6 +235,7 @@ describe("useTaskForm", () => {
           "fixed",
           "2026-04-05",
           "09:00",
+          "habitual",
         );
       });
 
@@ -241,6 +243,7 @@ describe("useTaskForm", () => {
       expect(result.current.schedulingMode).toBe("fixed");
       expect(result.current.scheduledDate).toBe("2026-04-05");
       expect(result.current.scheduledTime).toBe("09:00");
+      expect(result.current.recurrenceBehavior).toBe("habitual");
     });
   });
 

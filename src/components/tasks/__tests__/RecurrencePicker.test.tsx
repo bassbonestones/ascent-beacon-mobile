@@ -1,12 +1,14 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react-native";
 import { RecurrencePicker } from "../RecurrencePicker";
+import type { RecurrenceBehavior } from "../../../types";
 
 describe("RecurrencePicker", () => {
   const defaultProps = {
     visible: true,
     initialRRule: "",
     initialSchedulingMode: null as "floating" | "fixed" | null,
+    initialRecurrenceBehavior: "habitual" as RecurrenceBehavior | null,
     initialStartDate: null as string | null,
     initialStartTime: null as string | null,
     onSave: jest.fn(),

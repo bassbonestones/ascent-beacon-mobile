@@ -7,7 +7,7 @@ import {
   TextInput,
   ScrollView,
 } from "react-native";
-import type { SchedulingMode } from "../../types";
+import type { SchedulingMode, RecurrenceBehavior } from "../../types";
 import { recurrencePickerStyles as pickerStyles } from "./recurrencePickerStyles";
 import {
   type DayOfWeek,
@@ -30,9 +30,11 @@ interface RecurrencePickerProps {
     schedulingMode: SchedulingMode,
     startDate: string | null,
     startTime: string | null,
+    recurrenceBehavior: RecurrenceBehavior,
   ) => void;
   initialRRule?: string;
   initialSchedulingMode?: SchedulingMode | null;
+  initialRecurrenceBehavior?: RecurrenceBehavior | null;
   taskDurationMinutes?: number;
   initialStartDate?: string | null;
   initialStartTime?: string | null;
@@ -44,6 +46,7 @@ export function RecurrencePicker({
   onSave,
   initialRRule,
   initialSchedulingMode,
+  initialRecurrenceBehavior,
   taskDurationMinutes = 0,
   initialStartDate,
   initialStartTime,
@@ -60,6 +63,8 @@ export function RecurrencePicker({
   const [startTime, setStartTime] = useState<string | null>(
     initialStartTime || null,
   );
+  const [recurrenceBehavior, setRecurrenceBehavior] =
+    useState<RecurrenceBehavior | null>(initialRecurrenceBehavior || null);
 
   const handleSave = useCallback(() => {
     // Validate: if count is selected, must have a valid count
@@ -70,9 +75,27 @@ export function RecurrencePicker({
     if (state.endCondition === "until" && !state.until) {
       return; // Don't save without a date
     }
-    onSave(buildRRule(state), schedulingMode, startDate, startTime);
+    // Validate: recurrence behavior must be selected
+    if (!recurrenceBehavior) {
+      return; // Don't save without selecting habitual/essential
+    }
+    onSave(
+      buildRRule(state),
+      schedulingMode,
+      startDate,
+      startTime,
+      recurrenceBehavior,
+    );
     onClose();
-  }, [state, schedulingMode, startDate, startTime, onSave, onClose]);
+  }, [
+    state,
+    schedulingMode,
+    startDate,
+    startTime,
+    recurrenceBehavior,
+    onSave,
+    onClose,
+  ]);
 
   // Helper to compare "HH:MM" times
   const isTimeAfter = (t1: string, t2: string): boolean => {
@@ -132,6 +155,8 @@ export function RecurrencePicker({
       : isTimeAfter(state.windowEnd, state.windowStart);
 
   const canSave =
+    // Recurrence behavior must be selected (Phase 4g)
+    recurrenceBehavior !== null &&
     (state.endCondition === "never" ||
       (state.endCondition === "count" && state.count > 0) ||
       (state.endCondition === "until" && state.until !== "")) &&
@@ -623,6 +648,42 @@ export function RecurrencePicker({
                 </TouchableOpacity>
               </>
             ) : null}
+
+            {/* Phase 4g: Recurrence Behavior - Habitual vs Essential */}
+            <Text style={pickerStyles.sectionTitle}>
+              When Missed{" "}
+              {recurrenceBehavior === null && (
+                <Text style={{ color: "#FF6B6B" }}>*</Text>
+              )}
+            </Text>
+            <TouchableOpacity
+              style={[
+                pickerStyles.modeOption,
+                recurrenceBehavior === "habitual" &&
+                  pickerStyles.modeOptionActive,
+              ]}
+              onPress={() => setRecurrenceBehavior("habitual")}
+              accessibilityRole="radio"
+            >
+              <Text style={pickerStyles.modeTitle}>🔁 Habitual</Text>
+              <Text style={pickerStyles.modeDesc}>
+                Auto-skip missed occurrences (good for habits you can skip)
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                pickerStyles.modeOption,
+                recurrenceBehavior === "essential" &&
+                  pickerStyles.modeOptionActive,
+              ]}
+              onPress={() => setRecurrenceBehavior("essential")}
+              accessibilityRole="radio"
+            >
+              <Text style={pickerStyles.modeTitle}>🛡️ Essential</Text>
+              <Text style={pickerStyles.modeDesc}>
+                Stays overdue until actioned (important tasks you can't skip)
+              </Text>
+            </TouchableOpacity>
 
             {/* End condition */}
             <Text style={pickerStyles.sectionTitle}>Ends</Text>

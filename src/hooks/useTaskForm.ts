@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import type { SchedulingMode, Task } from "../types";
+import type { SchedulingMode, Task, RecurrenceBehavior } from "../types";
 import { parseAsUtc } from "../utils/taskSorting";
 
 export interface UseTaskFormReturn {
@@ -12,6 +12,7 @@ export interface UseTaskFormReturn {
   isRecurring: boolean;
   recurrenceRule: string;
   schedulingMode: SchedulingMode | null;
+  recurrenceBehavior: RecurrenceBehavior | null;
   scheduledTime: string | null;
   scheduledDate: string | null;
   isAnytime: boolean; // Phase 4e
@@ -25,6 +26,7 @@ export interface UseTaskFormReturn {
   setIsRecurring: (value: boolean) => void;
   setRecurrenceRule: (value: string) => void;
   setSchedulingMode: (value: SchedulingMode | null) => void;
+  setRecurrenceBehavior: (value: RecurrenceBehavior | null) => void;
   setScheduledTime: (value: string | null) => void;
   setScheduledDate: (value: string | null) => void;
   setIsAnytime: (value: boolean) => void; // Phase 4e
@@ -40,6 +42,7 @@ export interface UseTaskFormReturn {
     mode: SchedulingMode,
     startDate: string | null,
     startTime: string | null,
+    behavior: RecurrenceBehavior,
   ) => void;
   dateTimeToIso: (
     date: string | null,
@@ -65,6 +68,8 @@ export function useTaskForm(): UseTaskFormReturn {
   const [schedulingMode, setSchedulingMode] = useState<SchedulingMode | null>(
     null,
   );
+  const [recurrenceBehavior, setRecurrenceBehavior] =
+    useState<RecurrenceBehavior | null>(null);
   const [scheduledTime, setScheduledTime] = useState<string | null>(null);
   const [scheduledDate, setScheduledDate] = useState<string | null>(null);
   const [isAnytime, setIsAnytime] = useState(false); // Phase 4e
@@ -78,6 +83,7 @@ export function useTaskForm(): UseTaskFormReturn {
     setIsRecurring(false);
     setRecurrenceRule("");
     setSchedulingMode(null);
+    setRecurrenceBehavior(null);
     setScheduledTime(null);
     setScheduledDate(null);
     setIsAnytime(false); // Phase 4e
@@ -96,6 +102,7 @@ export function useTaskForm(): UseTaskFormReturn {
     setIsRecurring(task.is_recurring || false);
     setRecurrenceRule(task.recurrence_rule || "");
     setSchedulingMode(task.scheduling_mode || null);
+    setRecurrenceBehavior(task.recurrence_behavior || null);
     setIsAnytime(task.scheduling_mode === "anytime"); // Phase 4e
 
     // Extract date and time from scheduled_date or scheduled_at
@@ -141,11 +148,13 @@ export function useTaskForm(): UseTaskFormReturn {
       mode: SchedulingMode,
       startDate: string | null,
       startTime: string | null,
+      behavior: RecurrenceBehavior,
     ) => {
       setRecurrenceRule(rrule);
       setSchedulingMode(mode);
       setScheduledDate(startDate);
       setScheduledTime(startTime);
+      setRecurrenceBehavior(behavior);
     },
     [],
   );
@@ -209,6 +218,7 @@ export function useTaskForm(): UseTaskFormReturn {
     isRecurring,
     recurrenceRule,
     schedulingMode,
+    recurrenceBehavior,
     scheduledTime,
     scheduledDate,
     isAnytime, // Phase 4e
@@ -220,6 +230,7 @@ export function useTaskForm(): UseTaskFormReturn {
     setIsRecurring,
     setRecurrenceRule,
     setSchedulingMode,
+    setRecurrenceBehavior,
     setScheduledTime,
     setScheduledDate,
     setIsAnytime, // Phase 4e

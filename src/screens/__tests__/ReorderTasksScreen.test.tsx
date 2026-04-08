@@ -78,6 +78,7 @@ const createMockTask = (
   scheduled_at: null,
   is_recurring: isRecurring,
   recurrence_rule: isRecurring ? "daily" : null,
+  recurrence_behavior: null,
   notify_before_minutes: null,
   completed_at: null,
   created_at: "2024-01-01T00:00:00Z",

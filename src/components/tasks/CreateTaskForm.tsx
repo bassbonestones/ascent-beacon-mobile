@@ -7,7 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
-import type { Goal, SchedulingMode } from "../../types";
+import type { Goal, SchedulingMode, RecurrenceBehavior } from "../../types";
 import { styles } from "../../screens/styles/tasksScreenStyles";
 import { RecurrencePicker } from "./RecurrencePicker";
 import { TimePicker } from "./TimePicker";
@@ -31,11 +31,13 @@ interface CreateTaskFormProps {
   onRecurringToggle: () => void;
   recurrenceRule: string;
   schedulingMode: SchedulingMode | null;
+  recurrenceBehavior: RecurrenceBehavior | null;
   onRecurrenceChange: (
     rrule: string,
     mode: SchedulingMode,
     startDate: string | null,
     startTime: string | null,
+    behavior: RecurrenceBehavior,
   ) => void;
   scheduledTime: string | null;
   onScheduledTimeChange: (time: string | null) => void;
@@ -74,6 +76,7 @@ export function CreateTaskForm({
   onRecurringToggle,
   recurrenceRule,
   schedulingMode,
+  recurrenceBehavior,
   onRecurrenceChange,
   scheduledTime,
   onScheduledTimeChange,
@@ -114,9 +117,10 @@ export function CreateTaskForm({
     mode: SchedulingMode,
     startDate: string | null,
     startTime: string | null,
+    behavior: RecurrenceBehavior,
   ) => {
     savedRef.current = true;
-    onRecurrenceChange(rrule, mode, startDate, startTime);
+    onRecurrenceChange(rrule, mode, startDate, startTime, behavior);
   };
 
   // Handle picker close: if cancel on fresh toggle, turn off recurring
@@ -363,6 +367,7 @@ export function CreateTaskForm({
         onSave={handleRecurrenceSave}
         initialRRule={recurrenceRule}
         initialSchedulingMode={schedulingMode}
+        initialRecurrenceBehavior={recurrenceBehavior}
         taskDurationMinutes={isLightning ? 0 : parseInt(duration, 10) || 0}
         initialStartDate={scheduledDate}
         initialStartTime={scheduledTime}

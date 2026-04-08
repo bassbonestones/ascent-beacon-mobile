@@ -6,13 +6,7 @@ import type { Task } from "../../../types";
 
 // Mock TaskCard to simplify testing
 jest.mock("../TaskCard", () => ({
-  TaskCard: ({
-    task,
-    onPress,
-    onComplete,
-    drag,
-    isActive,
-  }: any) => {
+  TaskCard: ({ task, onPress, onComplete, drag, isActive }: any) => {
     const { View, Text, TouchableOpacity } = require("react-native");
     return (
       <View testID={`task-card-${task.id}`}>
@@ -44,6 +38,7 @@ const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   scheduled_at: null,
   is_recurring: false,
   recurrence_rule: null,
+  recurrence_behavior: null,
   notify_before_minutes: null,
   completed_at: null,
   sort_order: 0,

@@ -20,6 +20,7 @@ describe("generateRecurringOccurrences with completions_by_date", () => {
     scheduling_mode: "fixed",
     is_recurring: true,
     recurrence_rule: "FREQ=DAILY",
+    recurrence_behavior: null,
     notify_before_minutes: null,
     completed_at: null,
     skip_reason: null,

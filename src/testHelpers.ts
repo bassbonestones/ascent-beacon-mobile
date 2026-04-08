@@ -9,7 +9,13 @@ import {
   type RenderResult,
 } from "@testing-library/react-native";
 import type { ReactElement } from "react";
-import type { Value, Priority, ValueRevision, PriorityRevision } from "./types";
+import type {
+  Value,
+  Priority,
+  ValueRevision,
+  PriorityRevision,
+  Task,
+} from "./types";
 
 // Mock API interface
 export interface MockApi {
@@ -157,6 +163,42 @@ export const createMockPriority = (
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
   is_stashed: false,
+  ...overrides,
+});
+
+// Mock task factory
+export const createMockTask = (overrides: Partial<Task> = {}): Task => ({
+  id: "task-1",
+  user_id: "user-1",
+  goal_id: "goal-1",
+  title: "Test Task",
+  description: null,
+  duration_minutes: 30,
+  status: "pending",
+  scheduled_date: null,
+  scheduled_at: null,
+  is_recurring: false,
+  recurrence_rule: null,
+  notify_before_minutes: null,
+  completed_at: null,
+  created_at: "2024-01-01T00:00:00Z",
+  updated_at: "2024-01-01T00:00:00Z",
+  is_lightning: false,
+  goal: null,
+  scheduling_mode: null,
+  skip_reason: null,
+  recurrence_behavior: null,
+  sort_order: null,
+  completed_for_today: false,
+  completions_today: 0,
+  completed_times_today: [],
+  completions_by_date: {},
+  skipped_for_today: false,
+  skips_today: 0,
+  skipped_times_today: [],
+  skips_by_date: {},
+  skip_reason_today: null,
+  skip_reasons_by_date: {},
   ...overrides,
 });
 
