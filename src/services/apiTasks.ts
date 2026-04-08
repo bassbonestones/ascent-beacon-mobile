@@ -22,6 +22,9 @@ import type {
   DayOrderResponse,
   DateRangeOrderResponse,
   PermanentOrderItem,
+  BulkCompletionsRequest,
+  BulkCompletionsResponse,
+  DeleteMockCompletionsResponse,
 } from "../types";
 import type ApiServiceBase from "./apiBase";
 
@@ -95,6 +98,13 @@ export interface TasksMethods {
   clearOccurrenceOrder(date: string): Promise<void>;
   clearOccurrenceOrderFrom(fromDate: string): Promise<void>;
   getPermanentOrder(): Promise<PermanentOrderItem[]>;
+
+  // Phase 4h: Rhythm History Simulator
+  createBulkCompletions(
+    taskId: string,
+    data: BulkCompletionsRequest,
+  ): Promise<BulkCompletionsResponse>;
+  deleteMockCompletions(taskId: string): Promise<DeleteMockCompletionsResponse>;
 }
 
 export interface TasksListParams {
@@ -347,5 +357,30 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
       const today = new Date().toISOString().split("T")[0];
       const response = await this.getOccurrenceOrderRange(today, today);
       return response.permanent_order;
+    }
+
+    // Phase 4h: Rhythm History Simulator
+    async createBulkCompletions(
+      taskId: string,
+      data: BulkCompletionsRequest,
+    ): Promise<BulkCompletionsResponse> {
+      return await this.request<BulkCompletionsResponse>(
+        `/tasks/${taskId}/completions/bulk`,
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      );
+    }
+
+    async deleteMockCompletions(
+      taskId: string,
+    ): Promise<DeleteMockCompletionsResponse> {
+      return await this.request<DeleteMockCompletionsResponse>(
+        `/tasks/${taskId}/completions/mock`,
+        {
+          method: "DELETE",
+        },
+      );
     }
   };

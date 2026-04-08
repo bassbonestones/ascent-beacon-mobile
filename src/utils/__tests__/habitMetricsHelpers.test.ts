@@ -5,6 +5,8 @@ import {
   groupDaysByWeek,
   calculateWeeklyData,
   formatWeekLabel,
+  calculateTenDayChunkData,
+  calculateMonthlyData,
 } from "../habitMetricsHelpers";
 import type { DailyCompletionStatus } from "../../types";
 
@@ -167,6 +169,166 @@ describe("habitMetricsHelpers", () => {
       expect(label).toContain("Jun");
       // Just check that it contains a number
       expect(label).toMatch(/\d+/);
+    });
+  });
+
+  describe("getDayIcon edge cases", () => {
+    it("returns empty string for unknown status", () => {
+      // @ts-expect-error - testing unknown status
+      expect(getDayIcon("unknown")).toBe("");
+    });
+  });
+
+  describe("getDayCellStyle edge cases", () => {
+    it("returns empty object for unknown status", () => {
+      // @ts-expect-error - testing unknown status
+      expect(getDayCellStyle("unknown")).toEqual({});
+    });
+  });
+
+  describe("calculateTenDayChunkData", () => {
+    it("returns empty array for empty input", () => {
+      expect(calculateTenDayChunkData([])).toEqual([]);
+    });
+
+    it("groups days into 10-day chunks", () => {
+      // Create 15 days of data
+      const days: DailyCompletionStatus[] = [];
+      for (let i = 0; i < 15; i++) {
+        const date = new Date(2024, 0, i + 1); // Jan 1-15, 2024
+        days.push({
+          date: date.toISOString().split("T")[0],
+          status: i < 8 ? "completed" : "missed",
+          expected: 1,
+          completed: i < 8 ? 1 : 0,
+          skipped: 0,
+        });
+      }
+
+      const chunks = calculateTenDayChunkData(days);
+      expect(chunks.length).toBe(2); // 10 days + 5 days
+      expect(chunks[0].total).toBe(10);
+      expect(chunks[0].completed).toBe(8); // First 8 completed
+      expect(chunks[1].total).toBe(5);
+    });
+
+    it("formats labels with start-end dates", () => {
+      const days: DailyCompletionStatus[] = [];
+      for (let i = 1; i <= 10; i++) {
+        days.push({
+          date: `2024-06-${String(i).padStart(2, "0")}`,
+          status: "completed",
+          expected: 1,
+          completed: 1,
+          skipped: 0,
+        });
+      }
+
+      const chunks = calculateTenDayChunkData(days);
+      // Label format is "M/D-\nM/D" with newline between start and end
+      expect(chunks[0].label).toContain("-\n");
+      expect(chunks[0].label).toMatch(/\d+\/\d+/);
+    });
+  });
+
+  describe("calculateMonthlyData", () => {
+    it("returns empty array for empty input", () => {
+      expect(calculateMonthlyData([])).toEqual([]);
+    });
+
+    it("groups days by month", () => {
+      const days: DailyCompletionStatus[] = [
+        {
+          date: "2024-01-15",
+          status: "completed",
+          expected: 1,
+          completed: 1,
+          skipped: 0,
+        },
+        {
+          date: "2024-01-20",
+          status: "missed",
+          expected: 1,
+          completed: 0,
+          skipped: 0,
+        },
+        {
+          date: "2024-02-10",
+          status: "completed",
+          expected: 1,
+          completed: 1,
+          skipped: 0,
+        },
+      ];
+
+      const monthly = calculateMonthlyData(days);
+      expect(monthly.length).toBe(2); // Jan and Feb
+      expect(monthly[0].label).toContain("Jan");
+      expect(monthly[0].total).toBe(2);
+      expect(monthly[0].completed).toBe(1);
+      expect(monthly[1].label).toContain("Feb");
+      expect(monthly[1].total).toBe(1);
+      expect(monthly[1].completed).toBe(1);
+    });
+
+    it("shows year suffix when data spans multiple years", () => {
+      const days: DailyCompletionStatus[] = [
+        {
+          date: "2024-12-15",
+          status: "completed",
+          expected: 1,
+          completed: 1,
+          skipped: 0,
+        },
+        {
+          date: "2025-01-10",
+          status: "completed",
+          expected: 1,
+          completed: 1,
+          skipped: 0,
+        },
+      ];
+
+      const monthly = calculateMonthlyData(days);
+      expect(monthly.length).toBe(2);
+      expect(monthly[0].label).toContain("'24"); // Dec '24
+      expect(monthly[1].label).toContain("'25"); // Jan '25
+    });
+
+    it("calculates correct rates", () => {
+      const days: DailyCompletionStatus[] = [
+        {
+          date: "2024-06-10",
+          status: "completed",
+          expected: 1,
+          completed: 1,
+          skipped: 0,
+        },
+        {
+          date: "2024-06-11",
+          status: "completed",
+          expected: 1,
+          completed: 1,
+          skipped: 0,
+        },
+        {
+          date: "2024-06-12",
+          status: "missed",
+          expected: 1,
+          completed: 0,
+          skipped: 0,
+        },
+        {
+          date: "2024-06-13",
+          status: "missed",
+          expected: 1,
+          completed: 0,
+          skipped: 0,
+        },
+      ];
+
+      const monthly = calculateMonthlyData(days);
+      expect(monthly[0].rate).toBe(0.5); // 2/4
     });
   });
 });

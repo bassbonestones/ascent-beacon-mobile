@@ -7,6 +7,7 @@ interface DatePickerProps {
   onChange: (date: string | null) => void;
   label?: string;
   minDate?: string; // Optional minimum date "YYYY-MM-DD"
+  maxDate?: string; // Optional maximum date "YYYY-MM-DD"
   placeholder?: string;
 }
 
@@ -30,6 +31,7 @@ export function DatePicker({
   onChange,
   label,
   minDate,
+  maxDate,
   placeholder = "Tap to set date",
 }: DatePickerProps): React.ReactElement {
   const [showPicker, setShowPicker] = useState(false);
@@ -91,7 +93,8 @@ export function DatePicker({
 
             <Calendar
               current={value || today}
-              minDate={minDate || today}
+              minDate={maxDate ? minDate : minDate || today}
+              maxDate={maxDate}
               onDayPress={handleDayPress}
               markedDates={
                 value

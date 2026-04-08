@@ -964,6 +964,33 @@ export interface ReorderItem {
 }
 
 // ============================================================================
+// Rhythm History Simulator Types (Phase 4h)
+// ============================================================================
+
+export interface BulkCompletionEntry {
+  date: string; // YYYY-MM-DD
+  status: "completed" | "skipped";
+  skip_reason?: string;
+  occurrences?: number;
+}
+
+export interface BulkCompletionsRequest {
+  entries: BulkCompletionEntry[];
+  update_start_date?: string; // YYYY-MM-DD
+}
+
+export interface BulkCompletionsResponse {
+  created_count: number;
+  task_id: string;
+  start_date_updated: boolean;
+}
+
+export interface DeleteMockCompletionsResponse {
+  deleted_count: number;
+  task_id: string;
+}
+
+// ============================================================================
 // Utility Types
 // ============================================================================
 

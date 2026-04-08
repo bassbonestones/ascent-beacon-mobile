@@ -5,6 +5,7 @@ interface TimeMachineModalStyles {
   container: ViewStyle;
   header: ViewStyle;
   title: TextStyle;
+  headerButton: ViewStyle;
   closeButton: ViewStyle;
   closeText: TextStyle;
   statusBox: ViewStyle;
@@ -72,6 +73,11 @@ export const styles = StyleSheet.create<TimeMachineModalStyles>({
     fontSize: 20,
     fontWeight: "700",
     color: "#9C27B0",
+  },
+  headerButton: {
+    padding: 8,
+    backgroundColor: "#f0f0ff",
+    borderRadius: 8,
   },
   closeButton: {
     padding: 8,

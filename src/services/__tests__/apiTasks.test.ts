@@ -358,4 +358,90 @@ describe("apiTasks", () => {
       });
     });
   });
+
+  describe("createBulkCompletions", () => {
+    it("should call request with POST to bulk completions endpoint", async () => {
+      const mockResponse = {
+        task_id: "task-1",
+        created_count: 5,
+        start_date_updated: false,
+      };
+      (api.request as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+      const data = {
+        entries: [
+          { date: "2024-01-01", status: "completed" as const },
+          { date: "2024-01-02", status: "skipped" as const },
+        ],
+      };
+
+      const result = await api.createBulkCompletions("task-1", data);
+
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/task-1/completions/bulk",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      );
+      expect(result).toEqual(mockResponse);
+    });
+
+    it("should include update_start_date when provided", async () => {
+      const mockResponse = {
+        task_id: "task-1",
+        created_count: 3,
+        start_date_updated: true,
+      };
+      (api.request as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+      const data = {
+        entries: [{ date: "2024-01-01", status: "completed" as const }],
+        update_start_date: "2024-01-01",
+      };
+
+      const result = await api.createBulkCompletions("task-1", data);
+
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/task-1/completions/bulk",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      );
+      expect(result.start_date_updated).toBe(true);
+    });
+  });
+
+  describe("deleteMockCompletions", () => {
+    it("should call request with DELETE to mock completions endpoint", async () => {
+      const mockResponse = {
+        task_id: "task-1",
+        deleted_count: 10,
+      };
+      (api.request as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+      const result = await api.deleteMockCompletions("task-1");
+
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/task-1/completions/mock",
+        {
+          method: "DELETE",
+        },
+      );
+      expect(result).toEqual(mockResponse);
+    });
+
+    it("should return deleted_count of 0 when no mock completions exist", async () => {
+      const mockResponse = {
+        task_id: "task-1",
+        deleted_count: 0,
+      };
+      (api.request as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+      const result = await api.deleteMockCompletions("task-1");
+
+      expect(result.deleted_count).toBe(0);
+    });
+  });
 });

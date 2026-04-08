@@ -16,6 +16,7 @@ import { useTimeMachineActions } from "./useTimeMachineActions";
 import { toLocalDateString } from "../utils/taskSorting";
 import { TimezonePicker } from "./TimezonePicker";
 import { getTimezoneLabel } from "../utils/timezoneData";
+import { RhythmSimulatorModal } from "./RhythmSimulatorModal";
 
 type Direction = "left" | "right";
 
@@ -53,6 +54,7 @@ export function TimeMachineModal({
     useTime();
   const [showTimezonePicker, setShowTimezonePicker] = useState(false);
   const [showFullResetConfirm, setShowFullResetConfirm] = useState(false);
+  const [showRhythmSimulator, setShowRhythmSimulator] = useState(false);
   const {
     pendingDate,
     pendingHour,
@@ -107,14 +109,26 @@ export function TimeMachineModal({
         <View style={styles.container}>
           <View style={styles.header}>
             <Text style={styles.title}>⏰ Time Machine</Text>
-            <TouchableOpacity
-              onPress={onClose}
-              style={styles.closeButton}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
             >
-              <Text style={styles.closeText}>✕</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowRhythmSimulator(true)}
+                style={styles.headerButton}
+                accessibilityRole="button"
+                accessibilityLabel="Open Rhythm Simulator"
+              >
+                <Ionicons name="bar-chart-outline" size={20} color="#6366f1" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={onClose}
+                style={styles.closeButton}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
+                <Text style={styles.closeText}>✕</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
@@ -299,6 +313,10 @@ export function TimeMachineModal({
           await handleFullReset(deleteCompletions);
           setShowFullResetConfirm(false);
         }}
+      />
+      <RhythmSimulatorModal
+        visible={showRhythmSimulator}
+        onClose={() => setShowRhythmSimulator(false)}
       />
     </Modal>
   );
