@@ -511,7 +511,7 @@ export function groupTasksByDate(tasks: Task[]): Map<string, Task[]> {
 }
 
 /**
- * Format date for section header (e.g., "Today", "Tomorrow", "Mon, Apr 7").
+ * Format date for section header (e.g., "TODAY - THU, APR 7", "TOMORROW - FRI, APR 8", "Mon, Apr 7").
  */
 export function formatDateHeader(
   dateKey: string,
@@ -533,14 +533,7 @@ export function formatDateHeader(
   const dayAfterTomorrow = new Date(todayStart);
   dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
 
-  if (date >= todayStart && date < tomorrowStart) {
-    return "Today";
-  }
-  if (date >= tomorrowStart && date < dayAfterTomorrow) {
-    return "Tomorrow";
-  }
-
-  // Format: "Mon, Apr 7"
+  // Format: "Mon, Apr 7" or "MON, APR 7" (uppercase for today/tomorrow)
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const monthNames = [
     "Jan",
@@ -556,7 +549,16 @@ export function formatDateHeader(
     "Nov",
     "Dec",
   ];
-  return `${dayNames[date.getDay()]}, ${monthNames[date.getMonth()]} ${date.getDate()}`;
+  const dateStr = `${dayNames[date.getDay()]}, ${monthNames[date.getMonth()]} ${date.getDate()}`;
+
+  if (date >= todayStart && date < tomorrowStart) {
+    return `TODAY - ${dateStr.toUpperCase()}`;
+  }
+  if (date >= tomorrowStart && date < dayAfterTomorrow) {
+    return `TOMORROW - ${dateStr.toUpperCase()}`;
+  }
+
+  return dateStr;
 }
 
 /**

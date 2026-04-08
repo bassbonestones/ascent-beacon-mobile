@@ -175,20 +175,6 @@ export const styles = StyleSheet.create({
   condenseToggleTextActive: {
     color: "#FFFFFF",
   },
-  // Reorder button in Today summary row - matches section header style
-  summaryReorderButton: {
-    marginLeft: "auto",
-    marginRight: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    backgroundColor: "#4B5563",
-  },
-  summaryReorderButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
   loader: {
     marginTop: 40,
   },

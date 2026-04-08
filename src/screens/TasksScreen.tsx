@@ -306,9 +306,16 @@ export default function TasksScreen({
             sorted = finalSorted;
           }
 
+          // Create section for Today view with formatted header
+          const todaySection = {
+            title: formatDateHeader(todayDateStr, currentDate),
+            dateKey: todayDateStr,
+            data: sorted,
+          };
+
           return {
             sortedTasks: sorted,
-            sections: null,
+            sections: [todaySection],
             viewPendingCount: todayPending,
             viewCompletedCount: todayCompleted,
           };
@@ -348,9 +355,16 @@ export default function TasksScreen({
             return !completionTimestamp && !isTaskScheduled(t);
           });
 
+          // Create section for Today view with formatted header
+          const todaySection = {
+            title: formatDateHeader(todayDateStr, currentDate),
+            dateKey: todayDateStr,
+            data: completedTasks,
+          };
+
           return {
             sortedTasks: completedTasks,
-            sections: null,
+            sections: [todaySection],
             viewPendingCount: todayPending,
             viewCompletedCount: todayCompleted,
           };
@@ -374,17 +388,30 @@ export default function TasksScreen({
             return !isTaskScheduled(t);
           });
 
+          // Create section for Today view with formatted header
+          const todaySection = {
+            title: formatDateHeader(todayDateStr, currentDate),
+            dateKey: todayDateStr,
+            data: skippedTasks,
+          };
+
           return {
             sortedTasks: skippedTasks,
-            sections: null,
+            sections: [todaySection],
             viewPendingCount: todayPending,
             viewCompletedCount: todayCompleted,
           };
         }
         // For "all", show all virtual occurrences for today
+        const allTodayTasks = filterTasksForToday(withOccurrences, currentDate);
+        const todaySection = {
+          title: formatDateHeader(todayDateStr, currentDate),
+          dateKey: todayDateStr,
+          data: allTodayTasks,
+        };
         return {
-          sortedTasks: filterTasksForToday(withOccurrences, currentDate),
-          sections: null,
+          sortedTasks: allTodayTasks,
+          sections: [todaySection],
           viewPendingCount: todayPending,
           viewCompletedCount: todayCompleted,
         };
@@ -868,58 +895,6 @@ export default function TasksScreen({
     [reorderTask],
   );
 
-  // Check if a task is "untimed" (has a date but no specific time)
-  // Used for reorder functionality in Today/Upcoming views
-  // Must have a date to be reorderable - unscheduled tasks don't belong to any date
-  const isUntimedTask = useCallback((t: Task): boolean => {
-    // Anytime tasks have their own tab and ordering
-    if (t.scheduling_mode === "anytime") return false;
-
-    // Must have a date (either scheduled_date or virtual occurrence date for recurring)
-    const hasDate = !!(t.scheduled_date || t.virtualOccurrenceDate);
-    if (!hasDate) return false;
-
-    // Has a specific time? Not untimed
-    if (t.scheduled_at) return false;
-
-    // Has date but no time = untimed
-    return true;
-  }, []);
-
-  // Phase 4f: Navigate to reorder screen for Today view untimed tasks
-  const handleNavigateToReorder = useCallback(() => {
-    // Get untimed tasks for today (has date but no specific time)
-    const untimedTasks = sortedTasks.filter(isUntimedTask);
-    if (untimedTasks.length < 2) return;
-
-    const todayDateStr = toLocalDateString(currentDate);
-    const items: ReorderItem[] = untimedTasks.map((task) => {
-      // For recurring tasks with virtual occurrences, use the task's occurrence index
-      // For non-recurring tasks, occurrence_index is always 0
-      const occIndex = task.occurrenceIndex ?? 0;
-      return {
-        task,
-        occurrenceIndex: occIndex,
-        occurrenceLabel: task.occurrenceLabel,
-        key: `${task.id}-${occIndex}`,
-      };
-    });
-
-    blurActiveElement();
-    navigation.navigate("ReorderTasks", {
-      date: todayDateStr,
-      dateDisplay: "Today",
-      items,
-    });
-  }, [sortedTasks, currentDate, navigation, isUntimedTask]);
-
-  // Check if Today view has untimed tasks that can be reordered
-  const hasReorderableUntimedTasks = useMemo(() => {
-    if (listViewMode !== "today") return false;
-    const untimedTasks = sortedTasks.filter(isUntimedTask);
-    return untimedTasks.length >= 2;
-  }, [listViewMode, sortedTasks, isUntimedTask]);
-
   const handleReopen = useCallback(
     async (task: Task) => {
       try {
@@ -1158,16 +1133,6 @@ export default function TasksScreen({
             )}
           </>
         )}
-        {hasReorderableUntimedTasks && (
-          <TouchableOpacity
-            style={styles.summaryReorderButton}
-            onPress={handleNavigateToReorder}
-            accessibilityLabel="Reorder untimed tasks"
-            accessibilityRole="button"
-          >
-            <Text style={styles.summaryReorderButtonText}>Reorder</Text>
-          </TouchableOpacity>
-        )}
         <TouchableOpacity
           style={[
             styles.condenseToggle,
@@ -1278,7 +1243,8 @@ export default function TasksScreen({
           onReorder={handleReorder}
           onRefresh={refetch}
         />
-      ) : listViewMode === "upcoming" && sections ? (
+      ) : (listViewMode === "today" || listViewMode === "upcoming") &&
+        sections ? (
         <SectionList
           sections={sections}
           extraData={tasks}
@@ -1291,7 +1257,8 @@ export default function TasksScreen({
                 (t.scheduled_date || t.virtualOccurrenceDate) &&
                 !t.scheduled_at,
             );
-            const hasUntimedTasks = untimedTasks.length > 1; // Need at least 2 to reorder
+            // Show reorder button when there are at least 2 untimed tasks
+            const hasUntimedTasks = untimedTasks.length > 1;
 
             const handleReorderSection = () => {
               const items: ReorderItem[] = untimedTasks.map((task: Task) => {
@@ -1332,8 +1299,13 @@ export default function TasksScreen({
               task={item}
               currentDate={currentDate}
               onPress={(t) => {
-                setSelectedTask(t);
-                setScreenMode("detail");
+                // Show overdue modal for overdue tasks in Today view
+                if (listViewMode === "today" && isTaskOverdue(t, currentDate)) {
+                  setOverdueModalTask(t);
+                } else {
+                  setSelectedTask(t);
+                  setScreenMode("detail");
+                }
               }}
               onComplete={handleComplete}
             />

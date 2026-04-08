@@ -472,12 +472,14 @@ describe("taskSorting", () => {
   });
 
   describe("formatDateHeader", () => {
-    it("returns Today for current date", () => {
-      expect(formatDateHeader("2024-06-15", now)).toBe("Today");
+    it("returns Today with day and date for current date", () => {
+      expect(formatDateHeader("2024-06-15", now)).toBe("TODAY - SAT, JUN 15");
     });
 
-    it("returns Tomorrow for next day", () => {
-      expect(formatDateHeader("2024-06-16", now)).toBe("Tomorrow");
+    it("returns Tomorrow with day and date for next day", () => {
+      expect(formatDateHeader("2024-06-16", now)).toBe(
+        "TOMORROW - SUN, JUN 16",
+      );
     });
 
     it("returns formatted date for further dates", () => {
