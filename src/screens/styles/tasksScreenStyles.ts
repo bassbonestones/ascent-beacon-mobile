@@ -23,7 +23,6 @@ export const styles = StyleSheet.create({
   },
   backButtonRow: {
     paddingHorizontal: 16,
-    paddingTop: 50,
     paddingBottom: 10,
     backgroundColor: "#111827",
     borderBottomWidth: 1,

@@ -293,21 +293,46 @@ export function isTaskForToday(task: Task, today: Date = new Date()): boolean {
 
   const todayStr = toLocalDateString(today);
 
+  // Skips and completions are tied to a calendar day. Past closed rows are not part
+  // of Today's list after that day ends. Pending overdue still is.
+  // If a past-due occurrence was completed today (completed_at local = today), keep it
+  // in Today so "cleared backlog this morning" still shows under Completed / All.
+  const excludeClosedPastOccurrence = (occurrenceDateStr: string): boolean => {
+    if (occurrenceDateStr >= todayStr) return false;
+    if (task.status === "skipped") return true;
+    if (task.status !== "completed") return false;
+    if (!task.completed_at) return true;
+    const completedDay = toLocalDateString(parseAsUtc(task.completed_at));
+    return completedDay < todayStr;
+  };
+
   // For virtual occurrences, use virtualOccurrenceDate (not the original task's scheduled_date)
   // The original task's scheduled_date is the recurrence START date, not this occurrence's date
   if (task.isVirtualOccurrence && task.virtualOccurrenceDate) {
+    if (excludeClosedPastOccurrence(task.virtualOccurrenceDate)) {
+      return false;
+    }
     // Task is for today if scheduled for today OR overdue (scheduled before today)
     return task.virtualOccurrenceDate <= todayStr;
   }
 
   // Date-only tasks: use scheduled_date
   if (task.scheduled_date) {
+    if (excludeClosedPastOccurrence(task.scheduled_date)) {
+      return false;
+    }
     // Task is for today if scheduled for today OR overdue (scheduled before today)
     return task.scheduled_date <= todayStr;
   }
 
   // Timed tasks: use scheduled_at
   if (task.scheduled_at) {
+    const scheduledLocalDateStr = toLocalDateString(
+      parseAsUtc(task.scheduled_at),
+    );
+    if (excludeClosedPastOccurrence(scheduledLocalDateStr)) {
+      return false;
+    }
     const scheduledDate = parseAsUtc(task.scheduled_at);
     const todayEnd = new Date(today);
     todayEnd.setHours(23, 59, 59, 999);
@@ -1243,7 +1268,12 @@ export function generateRecurringOccurrences(
         const todayStr = toLocalDateString(startDate);
         const isCompleted = completionsToday > 0 || task.completed_for_today;
         const skipsToday = task.skips_today || 0;
-        const isSkipped = skipsToday > 0 || task.skipped_for_today;
+        const skipsForTodayFromMap =
+          (task.skips_by_date?.[todayStr] ?? []).length > 0;
+        const isSkipped =
+          skipsToday > 0 ||
+          task.skipped_for_today === true ||
+          skipsForTodayFromMap;
 
         // Determine status: completed > skipped > pending
         let status: "completed" | "skipped" | "pending" = "pending";

@@ -240,6 +240,144 @@ describe("taskSorting", () => {
         "one-time",
       ]);
     });
+
+    it("excludes skipped tasks scheduled on a past calendar day (not overdue backlog)", () => {
+      const localNoon = new Date(2024, 5, 15, 12, 0, 0, 0);
+      const tasks = [
+        createMockTask({
+          id: "skipped-yesterday",
+          status: "skipped",
+          scheduled_date: "2024-06-14",
+          scheduled_at: null,
+          scheduling_mode: "date_only",
+        }),
+        createMockTask({
+          id: "skipped-today",
+          status: "skipped",
+          scheduled_date: "2024-06-15",
+          scheduled_at: null,
+          scheduling_mode: "date_only",
+        }),
+      ];
+      const filtered = filterTasksForToday(tasks, localNoon);
+      expect(filtered.map((t) => t.id)).toEqual(["skipped-today"]);
+    });
+
+    it("excludes skipped virtual occurrences before today but keeps pending overdue", () => {
+      const localNoon = new Date(2024, 5, 15, 12, 0, 0, 0);
+      const tasks = [
+        createMockTask({
+          id: "virt-skip-past",
+          is_recurring: true,
+          status: "skipped",
+          isVirtualOccurrence: true,
+          virtualOccurrenceDate: "2024-06-14",
+          scheduled_at: "2024-06-15T09:00:00Z",
+        }),
+        createMockTask({
+          id: "virt-skip-today",
+          is_recurring: true,
+          status: "skipped",
+          isVirtualOccurrence: true,
+          virtualOccurrenceDate: "2024-06-15",
+          scheduled_at: "2024-06-15T09:00:00Z",
+        }),
+        createMockTask({
+          id: "virt-pending-past",
+          is_recurring: true,
+          status: "pending",
+          isVirtualOccurrence: true,
+          virtualOccurrenceDate: "2024-06-14",
+          scheduled_at: "2024-06-15T09:00:00Z",
+        }),
+      ];
+      const filtered = filterTasksForToday(tasks, localNoon);
+      expect(filtered.map((t) => t.id).sort()).toEqual(
+        ["virt-pending-past", "virt-skip-today"].sort(),
+      );
+    });
+
+    it("excludes skipped timed tasks whose scheduled local date is before today", () => {
+      const localNoon = new Date(2024, 5, 15, 12, 0, 0, 0);
+      const yesterdayLocal = new Date(2024, 5, 14, 10, 0, 0, 0);
+      const tasks = [
+        createMockTask({
+          id: "timed-skip-past",
+          status: "skipped",
+          scheduled_at: yesterdayLocal.toISOString(),
+        }),
+      ];
+      expect(filterTasksForToday(tasks, localNoon).length).toBe(0);
+    });
+
+    it("excludes completed tasks scheduled on a past day when completed that same past day", () => {
+      const localNoon = new Date(2024, 5, 15, 12, 0, 0, 0);
+      const yesterdayEvening = new Date(2024, 5, 14, 18, 0, 0, 0);
+      const tasks = [
+        createMockTask({
+          id: "done-yesterday",
+          status: "completed",
+          scheduled_date: "2024-06-14",
+          scheduled_at: null,
+          scheduling_mode: "date_only",
+          completed_at: yesterdayEvening.toISOString(),
+        }),
+        createMockTask({
+          id: "done-today",
+          status: "completed",
+          scheduled_date: "2024-06-15",
+          scheduled_at: null,
+          scheduling_mode: "date_only",
+          completed_at: localNoon.toISOString(),
+        }),
+      ];
+      const filtered = filterTasksForToday(tasks, localNoon);
+      expect(filtered.map((t) => t.id)).toEqual(["done-today"]);
+    });
+
+    it("keeps completed past-due occurrence when completed_at is today (cleared backlog)", () => {
+      const localNoon = new Date(2024, 5, 15, 12, 0, 0, 0);
+      const thisMorning = new Date(2024, 5, 15, 8, 0, 0, 0);
+      const tasks = [
+        createMockTask({
+          id: "virt-done-past-occ-today",
+          is_recurring: true,
+          status: "completed",
+          isVirtualOccurrence: true,
+          virtualOccurrenceDate: "2024-06-14",
+          scheduled_at: "2024-06-15T09:00:00Z",
+          completed_at: thisMorning.toISOString(),
+        }),
+      ];
+      expect(filterTasksForToday(tasks, localNoon).length).toBe(1);
+    });
+
+    it("excludes completed virtual occurrence before today when completed before today", () => {
+      const localNoon = new Date(2024, 5, 15, 12, 0, 0, 0);
+      const yesterdayEvening = new Date(2024, 5, 14, 18, 0, 0, 0);
+      const tasks = [
+        createMockTask({
+          id: "virt-done-past",
+          is_recurring: true,
+          status: "completed",
+          isVirtualOccurrence: true,
+          virtualOccurrenceDate: "2024-06-14",
+          scheduled_at: "2024-06-15T09:00:00Z",
+          completed_at: yesterdayEvening.toISOString(),
+        }),
+        createMockTask({
+          id: "virt-done-today",
+          is_recurring: true,
+          status: "completed",
+          isVirtualOccurrence: true,
+          virtualOccurrenceDate: "2024-06-15",
+          scheduled_at: "2024-06-15T09:00:00Z",
+          completed_at: localNoon.toISOString(),
+        }),
+      ];
+      const filtered = filterTasksForToday(tasks, localNoon);
+      expect(filtered.map((t) => t.id)).toEqual(["virt-done-today"]);
+    });
   });
 
   describe("isTaskOverdue", () => {

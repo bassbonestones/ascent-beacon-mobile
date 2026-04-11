@@ -7,6 +7,8 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { combineTopInset } from "../../utils/combineTopInset";
 import type { Goal, SchedulingMode, RecurrenceBehavior } from "../../types";
 import { styles } from "../../screens/styles/tasksScreenStyles";
 import { RecurrencePicker } from "./RecurrencePicker";
@@ -99,6 +101,8 @@ export function CreateTaskForm({
   onPrerequisitesChange,
   currentTaskId,
 }: CreateTaskFormProps): React.ReactElement {
+  const insets = useSafeAreaInsets();
+  const topPad = combineTopInset(insets.top);
   const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
   const canSubmit = title.trim().length > 0;
 
@@ -146,7 +150,7 @@ export function CreateTaskForm({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: topPad }]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}

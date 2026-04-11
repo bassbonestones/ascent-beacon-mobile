@@ -15,6 +15,8 @@ import {
   ActivityIndicator,
   Platform,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { combineTopInset } from "../utils/combineTopInset";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type {
   Task,
@@ -127,6 +129,8 @@ export default function TasksScreen({
   user,
   navigation,
 }: TasksScreenProps): React.ReactElement {
+  const insets = useSafeAreaInsets();
+  const listTopPad = combineTopInset(insets.top);
   const { getCurrentDate } = useTime();
   const [screenMode, setScreenMode] = useState<ScreenMode>("list");
   const [listViewMode, setListViewMode] = useState<ListViewMode>("today");
@@ -570,8 +574,13 @@ export default function TasksScreen({
             // Must be completed for today (NOT skipped)
             if (!isCompletedForToday(t)) return false;
 
-            // Recurring tasks with completed_for_today: always show in Today completed
-            if (t.is_recurring && t.completed_for_today) {
+            // API base recurring row when today's occurrence is done (virtual slices
+            // use completed_for_today for their occurrence date — do not short-circuit)
+            if (
+              t.is_recurring &&
+              t.completed_for_today &&
+              !t.isVirtualOccurrence
+            ) {
               return true;
             }
 
@@ -615,8 +624,13 @@ export default function TasksScreen({
           const skippedTasks = withOccurrences.filter((t) => {
             if (!isSkippedForToday(t)) return false;
 
-            // Recurring tasks with skipped_for_today: always show in Today skipped
-            if (t.is_recurring && t.skipped_for_today) {
+            // API base recurring row when today's occurrence is skipped (virtual slices
+            // use skipped_for_today per occurrence date — do not short-circuit)
+            if (
+              t.is_recurring &&
+              t.skipped_for_today &&
+              !t.isVirtualOccurrence
+            ) {
               return true;
             }
 
@@ -1357,8 +1371,8 @@ export default function TasksScreen({
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.backButtonRow}>
+    <View style={[styles.container, { paddingTop: listTopPad }]}>
+      <View style={[styles.backButtonRow, { paddingTop: 10 }]}>
         <TouchableOpacity
           onPress={() => {
             blurActiveElement();

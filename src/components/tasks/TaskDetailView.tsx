@@ -1,5 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { combineTopInset } from "../../utils/combineTopInset";
 import type { Task, TaskStatus } from "../../types";
 import { styles } from "../../screens/styles/tasksScreenStyles";
 import { parseAsUtc, getTimezoneAbbreviation } from "../../utils/taskSorting";
@@ -363,6 +365,8 @@ export function TaskDetailView({
   onViewTracking,
 }: TaskDetailViewProps): React.ReactElement {
   const { timezone } = useTimezone();
+  const insets = useSafeAreaInsets();
+  const topPad = combineTopInset(insets.top);
   const isPending =
     task.status === "pending" &&
     !task.completed_for_today &&
@@ -371,7 +375,7 @@ export function TaskDetailView({
   const isSkipped = task.status === "skipped" || task.skipped_for_today;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: topPad }]}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}

@@ -11,6 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 // Conditionally import GestureHandlerRootView - only needed on native
 let GestureHandlerRootView: React.ComponentType<{
@@ -138,17 +139,19 @@ function AppNavigator(): React.ReactElement {
 
 export default function App(): React.ReactElement {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ErrorBoundary>
-        <AuthProvider>
-          <TimeProvider>
-            <NavigationContainer>
-              <AppNavigator />
-            </NavigationContainer>
-          </TimeProvider>
-        </AuthProvider>
-      </ErrorBoundary>
-    </GestureHandlerRootView>
+    <SafeAreaProvider style={{ flex: 1 }}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ErrorBoundary>
+          <AuthProvider>
+            <TimeProvider>
+              <NavigationContainer>
+                <AppNavigator />
+              </NavigationContainer>
+            </TimeProvider>
+          </AuthProvider>
+        </ErrorBoundary>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
 
