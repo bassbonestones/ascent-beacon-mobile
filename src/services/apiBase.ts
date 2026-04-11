@@ -71,11 +71,24 @@ class ApiServiceBase {
         let errorMessage = "Request failed";
         const dataAsAny = data as Record<string, unknown>;
 
+        // Check for dependency blocked response (409 with blockers)
+        if (response.status === 409 && Array.isArray(dataAsAny.blockers)) {
+          // Include blockers in error for downstream handling
+          const error = new Error(
+            JSON.stringify(data),
+          ) as ApiErrorWithValidation;
+          error.validationData = dataAsAny;
+          (error as Error & { isDependencyBlocked: boolean }).isDependencyBlocked = true;
+          throw error;
+        }
+
         if (dataAsAny.detail) {
           errorMessage =
             typeof dataAsAny.detail === "string"
               ? dataAsAny.detail
               : JSON.stringify(dataAsAny.detail);
+        } else if (dataAsAny.message) {
+          errorMessage = dataAsAny.message as string;
         } else if (dataAsAny.error) {
           errorMessage = dataAsAny.error as string;
         }

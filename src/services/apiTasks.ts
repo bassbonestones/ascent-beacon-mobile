@@ -25,11 +25,34 @@ import type {
   BulkCompletionsRequest,
   BulkCompletionsResponse,
   DeleteMockCompletionsResponse,
+  DependencyBlockedResponse,
+  DependencyBlocker,
 } from "../types";
 import type ApiServiceBase from "./apiBase";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Constructor<T = object> = new (...args: any[]) => T;
+
+/**
+ * Custom error for dependency-blocked completions (409 response).
+ * Contains the list of blockers that prevented completion.
+ */
+export class DependencyBlockedError extends Error {
+  blockers: DependencyBlocker[];
+  taskId: string;
+  canOverride: boolean;
+
+  constructor(response: DependencyBlockedResponse) {
+    const blockerNames = response.blockers
+      .map((b) => b.upstream_task?.title || "Unknown task")
+      .join(", ");
+    super(`Blocked by prerequisites: ${blockerNames}`);
+    this.name = "DependencyBlockedError";
+    this.blockers = response.blockers;
+    this.taskId = response.task_id;
+    this.canOverride = response.can_override;
+  }
+}
 
 /**
  * Interface for tasks methods added by the mixin.

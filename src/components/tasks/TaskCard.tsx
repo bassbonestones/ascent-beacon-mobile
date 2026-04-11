@@ -49,6 +49,7 @@ interface TaskCardProps {
   onMoveDown?: () => void;
   drag?: () => void;
   isActive?: boolean;
+  hasPrerequisites?: boolean; // Phase 4i: Show lock icon if task has unmet prerequisites
 }
 
 const getStatusColor = (status: string, isOverdue: boolean): string => {
@@ -91,6 +92,7 @@ export function TaskCard({
   onMoveDown,
   drag,
   isActive = false,
+  hasPrerequisites = false,
 }: TaskCardProps): React.ReactElement {
   const { timezone } = useTimezone();
   const isCompleted = task.status === "completed";
@@ -196,6 +198,11 @@ export function TaskCard({
         {task.scheduling_mode === "anytime" && (
           <View style={styles.anytimeBadge}>
             <Text style={styles.anytimeText}>📋 Anytime</Text>
+          </View>
+        )}
+        {hasPrerequisites && (
+          <View style={styles.prereqBadge}>
+            <Text style={styles.prereqText}>🔗 Prereqs</Text>
           </View>
         )}
         {!task.is_lightning && task.duration_minutes > 0 && (

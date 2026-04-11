@@ -38,6 +38,7 @@ interface DraggableTaskListProps {
   onComplete: (task: Task) => void;
   onReorder: (task: Task, newSortOrder: number) => void;
   onRefresh: () => void;
+  tasksWithPrerequisites?: Set<string>; // Set of task IDs that have prerequisites
 }
 
 /**
@@ -50,6 +51,7 @@ function WebDraggableList({
   onTaskPress,
   onComplete,
   onReorder,
+  tasksWithPrerequisites,
 }: Omit<
   DraggableTaskListProps,
   "allTasks" | "loading" | "loadingMore" | "onRefresh"
@@ -155,6 +157,7 @@ function WebDraggableList({
               currentDate={currentDate}
               onPress={onTaskPress}
               onComplete={onComplete}
+              hasPrerequisites={tasksWithPrerequisites?.has(task.id) ?? false}
             />
           </div>
         );
@@ -177,6 +180,7 @@ function NativeDraggableList({
   onComplete,
   onReorder,
   onRefresh,
+  tasksWithPrerequisites,
 }: DraggableTaskListProps): React.ReactElement {
   // Handle drag end - reorder based on new position
   const handleDragEnd = useCallback(
@@ -220,6 +224,7 @@ function NativeDraggableList({
                 onComplete={onComplete}
                 drag={canDrag ? drag : undefined}
                 isActive={isActive}
+                hasPrerequisites={tasksWithPrerequisites?.has(item.id) ?? false}
               />
             </ScaleDecorator>
           );
@@ -242,6 +247,7 @@ function NativeDraggableList({
           currentDate={currentDate}
           onPress={onTaskPress}
           onComplete={onComplete}
+          hasPrerequisites={tasksWithPrerequisites?.has(item.id) ?? false}
         />
       )}
       keyExtractor={(item) => item.id}

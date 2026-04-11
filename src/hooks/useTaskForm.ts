@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import type { SchedulingMode, Task, RecurrenceBehavior } from "../types";
+import type { SelectedPrerequisite } from "../components/tasks/PrerequisiteSelector";
 import { parseAsUtc } from "../utils/taskSorting";
 
 export interface UseTaskFormReturn {
@@ -16,6 +17,7 @@ export interface UseTaskFormReturn {
   scheduledTime: string | null;
   scheduledDate: string | null;
   isAnytime: boolean; // Phase 4e
+  prerequisites: SelectedPrerequisite[]; // Phase 4i
 
   // Setters
   setTitle: (value: string) => void;
@@ -30,6 +32,7 @@ export interface UseTaskFormReturn {
   setScheduledTime: (value: string | null) => void;
   setScheduledDate: (value: string | null) => void;
   setIsAnytime: (value: boolean) => void; // Phase 4e
+  setPrerequisites: (value: SelectedPrerequisite[]) => void; // Phase 4i
 
   // Actions
   resetForm: () => void;
@@ -73,6 +76,9 @@ export function useTaskForm(): UseTaskFormReturn {
   const [scheduledTime, setScheduledTime] = useState<string | null>(null);
   const [scheduledDate, setScheduledDate] = useState<string | null>(null);
   const [isAnytime, setIsAnytime] = useState(false); // Phase 4e
+  const [prerequisites, setPrerequisites] = useState<SelectedPrerequisite[]>(
+    [],
+  ); // Phase 4i
 
   const resetForm = useCallback(() => {
     setTitle("");
@@ -87,6 +93,7 @@ export function useTaskForm(): UseTaskFormReturn {
     setScheduledTime(null);
     setScheduledDate(null);
     setIsAnytime(false); // Phase 4e
+    setPrerequisites([]); // Phase 4i
   }, []);
 
   /**
@@ -222,6 +229,7 @@ export function useTaskForm(): UseTaskFormReturn {
     scheduledTime,
     scheduledDate,
     isAnytime, // Phase 4e
+    prerequisites, // Phase 4i
     setTitle,
     setDescription,
     setGoalId,
@@ -234,6 +242,7 @@ export function useTaskForm(): UseTaskFormReturn {
     setScheduledTime,
     setScheduledDate,
     setIsAnytime, // Phase 4e
+    setPrerequisites, // Phase 4i
     resetForm,
     populateForm,
     toggleLightning,

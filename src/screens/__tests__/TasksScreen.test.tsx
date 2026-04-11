@@ -19,12 +19,21 @@ import type {
 } from "../../types";
 import { showAlert, showConfirm } from "../../utils/alert";
 import { createMockTimeContext } from "../../testHelpers";
+import api from "../../services/api";
 
 jest.mock("../../hooks/useTasks");
 jest.mock("../../hooks/useGoals");
 jest.mock("../../hooks/useOccurrenceOrderRange");
 jest.mock("../../utils/alert");
 jest.mock("../../context/TimeContext");
+jest.mock("../../services/api", () => ({
+  __esModule: true,
+  default: {
+    getDependencyRules: jest.fn(),
+    createDependencyRule: jest.fn(),
+    deleteDependencyRule: jest.fn(),
+  },
+}));
 
 const mockedUseTasks = jest.mocked(useTasks);
 const mockedUseGoals = jest.mocked(useGoals);
@@ -32,6 +41,7 @@ const mockedUseOccurrenceOrderRange = jest.mocked(useOccurrenceOrderRange);
 const mockedShowAlert = jest.mocked(showAlert);
 const mockedShowConfirm = jest.mocked(showConfirm);
 const mockedUseTime = jest.mocked(useTime);
+const mockedApi = api as jest.Mocked<typeof api>;
 
 const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   id: "task-1",
@@ -134,6 +144,23 @@ describe("TasksScreen", () => {
     });
     mockedShowConfirm.mockResolvedValue(false);
     mockedUseTime.mockReturnValue(createMockTimeContext());
+    // Initialize api mocks for dependency handling
+    mockedApi.getDependencyRules.mockResolvedValue({ rules: [], total: 0 });
+    mockedApi.createDependencyRule.mockResolvedValue({
+      id: "rule-1",
+      user_id: "user-1",
+      upstream_task_id: "t-1",
+      downstream_task_id: "t-2",
+      strength: "soft",
+      scope: "next_occurrence",
+      required_occurrence_count: 1,
+      validity_window_minutes: null,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+      upstream_task: null,
+      downstream_task: null,
+    });
+    mockedApi.deleteDependencyRule.mockResolvedValue(undefined);
   });
 
   describe("List View", () => {
@@ -655,6 +682,135 @@ describe("TasksScreen", () => {
       await waitFor(() => {
         // Non-recurring task passes undefined for scheduledFor and localDate
         expect(completeTask).toHaveBeenCalledWith("t-1", undefined, undefined);
+      });
+    });
+  });
+
+  describe("Dependency handling - Phase 4i", () => {
+    it("fetches dependencies when editing a task", async () => {
+      const tasks = [createMockTask({ id: "t-1", title: "Task With Deps" })];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks,
+      });
+
+      // Mock dependencies response
+      mockedApi.getDependencyRules.mockResolvedValue({
+        rules: [
+          {
+            id: "rule-1",
+            user_id: "user-1",
+            upstream_task_id: "t-prereq",
+            downstream_task_id: "t-1",
+            strength: "soft",
+            scope: "next_occurrence",
+            required_occurrence_count: 1,
+            validity_window_minutes: null,
+            created_at: "2024-01-01T00:00:00Z",
+            updated_at: "2024-01-01T00:00:00Z",
+            upstream_task: {
+              id: "t-prereq",
+              title: "Prerequisite Task",
+              is_recurring: false,
+              recurrence_rule: null,
+            },
+            downstream_task: null,
+          },
+        ],
+        total: 1,
+      });
+
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+
+      // Tap on task to open detail view
+      fireEvent.press(screen.getByLabelText("Task: Task With Deps"));
+
+      // Tap edit button
+      fireEvent.press(screen.getByLabelText("Edit task"));
+
+      // Wait for dependencies to be fetched
+      await waitFor(() => {
+        expect(mockedApi.getDependencyRules).toHaveBeenCalledWith({
+          downstream_task_id: "t-1",
+        });
+      });
+    });
+
+    it("handles dependency fetch failure gracefully", async () => {
+      const tasks = [createMockTask({ id: "t-1", title: "Task" })];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks,
+      });
+
+      // Mock API failure
+      mockedApi.getDependencyRules.mockRejectedValue(new Error("Network error"));
+
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+
+      // Tap on task to open detail view
+      fireEvent.press(screen.getByLabelText("Task: Task"));
+
+      // Tap edit button - should not crash
+      fireEvent.press(screen.getByLabelText("Edit task"));
+
+      // Verify form is still shown despite error
+      await waitFor(() => {
+        expect(screen.getByText("Edit Task")).toBeTruthy();
+      });
+    });
+
+    it("deletes existing and creates new dependencies on save", async () => {
+      const updateTask = jest.fn().mockResolvedValue(undefined);
+      const tasks = [createMockTask({ id: "t-1", title: "Task To Edit" })];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks,
+        updateTask,
+      });
+
+      // Mock existing dependency
+      mockedApi.getDependencyRules.mockResolvedValue({
+        rules: [
+          {
+            id: "old-rule-1",
+            user_id: "user-1",
+            upstream_task_id: "t-old-prereq",
+            downstream_task_id: "t-1",
+            strength: "soft",
+            scope: "next_occurrence",
+            required_occurrence_count: 1,
+            validity_window_minutes: null,
+            created_at: "2024-01-01T00:00:00Z",
+            updated_at: "2024-01-01T00:00:00Z",
+            upstream_task: null,
+            downstream_task: null,
+          },
+        ],
+        total: 1,
+      });
+
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+
+      // Open task detail
+      fireEvent.press(screen.getByLabelText("Task: Task To Edit"));
+
+      // Open edit mode
+      fireEvent.press(screen.getByLabelText("Edit task"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Edit Task")).toBeTruthy();
+      });
+
+      // Save the edit
+      fireEvent.press(screen.getByLabelText("Save changes"));
+
+      // Wait for save to complete
+      await waitFor(() => {
+        // Should have deleted old dependency
+        expect(mockedApi.deleteDependencyRule).toHaveBeenCalledWith(
+          "old-rule-1",
+        );
       });
     });
   });

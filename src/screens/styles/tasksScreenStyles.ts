@@ -604,6 +604,17 @@ export const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "600",
   },
+  prereqBadge: {
+    backgroundColor: "#6366F1",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  prereqText: {
+    fontSize: 11,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
   skipReasonText: {
     fontSize: 13,
     color: "#9CA3AF",

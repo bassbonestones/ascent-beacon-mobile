@@ -7,6 +7,7 @@ import type {
   CreateTaskRequest,
   UpdateTaskRequest,
   UseTasksReturn,
+  DependencyBlockedResponse,
 } from "../types";
 
 export interface UseTasksOptions {
@@ -129,7 +130,25 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
         return updated;
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
-        showAlert("Error", "Failed to complete task");
+        
+        // Check for dependency blocked error (409 with blockers)
+        const errorWithProps = err as Error & { 
+          isDependencyBlocked?: boolean;
+          validationData?: DependencyBlockedResponse;
+        };
+        
+        if (errorWithProps.isDependencyBlocked && errorWithProps.validationData) {
+          const blockers = errorWithProps.validationData.blockers || [];
+          const blockerNames = blockers
+            .map((b) => `"${b.upstream_task?.title || 'Unknown task'}"`)
+            .join(", ");
+          showAlert(
+            "Prerequisites Not Met",
+            `Complete these tasks first: ${blockerNames}`,
+          );
+        } else {
+          showAlert("Error", error.message || "Failed to complete task");
+        }
         throw error;
       }
     },

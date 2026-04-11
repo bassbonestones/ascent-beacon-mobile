@@ -7,3 +7,7 @@ export { OverdueActionModal } from "./OverdueActionModal";
 export { TimePicker } from "./TimePicker";
 export { DatePicker } from "./DatePicker";
 export { DraggableTaskList } from "./DraggableTaskList";
+export { PrerequisiteSelector } from "./PrerequisiteSelector";
+export { TaskSearchModal } from "./TaskSearchModal";
+export { TaskDependenciesSection } from "./TaskDependenciesSection";
+export type { SelectedPrerequisite } from "./PrerequisiteSelector";

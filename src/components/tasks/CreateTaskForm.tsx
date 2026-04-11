@@ -13,6 +13,10 @@ import { RecurrencePicker } from "./RecurrencePicker";
 import { TimePicker } from "./TimePicker";
 import { DatePicker } from "./DatePicker";
 import { getFrequencyDescription, parseRRule } from "./rruleUtils";
+import {
+  PrerequisiteSelector,
+  type SelectedPrerequisite,
+} from "./PrerequisiteSelector";
 
 interface CreateTaskFormProps {
   goals: Goal[];
@@ -49,6 +53,10 @@ interface CreateTaskFormProps {
   // Phase 4e: Anytime task support
   isAnytime?: boolean;
   onAnytimeToggle?: () => void;
+  // Phase 4i: Prerequisites
+  prerequisites?: SelectedPrerequisite[];
+  onPrerequisitesChange?: (prerequisites: SelectedPrerequisite[]) => void;
+  currentTaskId?: string;
 }
 
 const getRecurrenceDescription = (
@@ -87,6 +95,9 @@ export function CreateTaskForm({
   isEditMode = false,
   isAnytime = false,
   onAnytimeToggle,
+  prerequisites = [],
+  onPrerequisitesChange,
+  currentTaskId,
 }: CreateTaskFormProps): React.ReactElement {
   const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
   const canSubmit = title.trim().length > 0;
@@ -343,6 +354,16 @@ export function CreateTaskForm({
               label="Time (optional)"
             />
           </>
+        )}
+
+        {/* Phase 4i: Prerequisites */}
+        {onPrerequisitesChange && (
+          <PrerequisiteSelector
+            prerequisites={prerequisites}
+            onPrerequisitesChange={onPrerequisitesChange}
+            currentTaskId={currentTaskId}
+            currentTaskIsRecurring={isRecurring}
+          />
         )}
 
         <TouchableOpacity

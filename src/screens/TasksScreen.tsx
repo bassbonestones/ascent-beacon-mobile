@@ -50,6 +50,7 @@ import {
   getTaskScheduledDateStr,
   isTaskScheduled,
 } from "../utils/taskSorting";
+import api from "../services/api";
 
 interface TasksScreenProps {
   user: User;
@@ -132,6 +133,10 @@ export default function TasksScreen({
   const [skipModalTask, setSkipModalTask] = useState<Task | null>(null);
   const [overdueModalTask, setOverdueModalTask] = useState<Task | null>(null);
   const [condenseRecurring, setCondenseRecurring] = useState(false);
+  // Phase 4i: Track which tasks have prerequisites for badge display
+  const [tasksWithPrerequisites, setTasksWithPrerequisites] = useState<
+    Set<string>
+  >(new Set());
 
   // Pagination state for Upcoming view
   const INITIAL_DAYS_AHEAD = 14;
@@ -261,6 +266,30 @@ export default function TasksScreen({
     });
     return unsubscribe;
   }, [navigation, listViewMode, refetchTodayOrder, refetchRangeOrder]);
+
+  // Phase 4i: Fetch dependency rules to determine which tasks have prerequisites
+  // This builds a Set of task IDs that have at least one upstream dependency
+  useEffect(() => {
+    const fetchTasksWithPrerequisites = async () => {
+      if (tasks.length === 0) {
+        setTasksWithPrerequisites(new Set());
+        return;
+      }
+      try {
+        // Fetch all dependency rules (batch approach)
+        const response = await api.getDependencyRules({});
+        // Build set of downstream_task_ids (tasks that have prerequisites)
+        const taskIdsWithPrereqs = new Set<string>(
+          response.rules.map((rule) => rule.downstream_task_id),
+        );
+        setTasksWithPrerequisites(taskIdsWithPrereqs);
+      } catch (error) {
+        console.warn("Failed to fetch dependency rules:", error);
+        setTasksWithPrerequisites(new Set());
+      }
+    };
+    fetchTasksWithPrerequisites();
+  }, [tasks.length]); // Re-fetch when tasks are added/removed
 
   // Phase 4g: Auto-skip missed habitual task occurrences on mount/tasks change
   // This runs when tasks are loaded and silently skips overdue habitual occurrences
@@ -836,7 +865,7 @@ export default function TasksScreen({
         ? { scheduled_date: null, scheduled_at: null }
         : scheduling;
 
-      await createTask({
+      const newTask = await createTask({
         goal_id: taskForm.goalId || undefined,
         title: taskForm.title.trim(),
         description: taskForm.description.trim() || undefined,
@@ -852,6 +881,27 @@ export default function TasksScreen({
           ? taskForm.recurrenceBehavior
           : undefined,
       });
+
+      // Phase 4i: Create dependency rules for prerequisites
+      if (taskForm.prerequisites.length > 0 && newTask) {
+        for (const prereq of taskForm.prerequisites) {
+          try {
+            await api.createDependencyRule({
+              upstream_task_id: prereq.task.id,
+              downstream_task_id: newTask.id,
+              strength: prereq.strength,
+              scope: prereq.scope,
+              required_occurrence_count: prereq.requiredCount,
+              validity_window_minutes:
+                prereq.validityWindowMinutes ?? undefined,
+            });
+          } catch (error) {
+            // Log but don't block - task was created successfully
+            console.warn("Failed to create dependency rule:", error);
+          }
+        }
+      }
+
       taskForm.resetForm();
       setScreenMode("list");
     } catch {
@@ -860,7 +910,7 @@ export default function TasksScreen({
   }, [taskForm, createTask, currentDate]);
 
   const handleEdit = useCallback(
-    (task: Task) => {
+    async (task: Task) => {
       // For virtual occurrences, we want to edit the original task
       const taskToEdit = task.originalTaskId
         ? tasks.find((t) => t.id === task.originalTaskId) || task
@@ -868,6 +918,35 @@ export default function TasksScreen({
       setEditingTask(taskToEdit);
       taskForm.populateForm(taskToEdit);
       setScreenMode("edit");
+
+      // Fetch existing dependencies (prerequisites of this task)
+      try {
+        const response = await api.getDependencyRules({
+          downstream_task_id: taskToEdit.id,
+        });
+
+        // Convert dependency rules to SelectedPrerequisite format
+        const prereqs = response.rules
+          .filter((rule) => rule.upstream_task) // Only include rules with task info
+          .map((rule) => ({
+            task: {
+              // Create minimal Task-like object from DependencyTaskInfo
+              id: rule.upstream_task!.id,
+              title: rule.upstream_task!.title,
+              is_recurring: rule.upstream_task!.is_recurring,
+              recurrence_rule: rule.upstream_task!.recurrence_rule,
+            } as Task,
+            strength: rule.strength,
+            scope: rule.scope,
+            requiredCount: rule.required_occurrence_count,
+            validityWindowMinutes: rule.validity_window_minutes,
+          }));
+
+        taskForm.setPrerequisites(prereqs);
+      } catch (error) {
+        console.warn("Failed to load existing dependencies:", error);
+        // Don't block editing if dependencies fail to load
+      }
     },
     [tasks, taskForm],
   );
@@ -922,6 +1001,40 @@ export default function TasksScreen({
           ? taskForm.recurrenceBehavior
           : undefined,
       });
+
+      // Phase 4i: Update dependency rules (replace all approach)
+
+      // First, delete existing dependency rules where this task is downstream
+      try {
+        const existingRules = await api.getDependencyRules({
+          downstream_task_id: editingTask.id,
+        });
+        for (const rule of existingRules.rules) {
+          await api.deleteDependencyRule(rule.id);
+        }
+      } catch (error) {
+        console.warn("Failed to delete existing dependency rules:", error);
+      }
+
+      // Then create all current prerequisites
+      if (taskForm.prerequisites.length > 0) {
+        for (const prereq of taskForm.prerequisites) {
+          try {
+            await api.createDependencyRule({
+              upstream_task_id: prereq.task.id,
+              downstream_task_id: editingTask.id,
+              strength: prereq.strength,
+              scope: prereq.scope,
+              required_occurrence_count: prereq.requiredCount,
+              validity_window_minutes:
+                prereq.validityWindowMinutes ?? undefined,
+            });
+          } catch (error) {
+            console.warn("Failed to create dependency rule:", error);
+          }
+        }
+      }
+
       taskForm.resetForm();
       setEditingTask(null);
       setSelectedTask(null);
@@ -1189,6 +1302,8 @@ export default function TasksScreen({
         }}
         isAnytime={taskForm.isAnytime}
         onAnytimeToggle={taskForm.toggleAnytime}
+        prerequisites={taskForm.prerequisites}
+        onPrerequisitesChange={taskForm.setPrerequisites}
       />
     );
   }
@@ -1227,6 +1342,9 @@ export default function TasksScreen({
         isEditMode={true}
         isAnytime={taskForm.isAnytime}
         onAnytimeToggle={taskForm.toggleAnytime}
+        prerequisites={taskForm.prerequisites}
+        onPrerequisitesChange={taskForm.setPrerequisites}
+        currentTaskId={editingTask?.id}
       />
     );
   }
@@ -1425,6 +1543,7 @@ export default function TasksScreen({
           onComplete={handleComplete}
           onReorder={handleReorder}
           onRefresh={refetch}
+          tasksWithPrerequisites={tasksWithPrerequisites}
         />
       ) : (listViewMode === "today" || listViewMode === "upcoming") &&
         sections ? (
@@ -1512,6 +1631,9 @@ export default function TasksScreen({
                   }
                 }}
                 onComplete={handleComplete}
+                hasPrerequisites={tasksWithPrerequisites.has(
+                  item.originalTaskId || item.id,
+                )}
               />
             );
           }}
@@ -1552,6 +1674,9 @@ export default function TasksScreen({
                 }
               }}
               onComplete={handleComplete}
+              hasPrerequisites={tasksWithPrerequisites.has(
+                item.originalTaskId || item.id,
+              )}
             />
           )}
           keyExtractor={(item) => item.id}

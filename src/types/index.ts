@@ -992,6 +992,121 @@ export interface DeleteMockCompletionsResponse {
 }
 
 // ============================================================================
+// Dependency Types (Phase 4i)
+// ============================================================================
+
+// Strength: how strict is this dependency?
+export type DependencyStrength = "hard" | "soft";
+
+// Scope: how do occurrences relate?
+export type DependencyScope =
+  | "all_occurrences"
+  | "next_occurrence"
+  | "within_window";
+
+// Resolution source: how was this resolution created?
+export type ResolutionSource = "manual" | "chain" | "override" | "system";
+
+// Readiness state for dependency cache
+export type ReadinessState = "ready" | "blocked" | "partial" | "advisory";
+
+// Brief info about a task (for dependency display)
+export interface DependencyTaskInfo {
+  id: string;
+  title: string;
+  is_recurring: boolean;
+  recurrence_rule: string | null;
+}
+
+// A dependency rule between two tasks
+export interface DependencyRule {
+  id: string;
+  user_id: string;
+  upstream_task_id: string;
+  downstream_task_id: string;
+  strength: DependencyStrength;
+  scope: DependencyScope;
+  required_occurrence_count: number;
+  validity_window_minutes: number | null;
+  created_at: string;
+  updated_at: string;
+  upstream_task: DependencyTaskInfo | null;
+  downstream_task: DependencyTaskInfo | null;
+}
+
+export interface DependencyRuleListResponse {
+  rules: DependencyRule[];
+  total: number;
+}
+
+export interface CreateDependencyRuleRequest {
+  upstream_task_id: string;
+  downstream_task_id: string;
+  strength?: DependencyStrength;
+  scope?: DependencyScope;
+  required_occurrence_count?: number;
+  validity_window_minutes?: number;
+}
+
+export interface UpdateDependencyRuleRequest {
+  strength?: DependencyStrength;
+  scope?: DependencyScope;
+  required_occurrence_count?: number;
+  validity_window_minutes?: number;
+}
+
+export interface CycleValidationRequest {
+  upstream_task_id: string;
+  downstream_task_id: string;
+}
+
+export interface CycleValidationResponse {
+  valid: boolean;
+  reason: string | null;
+  cycle_path: string[] | null;
+}
+
+// Info about an unmet dependency blocking completion
+export interface DependencyBlocker {
+  rule_id: string;
+  upstream_task: DependencyTaskInfo;
+  strength: DependencyStrength;
+  scope: DependencyScope;
+  required_count: number;
+  completed_count: number;
+  is_met: boolean;
+}
+
+// Info about a downstream task that depends on this task
+export interface DependencyDependent {
+  rule_id: string;
+  downstream_task: DependencyTaskInfo;
+  strength: DependencyStrength;
+}
+
+// Response for checking dependency status of a task occurrence
+export interface DependencyStatusResponse {
+  task_id: string;
+  scheduled_for: string | null;
+  dependencies: DependencyBlocker[];
+  has_unmet_hard: boolean;
+  has_unmet_soft: boolean;
+  all_met: boolean;
+  dependents: DependencyDependent[];
+  readiness_state: ReadinessState;
+}
+
+// Response when completion is blocked by dependencies (409)
+export interface DependencyBlockedResponse {
+  message: string;
+  task_id: string;
+  scheduled_for: string | null;
+  blockers: DependencyBlocker[];
+  can_override: boolean;
+  hint: string;
+}
+
+// ============================================================================
 // Utility Types
 // ============================================================================
 

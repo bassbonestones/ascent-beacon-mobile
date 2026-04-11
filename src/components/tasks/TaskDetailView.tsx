@@ -4,6 +4,7 @@ import type { Task, TaskStatus } from "../../types";
 import { styles } from "../../screens/styles/tasksScreenStyles";
 import { parseAsUtc, getTimezoneAbbreviation } from "../../utils/taskSorting";
 import { useTimezone } from "../../hooks/useTimezone";
+import { TaskDependenciesSection } from "./TaskDependenciesSection";
 
 interface TaskDetailViewProps {
   task: Task;
@@ -514,6 +515,9 @@ export function TaskDetailView({
             </Text>
           </View>
         </View>
+
+        {/* Phase 4i: Dependencies */}
+        <TaskDependenciesSection taskId={task.originalTaskId || task.id} />
 
         <View style={styles.actionButtons}>
           {task.is_recurring && onViewTracking && (
