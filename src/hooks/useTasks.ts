@@ -8,7 +8,9 @@ import type {
   UpdateTaskRequest,
   UseTasksReturn,
   DependencyBlockedResponse,
+  CompleteTaskOverrides,
 } from "../types";
+import { isSkipTaskPreviewResponse } from "../types";
 
 export interface UseTasksOptions {
   goalId?: string;
@@ -47,6 +49,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
         include_completed: options.includeCompleted,
         client_today: clientTodayStr,
         days_ahead: options.daysAhead,
+        include_dependency_summary: true,
       });
       setTasks(response.tasks);
       setPendingCount(response.pending_count);
@@ -107,11 +110,14 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
       id: string,
       scheduledFor?: string,
       localDate?: string,
+      overrides?: CompleteTaskOverrides,
     ): Promise<Task> => {
       try {
         const updated = await api.completeTask(id, {
           scheduled_for: scheduledFor,
           local_date: localDate,
+          override_confirm: overrides?.override_confirm,
+          override_reason: overrides?.override_reason ?? undefined,
         });
         // For recurring tasks, refetch to get updated completions_today
         // This ensures virtual occurrences are regenerated with correct completion status
@@ -161,13 +167,18 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
       reason?: string,
       scheduledFor?: string,
       localDate?: string,
-    ): Promise<Task> => {
+      confirmProceed?: boolean,
+    ) => {
       try {
         const updated = await api.skipTask(id, {
           reason,
           scheduled_for: scheduledFor,
           local_date: localDate,
+          confirm_proceed: confirmProceed,
         });
+        if (isSkipTaskPreviewResponse(updated)) {
+          return updated;
+        }
         // For recurring tasks, refetch to get updated completions_today
         if (updated.is_recurring) {
           await fetchTasks();
@@ -193,25 +204,14 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
       localDate?: string,
     ): Promise<Task> => {
       try {
-        const task = tasks.find((t) => t.id === id);
-        const wasCompleted = task?.status === "completed";
-        const isRecurring = task?.is_recurring;
-
         const updated = await api.reopenTask(id, {
           scheduled_for: scheduledFor,
           local_date: localDate,
         });
 
-        // For recurring tasks, refetch to get updated completion counts
-        if (isRecurring) {
-          await fetchTasks();
-        } else {
-          setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
-          setPendingCount((prev) => prev + 1);
-          if (wasCompleted) {
-            setCompletedCount((prev) => Math.max(0, prev - 1));
-          }
-        }
+        // Always refetch: matches server (completions, skips, status) even when the
+        // template row was not in local state (e.g. virtual occurrence + stale list).
+        await fetchTasks();
         return updated;
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
@@ -219,7 +219,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
         throw error;
       }
     },
-    [tasks, fetchTasks],
+    [fetchTasks],
   );
 
   const deleteTask = useCallback(

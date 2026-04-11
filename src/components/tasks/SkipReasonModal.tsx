@@ -7,6 +7,7 @@ import {
   TextInput,
   StyleSheet,
 } from "react-native";
+import { transparentModalProps } from "./transparentModalProps";
 
 interface SkipReasonModalProps {
   visible: boolean;
@@ -29,7 +30,11 @@ export function SkipReasonModal({
   };
 
   return (
-    <Modal visible={visible} animationType="fade" transparent>
+    <Modal
+      visible={visible}
+      animationType="fade"
+      {...transparentModalProps()}
+    >
       <View style={modalStyles.overlay}>
         <View style={modalStyles.container}>
           <Text style={modalStyles.title}>Skip "{taskTitle}"?</Text>

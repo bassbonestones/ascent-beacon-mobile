@@ -653,6 +653,14 @@ export interface TaskGoalInfo {
   status: GoalStatus;
 }
 
+/** Phase 4i-5: embedded on Task when API includes dependency summary */
+export interface TaskDependencySummary {
+  readiness_state: "ready" | "blocked" | "partial" | "advisory";
+  has_unmet_hard: boolean;
+  has_unmet_soft: boolean;
+  advisory_text?: string | null;
+}
+
 export interface Task {
   id: string;
   user_id: string;
@@ -709,6 +717,8 @@ export interface Task {
   // For multi-per-day recurring tasks: occurrence index (0-based) and label
   occurrenceIndex?: number;
   occurrenceLabel?: string; // e.g., "(1 of 4)"
+  /** Phase 4i-5: from GET /tasks when include_dependency_summary=true */
+  dependency_summary?: TaskDependencySummary | null;
 }
 
 export interface TaskListResponse {
@@ -752,16 +762,84 @@ export interface UpdateTaskRequest {
   recurrence_behavior?: RecurrenceBehavior | null;
 }
 
+export interface CompleteTaskOverrides {
+  override_confirm?: boolean;
+  override_reason?: string | null;
+}
+
 export interface CompleteTaskRequest {
   completed_at?: string | null;
   scheduled_for?: string | null; // For recurring tasks: which occurrence was completed
   local_date?: string | null; // Client's local date (YYYY-MM-DD) for this occurrence
+  override_confirm?: boolean;
+  override_reason?: string | null;
 }
 
 export interface SkipTaskRequest {
   reason?: string | null;
   scheduled_for?: string | null; // For recurring tasks: which occurrence was skipped
   local_date?: string | null; // Client's local date (YYYY-MM-DD) for this occurrence
+  confirm_proceed?: boolean;
+}
+
+/** Phase 4i-4: cascade skip root request */
+export interface SkipChainTaskRequest {
+  reason?: string | null;
+  scheduled_for?: string | null;
+  local_date?: string | null;
+  cascade_skip: boolean;
+}
+
+export interface AffectedDownstreamEntry {
+  task_id: string;
+  task_title: string;
+  rule_id: string;
+  strength: string;
+  affected_occurrences: number;
+}
+
+export interface TransitiveHardDependentPreviewEntry {
+  task_id: string;
+  task_title: string;
+  affected_occurrences: number;
+}
+
+export interface SkipTaskPreviewResponse {
+  status: "has_dependents";
+  affected_downstream: AffectedDownstreamEntry[];
+  /** Hard downstream cascade order (matches skip-chain); prefer for modal list. */
+  transitive_hard_dependents_toposort?: TransitiveHardDependentPreviewEntry[];
+}
+
+/** Rows for skip cascade modal: full topo chain when API provides it. */
+export function rowsForSkipCascadeModal(
+  preview: SkipTaskPreviewResponse | null | undefined,
+): AffectedDownstreamEntry[] {
+  if (!preview) {
+    return [];
+  }
+  const topo = preview.transitive_hard_dependents_toposort;
+  if (topo && topo.length > 0) {
+    return topo.map((r) => ({
+      task_id: r.task_id,
+      task_title: r.task_title,
+      rule_id: r.task_id,
+      strength: "hard",
+      affected_occurrences: r.affected_occurrences,
+    }));
+  }
+  return preview.affected_downstream;
+}
+
+export function isSkipTaskPreviewResponse(
+  value: Task | SkipTaskPreviewResponse,
+): value is SkipTaskPreviewResponse {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "status" in value &&
+    (value as SkipTaskPreviewResponse).status === "has_dependents"
+  );
 }
 
 export interface ReopenTaskRequest {
@@ -882,13 +960,14 @@ export interface UseTasksReturn {
     id: string,
     scheduledFor?: string,
     localDate?: string,
+    overrides?: CompleteTaskOverrides,
   ) => Promise<Task>;
   skipTask: (
     id: string,
     reason?: string,
     scheduledFor?: string,
     localDate?: string,
-  ) => Promise<Task>;
+  ) => Promise<Task | SkipTaskPreviewResponse>;
   reopenTask: (
     id: string,
     scheduledFor?: string,
@@ -1089,6 +1168,8 @@ export interface DependencyStatusResponse {
   task_id: string;
   scheduled_for: string | null;
   dependencies: DependencyBlocker[];
+  /** Topo-ordered unmet hard prerequisites (full chain) for completion modals */
+  transitive_unmet_hard_prerequisites?: DependencyBlocker[];
   has_unmet_hard: boolean;
   has_unmet_soft: boolean;
   all_met: boolean;

@@ -73,7 +73,9 @@ describe("useTasks", () => {
       renderHook(() => useTasks());
 
       await waitFor(() => {
-        expect(mockedApi.getTasks).toHaveBeenCalled();
+        expect(mockedApi.getTasks).toHaveBeenCalledWith(
+          expect.objectContaining({ include_dependency_summary: true }),
+        );
       });
     });
 
@@ -111,6 +113,7 @@ describe("useTasks", () => {
             goal_id: "g1",
             status: "pending",
             client_today: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+            include_dependency_summary: true,
           }),
         );
       });
@@ -265,7 +268,7 @@ describe("useTasks", () => {
 
       expect(Alert.alert).toHaveBeenCalledWith(
         "Error",
-        "Failed to complete task",
+        "Failed to complete",
       );
     });
   });
@@ -287,6 +290,28 @@ describe("useTasks", () => {
       expect(result.current.pendingCount).toBe(1);
     });
 
+    it("returns skip preview without mutating list", async () => {
+      mockedApi.skipTask.mockResolvedValue({
+        status: "has_dependents",
+        affected_downstream: [
+          {
+            task_id: "d1",
+            task_title: "Down",
+            rule_id: "r1",
+            strength: "hard",
+            affected_occurrences: 1,
+          },
+        ],
+      });
+      const { result } = renderHook(() => useTasks());
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      await act(async () => {
+        const r = await result.current.skipTask("t1");
+        expect(r).toMatchObject({ status: "has_dependents" });
+      });
+      expect(result.current.tasks[0].status).toBe("pending");
+    });
+
     it("handles error when skipTask fails", async () => {
       mockedApi.skipTask.mockRejectedValue(new Error("Failed to skip"));
 
@@ -306,12 +331,21 @@ describe("useTasks", () => {
 
   describe("reopenTask", () => {
     it("reopens a completed task", async () => {
-      mockedApi.getTasks.mockResolvedValue({
+      const completedList = {
         tasks: [createMockTask("t1", "Task 1", "completed")],
         total: 1,
         pending_count: 0,
         completed_count: 1,
-      });
+      };
+      const pendingList = {
+        tasks: [createMockTask("t1", "Task 1", "pending")],
+        total: 1,
+        pending_count: 1,
+        completed_count: 0,
+      };
+      mockedApi.getTasks
+        .mockResolvedValueOnce(completedList)
+        .mockResolvedValue(pendingList);
 
       const reopenedTask = createMockTask("t1", "Task 1", "pending");
       mockedApi.reopenTask.mockResolvedValue(reopenedTask);
@@ -327,6 +361,7 @@ describe("useTasks", () => {
       expect(result.current.tasks[0].status).toBe("pending");
       expect(result.current.pendingCount).toBe(1);
       expect(result.current.completedCount).toBe(0);
+      expect(mockedApi.getTasks).toHaveBeenCalledTimes(2);
     });
 
     it("handles error when reopenTask fails", async () => {

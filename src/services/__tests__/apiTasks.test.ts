@@ -99,6 +99,16 @@ describe("apiTasks", () => {
         "/tasks?client_today=2026-04-07",
       );
     });
+
+    it("should include include_dependency_summary when true", async () => {
+      await api.getTasks({
+        client_today: "2026-04-07",
+        include_dependency_summary: true,
+      });
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks?client_today=2026-04-07&include_dependency_summary=true",
+      );
+    });
   });
 
   describe("getTask", () => {
@@ -106,6 +116,17 @@ describe("apiTasks", () => {
       (api.request as jest.Mock).mockResolvedValueOnce({ id: "t1" });
       await api.getTask("t1");
       expect(api.request).toHaveBeenCalledWith("/tasks/t1");
+    });
+
+    it("should append dependency summary query params", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ id: "t1" });
+      await api.getTask("t1", {
+        include_dependency_summary: true,
+        client_today: "2026-04-08",
+      });
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/t1?include_dependency_summary=true&client_today=2026-04-08",
+      );
     });
   });
 
@@ -172,6 +193,41 @@ describe("apiTasks", () => {
         body: JSON.stringify({ completed_at: completedAt }),
       });
     });
+
+    it("should pass override fields", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({
+        id: "t1",
+        status: "completed",
+      });
+      await api.completeTask("t1", {
+        override_confirm: true,
+        override_reason: "Emergency",
+      });
+      expect(api.request).toHaveBeenCalledWith("/tasks/t1/complete", {
+        method: "POST",
+        body: JSON.stringify({
+          override_confirm: true,
+          override_reason: "Emergency",
+        }),
+      });
+    });
+  });
+
+  describe("completeTaskChain", () => {
+    it("should POST complete-chain", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce([
+        { id: "a", title: "A" },
+        { id: "b", title: "B" },
+      ]);
+      const out = await api.completeTaskChain("t1", {
+        local_date: "2026-04-01",
+      });
+      expect(api.request).toHaveBeenCalledWith("/tasks/t1/complete-chain", {
+        method: "POST",
+        body: JSON.stringify({ local_date: "2026-04-01" }),
+      });
+      expect(out).toHaveLength(2);
+    });
   });
 
   describe("skipTask", () => {
@@ -196,6 +252,42 @@ describe("apiTasks", () => {
       expect(api.request).toHaveBeenCalledWith("/tasks/t1/skip", {
         method: "POST",
         body: JSON.stringify({ reason: "Not needed" }),
+      });
+    });
+
+    it("should pass confirm_proceed", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({
+        id: "t1",
+        status: "skipped",
+      });
+      await api.skipTask("t1", { confirm_proceed: true });
+      expect(api.request).toHaveBeenCalledWith("/tasks/t1/skip", {
+        method: "POST",
+        body: JSON.stringify({ confirm_proceed: true }),
+      });
+    });
+
+    it("should return skip preview shape", async () => {
+      const preview = {
+        status: "has_dependents" as const,
+        affected_downstream: [],
+      };
+      (api.request as jest.Mock).mockResolvedValueOnce(preview);
+      const out = await api.skipTask("t1");
+      expect(out).toEqual(preview);
+    });
+  });
+
+  describe("skipTaskChain", () => {
+    it("should POST skip-chain with cascade_skip", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce([]);
+      await api.skipTaskChain("t1", {
+        reason: "x",
+        cascade_skip: true,
+      });
+      expect(api.request).toHaveBeenCalledWith("/tasks/t1/skip-chain", {
+        method: "POST",
+        body: JSON.stringify({ reason: "x", cascade_skip: true }),
       });
     });
   });

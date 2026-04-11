@@ -8,6 +8,7 @@ import {
   getTaskWindow,
 } from "../../utils/taskSorting";
 import { useTimezone } from "../../hooks/useTimezone";
+import { TaskDependencyAdvisory } from "./TaskDependencyAdvisory";
 
 /**
  * Format a date for overdue display (e.g., "Apr 7" or "April 7, 2026" if different year).
@@ -74,6 +75,15 @@ const formatDuration = (minutes: number): string => {
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 };
 
+function readinessGlyph(task: Task): string | null {
+  const s = task.dependency_summary?.readiness_state;
+  if (!s || s === "ready") return null;
+  if (s === "blocked") return "○";
+  if (s === "partial") return "◐";
+  if (s === "advisory") return "◌";
+  return null;
+}
+
 const formatTime12h = (time: string): string => {
   const [hour, minute] = time.split(":");
   const h = parseInt(hour, 10);
@@ -105,6 +115,7 @@ export function TaskCard({
     timezone,
   );
   const taskWindow = getTaskWindow(task.recurrence_rule);
+  const readiness = readinessGlyph(task);
 
   const overdueDate =
     overdue && task.virtualOccurrenceDate
@@ -147,6 +158,7 @@ export function TaskCard({
               ⊘ Unaligned
             </Text>
           )}
+          <TaskDependencyAdvisory task={task} />
         </View>
 
         <View
@@ -200,6 +212,11 @@ export function TaskCard({
             <Text style={styles.anytimeText}>📋 Anytime</Text>
           </View>
         )}
+        {readiness && (
+          <View style={styles.prereqBadge}>
+            <Text style={styles.prereqText}>{readiness}</Text>
+          </View>
+        )}
         {hasPrerequisites && (
           <View style={styles.prereqBadge}>
             <Text style={styles.prereqText}>🔗 Prereqs</Text>
@@ -234,7 +251,8 @@ export function TaskCard({
         {cardContent}
       </Pressable>
 
-      {/* Action buttons - positioned absolutely to avoid nested buttons on web */}
+      {/* Web: div avoids invalid <button> inside the card Pressable (a11y/DOM).
+          Native: Pressable — same onComplete(task) as web. */}
       {isPending &&
         (Platform.OS === "web" ? (
           <div

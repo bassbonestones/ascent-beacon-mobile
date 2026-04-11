@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, Modal, TouchableOpacity, StyleSheet } from "react-native";
+import { transparentModalProps } from "./transparentModalProps";
 import type { Task } from "../../types";
 import { parseAsUtc } from "../../utils/taskSorting";
 
@@ -26,7 +27,11 @@ export function OverdueActionModal({
   }
 
   return (
-    <Modal visible={visible} animationType="fade" transparent>
+    <Modal
+      visible={visible}
+      animationType="fade"
+      {...transparentModalProps()}
+    >
       <View style={modalStyles.overlay}>
         <View style={modalStyles.container}>
           <Text style={modalStyles.title}>Overdue Task</Text>

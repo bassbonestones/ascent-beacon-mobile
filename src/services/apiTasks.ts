@@ -5,6 +5,8 @@ import type {
   UpdateTaskRequest,
   CompleteTaskRequest,
   SkipTaskRequest,
+  SkipChainTaskRequest,
+  SkipTaskPreviewResponse,
   ReopenTaskRequest,
   TodayTasksResponse,
   TaskRangeRequest,
@@ -60,14 +62,28 @@ export class DependencyBlockedError extends Error {
 export interface TasksMethods {
   // CRUD
   getTasks(params?: TasksListParams): Promise<TaskListResponse>;
-  getTask(taskId: string): Promise<Task>;
+  getTask(
+    taskId: string,
+    params?: GetTaskParams,
+  ): Promise<Task>;
   createTask(data: CreateTaskRequest): Promise<Task>;
   updateTask(taskId: string, data: UpdateTaskRequest): Promise<Task>;
   deleteTask(taskId: string): Promise<void>;
 
   // Status transitions
   completeTask(taskId: string, data?: CompleteTaskRequest): Promise<Task>;
-  skipTask(taskId: string, data?: SkipTaskRequest): Promise<Task>;
+  completeTaskChain(
+    taskId: string,
+    data?: CompleteTaskRequest,
+  ): Promise<Task[]>;
+  skipTask(
+    taskId: string,
+    data?: SkipTaskRequest,
+  ): Promise<Task | SkipTaskPreviewResponse>;
+  skipTaskChain(
+    taskId: string,
+    data: SkipChainTaskRequest,
+  ): Promise<Task[]>;
   reopenTask(taskId: string, data?: ReopenTaskRequest): Promise<Task>;
 
   // Phase 4b: Views
@@ -136,6 +152,12 @@ export interface TasksListParams {
   include_completed?: boolean;
   client_today?: string; // Client's local date as YYYY-MM-DD
   days_ahead?: number; // How many days ahead to load completion data (default: 14)
+  include_dependency_summary?: boolean;
+}
+
+export interface GetTaskParams {
+  include_dependency_summary?: boolean;
+  client_today?: string;
 }
 
 /**
@@ -163,14 +185,26 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
       if (params.days_ahead !== undefined) {
         searchParams.append("days_ahead", String(params.days_ahead));
       }
+      if (params.include_dependency_summary) {
+        searchParams.append("include_dependency_summary", "true");
+      }
 
       const queryString = searchParams.toString();
       const url = queryString ? `/tasks?${queryString}` : "/tasks";
       return await this.request<TaskListResponse>(url);
     }
 
-    async getTask(taskId: string): Promise<Task> {
-      return await this.request<Task>(`/tasks/${taskId}`);
+    async getTask(taskId: string, params: GetTaskParams = {}): Promise<Task> {
+      const searchParams = new URLSearchParams();
+      if (params.include_dependency_summary) {
+        searchParams.append("include_dependency_summary", "true");
+      }
+      if (params.client_today) {
+        searchParams.append("client_today", params.client_today);
+      }
+      const qs = searchParams.toString();
+      const url = qs ? `/tasks/${taskId}?${qs}` : `/tasks/${taskId}`;
+      return await this.request<Task>(url);
     }
 
     async createTask(data: CreateTaskRequest): Promise<Task> {
@@ -203,8 +237,34 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
       });
     }
 
-    async skipTask(taskId: string, data: SkipTaskRequest = {}): Promise<Task> {
-      return await this.request<Task>(`/tasks/${taskId}/skip`, {
+    async completeTaskChain(
+      taskId: string,
+      data: CompleteTaskRequest = {},
+    ): Promise<Task[]> {
+      return await this.request<Task[]>(`/tasks/${taskId}/complete-chain`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    }
+
+    async skipTask(
+      taskId: string,
+      data: SkipTaskRequest = {},
+    ): Promise<Task | SkipTaskPreviewResponse> {
+      return await this.request<Task | SkipTaskPreviewResponse>(
+        `/tasks/${taskId}/skip`,
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      );
+    }
+
+    async skipTaskChain(
+      taskId: string,
+      data: SkipChainTaskRequest,
+    ): Promise<Task[]> {
+      return await this.request<Task[]>(`/tasks/${taskId}/skip-chain`, {
         method: "POST",
         body: JSON.stringify(data),
       });

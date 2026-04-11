@@ -4,6 +4,7 @@ import React, {
   useMemo,
   useEffect,
   useRef,
+  type ReactElement,
 } from "react";
 import {
   View,
@@ -32,10 +33,12 @@ import {
   TaskCard,
   TaskDetailView,
   CreateTaskForm,
-  SkipReasonModal,
   OverdueActionModal,
   DraggableTaskList,
+  TaskFlowModals,
 } from "../components/tasks";
+import { useTaskDependencyActions } from "../hooks/useTaskDependencyActions";
+import { isSkipTaskPreviewResponse, rowsForSkipCascadeModal } from "../types";
 import { showAlert, showConfirm } from "../utils/alert";
 import {
   filterTasksForToday,
@@ -211,6 +214,41 @@ export default function TasksScreen({
     clientToday: getCurrentDate(), // Support time travel
   });
 
+  const onDependencyFlowFinished = useCallback(() => {
+    setSelectedTask(null);
+    setScreenMode("list");
+  }, []);
+
+  const {
+    requestComplete,
+    processSkipAfterReason,
+    hardModal,
+    softModal,
+    overrideModal,
+    skipCascade,
+    successModal,
+    dismissHardModal,
+    onHardCompletePrereqs,
+    onHardRequestOverride,
+    dismissSoftModal,
+    onSoftCompleteAnyway,
+    onSoftCompletePrereqs,
+    dismissOverrideModal,
+    onOverrideConfirm,
+    setOverrideReason,
+    dismissSkipCascade,
+    onSkipKeepPending,
+    onSkipCascadeConfirm,
+    dismissSuccessModal,
+  } = useTaskDependencyActions({
+    tasksWithPrerequisites,
+    completeTask,
+    skipTask,
+    fetchTasks: refetch,
+    getCurrentDate,
+    onFlowFinished: onDependencyFlowFinished,
+  });
+
   const { goals, loading: goalsLoading } = useGoals({ parentOnly: true });
 
   // Get current date for time-aware filtering
@@ -346,12 +384,15 @@ export default function TasksScreen({
           0,
           0,
         ).toISOString();
-        await skipTask(
+        const skipRes = await skipTask(
           taskId,
           "Auto-skipped (missed)",
           scheduledFor,
           taskDateStr,
         );
+        if (isSkipTaskPreviewResponse(skipRes)) {
+          autoSkippedRef.current.delete(skipKey);
+        }
       } catch {
         // Silently fail - don't show error to user
       }
@@ -1047,129 +1088,25 @@ export default function TasksScreen({
   const handleComplete = useCallback(
     async (task: Task) => {
       try {
-        // Get the actual task ID (use originalTaskId for virtual occurrences)
-        const taskId = task.originalTaskId || task.id;
-
-        // For recurring tasks, pass the current occurrence date (or travel date)
-        let scheduledFor: string | undefined;
-        let localDate: string | undefined;
-        if (task.is_recurring) {
-          // For virtual occurrences, use the virtual occurrence date
-          if (task.isVirtualOccurrence && task.virtualOccurrenceDate) {
-            // Parse the date string as LOCAL date (not UTC)
-            // new Date("2026-04-05") creates UTC midnight which can be wrong day in local TZ
-            const [year, month, day] = task.virtualOccurrenceDate
-              .split("-")
-              .map(Number);
-            const occDate = new Date(year, month - 1, day);
-            if (task.scheduled_at) {
-              const time = parseAsUtc(task.scheduled_at);
-              occDate.setHours(
-                time.getHours(),
-                time.getMinutes(),
-                time.getSeconds(),
-                0,
-              );
-            }
-            scheduledFor = occDate.toISOString();
-            localDate = task.virtualOccurrenceDate;
-          } else if (task.scheduled_at) {
-            // Use current date (real or travel) with the task's scheduled time
-            const originalTime = parseAsUtc(task.scheduled_at);
-            const today = getCurrentDate();
-            today.setHours(
-              originalTime.getHours(),
-              originalTime.getMinutes(),
-              originalTime.getSeconds(),
-              0,
-            );
-            scheduledFor = today.toISOString();
-            localDate = toLocalDateString(getCurrentDate());
-          } else {
-            // No scheduled time, use midnight local time to ensure date matches client_today
-            const today = getCurrentDate();
-            today.setHours(0, 0, 0, 0);
-            scheduledFor = today.toISOString();
-            localDate = toLocalDateString(getCurrentDate());
-          }
-        }
-        await completeTask(taskId, scheduledFor, localDate);
-        // Close detail view after completing
-        setSelectedTask(null);
-        setScreenMode("list");
+        await requestComplete(task);
       } catch {
-        // Error handled in hook
+        // Error surfaced by useTasks / API
       }
     },
-    [completeTask, getCurrentDate],
+    [requestComplete],
   );
 
   const handleSkipWithReason = useCallback(
     async (reason?: string) => {
       if (!skipModalTask) return;
       try {
-        // Get the actual task ID (use originalTaskId for virtual occurrences)
-        const taskId = skipModalTask.originalTaskId || skipModalTask.id;
-
-        // For recurring tasks, pass the current occurrence date (or travel date)
-        let scheduledFor: string | undefined;
-        let localDate: string | undefined;
-        if (skipModalTask.is_recurring) {
-          // For virtual occurrences, use the virtual occurrence date
-          if (
-            skipModalTask.isVirtualOccurrence &&
-            skipModalTask.virtualOccurrenceDate
-          ) {
-            // Parse the date string as LOCAL date (not UTC)
-            const [year, month, day] = skipModalTask.virtualOccurrenceDate
-              .split("-")
-              .map(Number);
-            const occDate = new Date(year, month - 1, day);
-            if (skipModalTask.scheduled_at) {
-              const time = parseAsUtc(skipModalTask.scheduled_at);
-              occDate.setHours(
-                time.getHours(),
-                time.getMinutes(),
-                time.getSeconds(),
-                0,
-              );
-            }
-            scheduledFor = occDate.toISOString();
-            localDate = skipModalTask.virtualOccurrenceDate;
-          } else if (skipModalTask.scheduled_at) {
-            const originalTime = parseAsUtc(skipModalTask.scheduled_at);
-            const today = getCurrentDate();
-            today.setHours(
-              originalTime.getHours(),
-              originalTime.getMinutes(),
-              originalTime.getSeconds(),
-              0,
-            );
-            scheduledFor = today.toISOString();
-            localDate = toLocalDateString(getCurrentDate());
-          } else {
-            // No scheduled time, use midnight local time to ensure date matches client_today
-            const today = getCurrentDate();
-            today.setHours(0, 0, 0, 0);
-            scheduledFor = today.toISOString();
-            localDate = toLocalDateString(getCurrentDate());
-          }
-        }
-        await skipTask(taskId, reason, scheduledFor, localDate);
+        await processSkipAfterReason(skipModalTask, reason);
         setSkipModalTask(null);
-        // Close detail view after skipping (check both real and virtual IDs)
-        if (
-          selectedTask?.id === skipModalTask.id ||
-          selectedTask?.originalTaskId === skipModalTask.originalTaskId
-        ) {
-          setSelectedTask(null);
-          setScreenMode("list");
-        }
       } catch {
         // Error handled in hook
       }
     },
-    [skipModalTask, skipTask, selectedTask, getCurrentDate],
+    [skipModalTask, processSkipAfterReason],
   );
 
   const handleSkip = useCallback(async (task: Task) => {
@@ -1270,8 +1207,42 @@ export default function TasksScreen({
     [deleteTask],
   );
 
+  const affectedSkipCascadeRows = useMemo(
+    () => rowsForSkipCascadeModal(skipCascade.preview),
+    [skipCascade.preview],
+  );
+
+  const taskFlowModalsEl: ReactElement = (
+    <TaskFlowModals
+      skipModalTask={skipModalTask}
+      skipModalTitle={skipModalTask?.title || ""}
+      onSkipReasonClose={() => setSkipModalTask(null)}
+      onSkipWithReason={handleSkipWithReason}
+      hardModal={hardModal}
+      softModal={softModal}
+      overrideModal={overrideModal}
+      skipCascade={skipCascade}
+      successModal={successModal}
+      affectedSkipRows={affectedSkipCascadeRows}
+      dismissHardModal={dismissHardModal}
+      onHardCompletePrereqs={onHardCompletePrereqs}
+      onHardRequestOverride={onHardRequestOverride}
+      dismissSoftModal={dismissSoftModal}
+      onSoftCompleteAnyway={onSoftCompleteAnyway}
+      onSoftCompletePrereqs={onSoftCompletePrereqs}
+      dismissOverrideModal={dismissOverrideModal}
+      onOverrideConfirm={onOverrideConfirm}
+      setOverrideReason={setOverrideReason}
+      dismissSkipCascade={dismissSkipCascade}
+      onSkipKeepPending={onSkipKeepPending}
+      onSkipCascadeConfirm={onSkipCascadeConfirm}
+      dismissSuccessModal={dismissSuccessModal}
+    />
+  );
+
   if (screenMode === "create") {
     return (
+      <>
       <CreateTaskForm
         goals={goals}
         goalsLoading={goalsLoading}
@@ -1305,11 +1276,14 @@ export default function TasksScreen({
         prerequisites={taskForm.prerequisites}
         onPrerequisitesChange={taskForm.setPrerequisites}
       />
+      {taskFlowModalsEl}
+      </>
     );
   }
 
   if (screenMode === "edit") {
     return (
+      <>
       <CreateTaskForm
         goals={goals}
         goalsLoading={goalsLoading}
@@ -1346,6 +1320,8 @@ export default function TasksScreen({
         onPrerequisitesChange={taskForm.setPrerequisites}
         currentTaskId={editingTask?.id}
       />
+      {taskFlowModalsEl}
+      </>
     );
   }
 
@@ -1375,12 +1351,7 @@ export default function TasksScreen({
             });
           }}
         />
-        <SkipReasonModal
-          visible={skipModalTask !== null}
-          taskTitle={skipModalTask?.title || ""}
-          onClose={() => setSkipModalTask(null)}
-          onSkip={handleSkipWithReason}
-        />
+        {taskFlowModalsEl}
       </>
     );
   }
@@ -1686,12 +1657,7 @@ export default function TasksScreen({
         />
       )}
 
-      <SkipReasonModal
-        visible={skipModalTask !== null && screenMode === "list"}
-        taskTitle={skipModalTask?.title || ""}
-        onClose={() => setSkipModalTask(null)}
-        onSkip={handleSkipWithReason}
-      />
+      {taskFlowModalsEl}
 
       <OverdueActionModal
         visible={overdueModalTask !== null}

@@ -407,4 +407,43 @@ describe("TaskCard", () => {
       expect(mockOnMoveDown).toHaveBeenCalled();
     });
   });
+
+  it("shows readiness glyph from dependency_summary", () => {
+    const task = createMockTask({
+      dependency_summary: {
+        readiness_state: "blocked",
+        has_unmet_hard: true,
+        has_unmet_soft: false,
+      },
+    });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByText("○")).toBeTruthy();
+  });
+
+  it("shows dependency advisory text when dependency_summary includes it", () => {
+    const advisory =
+      "Usually follows: Water · Skipped today";
+    const task = createMockTask({
+      dependency_summary: {
+        readiness_state: "advisory",
+        has_unmet_hard: false,
+        has_unmet_soft: true,
+        advisory_text: advisory,
+      },
+    });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByText(advisory)).toBeTruthy();
+  });
 });

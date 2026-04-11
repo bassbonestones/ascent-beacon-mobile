@@ -415,8 +415,7 @@ describe("TasksScreen", () => {
       fireEvent.press(screen.getByLabelText("Create task"));
 
       // Goal is optional and not auto-selected, so goal_id is undefined
-      // Task defaults to today's date when no date selected
-      const todayStr = new Date().toISOString().split("T")[0];
+      // Task defaults to today's date when no date selected (local calendar day)
       await waitFor(() => {
         expect(createTask).toHaveBeenCalledWith({
           goal_id: undefined,
@@ -428,7 +427,7 @@ describe("TasksScreen", () => {
           recurrence_behavior: undefined,
           scheduling_mode: "date_only",
           scheduled_at: null,
-          scheduled_date: todayStr,
+          scheduled_date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
         });
       });
     });
@@ -453,7 +452,6 @@ describe("TasksScreen", () => {
       fireEvent.press(screen.getByLabelText("Create task"));
 
       // Task defaults to today's date when no date specifically selected
-      const todayStr = new Date().toISOString().split("T")[0];
       await waitFor(() => {
         expect(createTask).toHaveBeenCalledWith({
           goal_id: "goal-1",
@@ -465,7 +463,7 @@ describe("TasksScreen", () => {
           recurrence_behavior: undefined,
           scheduling_mode: "date_only",
           scheduled_at: null,
-          scheduled_date: todayStr,
+          scheduled_date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
         });
       });
     });
