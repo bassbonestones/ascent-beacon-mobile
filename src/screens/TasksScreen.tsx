@@ -39,6 +39,7 @@ import {
   DraggableTaskList,
   TaskFlowModals,
 } from "../components/tasks";
+import { buildOccurrenceParams } from "../hooks/taskOccurrenceParams";
 import { useTaskDependencyActions } from "../hooks/useTaskDependencyActions";
 import { isSkipTaskPreviewResponse, rowsForSkipCascadeModal } from "../types";
 import { showAlert, showConfirm } from "../utils/alert";
@@ -1153,45 +1154,14 @@ export default function TasksScreen({
         // Use originalTaskId for virtual occurrences
         const taskId = task.originalTaskId || task.id;
 
-        // For recurring tasks, pass the scheduled_for to identify which completion to undo
+        // Same scheduled_for / local_date as complete & skip so reopen finds the row.
+        // Date-only recurring uses end-of-local-day (not midnight) — see buildOccurrenceParams.
         let scheduledFor: string | undefined;
         let localDate: string | undefined;
         if (task.is_recurring) {
-          // For virtual occurrences, use the virtual occurrence date + scheduled time
-          if (task.isVirtualOccurrence && task.virtualOccurrenceDate) {
-            const [year, month, day] = task.virtualOccurrenceDate
-              .split("-")
-              .map(Number);
-            const occDate = new Date(year, month - 1, day);
-            if (task.scheduled_at) {
-              const time = parseAsUtc(task.scheduled_at);
-              occDate.setHours(
-                time.getHours(),
-                time.getMinutes(),
-                time.getSeconds(),
-                0,
-              );
-            }
-            scheduledFor = occDate.toISOString();
-            localDate = task.virtualOccurrenceDate;
-          } else if (task.scheduled_at) {
-            // Use current date with the task's scheduled time
-            const originalTime = parseAsUtc(task.scheduled_at);
-            const today = getCurrentDate();
-            today.setHours(
-              originalTime.getHours(),
-              originalTime.getMinutes(),
-              originalTime.getSeconds(),
-              0,
-            );
-            scheduledFor = today.toISOString();
-            localDate = toLocalDateString(getCurrentDate());
-          } else {
-            const today = getCurrentDate();
-            today.setHours(0, 0, 0, 0);
-            scheduledFor = today.toISOString();
-            localDate = toLocalDateString(getCurrentDate());
-          }
+          const p = buildOccurrenceParams(task, getCurrentDate);
+          scheduledFor = p.scheduledFor;
+          localDate = p.localDate;
         }
 
         await reopenTask(taskId, scheduledFor, localDate);
