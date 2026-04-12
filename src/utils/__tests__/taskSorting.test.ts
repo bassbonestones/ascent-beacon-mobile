@@ -13,8 +13,9 @@ import {
   hasFlexibleWindow,
   getEffectiveStartTime,
   toLocalDateString,
+  withOccurrenceDependencySummary,
 } from "../taskSorting";
-import type { Task } from "../../types";
+import type { Task, TaskDependencySummary } from "../../types";
 
 const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   id: "task-1",
@@ -1202,6 +1203,117 @@ describe("taskSorting", () => {
           "FREQ=DAILY;X-INTRADAY=window;X-WINSTART=09:00;X-WINEND=17:00",
       });
       expect(getTaskCategory(task, now)).toBe("timed");
+    });
+  });
+
+  describe("withOccurrenceDependencySummary", () => {
+    it("picks summary for virtualOccurrenceDate from dependency_summaries_by_local_date", () => {
+      const t = createMockTask({
+        isVirtualOccurrence: true,
+        virtualOccurrenceDate: "2026-06-12",
+        originalTaskId: "orig-1",
+        dependency_summaries_by_local_date: {
+          "2026-06-12": {
+            readiness_state: "blocked",
+            has_unmet_hard: true,
+            has_unmet_soft: false,
+          },
+        },
+        dependency_summary: {
+          readiness_state: "ready",
+          has_unmet_hard: false,
+          has_unmet_soft: false,
+        },
+      });
+      const out = withOccurrenceDependencySummary(t, "2026-06-10");
+      expect(out.dependency_summary?.has_unmet_hard).toBe(true);
+    });
+
+    it("returns non-virtual task unchanged", () => {
+      const t = createMockTask({
+        isVirtualOccurrence: false,
+        virtualOccurrenceDate: "2026-06-12",
+        dependency_summary: { readiness_state: "ready", has_unmet_hard: false, has_unmet_soft: false },
+      });
+      const out = withOccurrenceDependencySummary(t, "2026-06-10");
+      expect(out).toBe(t);
+    });
+
+    it("clears summary when map has keys but not for this occurrence date (future day)", () => {
+      const t = createMockTask({
+        isVirtualOccurrence: true,
+        virtualOccurrenceDate: "2026-06-12",
+        dependency_summaries_by_local_date: {
+          "2026-06-11": {
+            readiness_state: "ready",
+            has_unmet_hard: false,
+            has_unmet_soft: false,
+          },
+        },
+        dependency_summary: {
+          readiness_state: "ready",
+          has_unmet_hard: false,
+          has_unmet_soft: false,
+        },
+      });
+      const out = withOccurrenceDependencySummary(t, "2026-06-10");
+      expect(out.dependency_summary).toBeNull();
+    });
+
+    it("keeps top-level summary when virtual row is client today but batch map omits that key", () => {
+      const summary = {
+        readiness_state: "blocked" as const,
+        has_unmet_hard: true,
+        has_unmet_soft: false,
+      };
+      const today = "2026-06-10";
+      const t = createMockTask({
+        isVirtualOccurrence: true,
+        virtualOccurrenceDate: today,
+        dependency_summaries_by_local_date: {
+          "2026-06-11": {
+            readiness_state: "ready" as const,
+            has_unmet_hard: false,
+            has_unmet_soft: false,
+          },
+        },
+        dependency_summary: summary,
+      });
+      const out = withOccurrenceDependencySummary(t, today);
+      expect(out.dependency_summary).toEqual(summary);
+    });
+
+    it("honors explicit null for this day in dependency_summaries_by_local_date", () => {
+      const t = createMockTask({
+        isVirtualOccurrence: true,
+        virtualOccurrenceDate: "2026-06-12",
+        dependency_summaries_by_local_date: {
+          "2026-06-12": null as unknown as TaskDependencySummary,
+        },
+        dependency_summary: {
+          readiness_state: "ready" as const,
+          has_unmet_hard: false,
+          has_unmet_soft: false,
+        },
+      });
+      const out = withOccurrenceDependencySummary(t, "2026-06-10");
+      expect(out.dependency_summary).toBeNull();
+    });
+
+    it("keeps embedded summary when occurrence date is client today and map is empty", () => {
+      const summary = {
+        readiness_state: "ready" as const,
+        has_unmet_hard: false,
+        has_unmet_soft: false,
+      };
+      const t = createMockTask({
+        isVirtualOccurrence: true,
+        virtualOccurrenceDate: "2026-06-10",
+        dependency_summaries_by_local_date: {},
+        dependency_summary: summary,
+      });
+      const out = withOccurrenceDependencySummary(t, "2026-06-10");
+      expect(out.dependency_summary).toEqual(summary);
     });
   });
 });

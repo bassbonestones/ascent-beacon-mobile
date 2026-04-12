@@ -1566,3 +1566,42 @@ export function generateRecurringOccurrences(
 
   return result;
 }
+
+/**
+ * Attach the correct `dependency_summary` for a virtual row using
+ * `dependency_summaries_by_local_date` from GET /tasks (per calendar day).
+ *
+ * Map lookup always uses ``virtualOccurrenceDate`` as the key (``d``), not
+ * ``clientTodayStr``. The latter is only used for the fallback: when the batch
+ * map omits this calendar day but the list row still carries the API's
+ * top-level ``dependency_summary`` for the client's "today" anchor (see
+ * ``task_to_response``), keep that object only when ``d === clientTodayStr``.
+ */
+export function withOccurrenceDependencySummary(
+  task: Task,
+  clientTodayStr: string,
+): Task {
+  if (!task.isVirtualOccurrence || !task.virtualOccurrenceDate) {
+    return task;
+  }
+  const d = task.virtualOccurrenceDate;
+  const map = task.dependency_summaries_by_local_date;
+
+  if (map != null && Object.prototype.hasOwnProperty.call(map, d)) {
+    return { ...task, dependency_summary: map[d] ?? null };
+  }
+
+  if (task.dependency_summary != null && d === clientTodayStr) {
+    return task;
+  }
+
+  if (
+    map != null &&
+    Object.keys(map).length > 0 &&
+    !Object.prototype.hasOwnProperty.call(map, d)
+  ) {
+    return { ...task, dependency_summary: null };
+  }
+
+  return { ...task, dependency_summary: null };
+}

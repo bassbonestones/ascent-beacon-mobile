@@ -51,6 +51,7 @@ import {
   groupTasksByDate,
   formatDateHeader,
   generateRecurringOccurrences,
+  withOccurrenceDependencySummary,
   parseAsUtc,
   toLocalDateString,
   getTaskScheduledDateStr,
@@ -416,6 +417,8 @@ export default function TasksScreen({
     useMemo(() => {
       if (listViewMode === "today") {
         // Today view: overdue → timed → todos
+        // Get today's LOCAL date as YYYY-MM-DD string for comparison
+        const todayDateStr = toLocalDateString(currentDate);
         // Generate intraday occurrences for multi-occurrence modes (X times/day, specific times, interval)
         // Use daysAhead=0 for today only, daysBack=7 for overdue detection
         const withOccurrences = generateRecurringOccurrences(
@@ -423,10 +426,7 @@ export default function TasksScreen({
           currentDate,
           0, // Only today, no future days
           7, // Look back 7 days for overdue occurrences
-        );
-
-        // Get today's LOCAL date as YYYY-MM-DD string for comparison
-        const todayDateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
+        ).map((t) => withOccurrenceDependencySummary(t, todayDateStr));
 
         // Helper to check if task is "completed" for Today view purposes
         // Recurring tasks stay status="pending" but have completed_for_today=true
@@ -739,12 +739,15 @@ export default function TasksScreen({
         // For pending/all: uses paginated daysAhead (14, 21, 28, etc.)
         // For completed/skipped: uses MAX_DAYS_AHEAD to load all
         // No past occurrences (daysBack=0) - overdue tasks show in Today view only
+        // Per-occurrence summaries use virtualOccurrenceDate as the map key; client
+        // "today" here is only for the today-anchor fallback (time machine via currentDate).
+        const clientTodayStr = toLocalDateString(currentDate);
         const allWithOccurrences = generateRecurringOccurrences(
           tasks,
           currentDate,
           effectiveDaysAhead,
           0, // No past occurrences in Upcoming view
-        );
+        ).map((t) => withOccurrenceDependencySummary(t, clientTodayStr));
         const allUpcoming = filterTasksForUpcoming(
           allWithOccurrences,
           currentDate,

@@ -157,7 +157,10 @@ function WebDraggableList({
               currentDate={currentDate}
               onPress={onTaskPress}
               onComplete={onComplete}
-              hasPrerequisites={tasksWithPrerequisites?.has(task.id) ?? false}
+              hasPrerequisites={
+                tasksWithPrerequisites?.has(task.originalTaskId ?? task.id) ??
+                false
+              }
             />
           </div>
         );
@@ -224,7 +227,10 @@ function NativeDraggableList({
                 onComplete={onComplete}
                 drag={canDrag ? drag : undefined}
                 isActive={isActive}
-                hasPrerequisites={tasksWithPrerequisites?.has(item.id) ?? false}
+                hasPrerequisites={
+                  tasksWithPrerequisites?.has(item.originalTaskId ?? item.id) ??
+                  false
+                }
               />
             </ScaleDecorator>
           );
@@ -247,7 +253,10 @@ function NativeDraggableList({
           currentDate={currentDate}
           onPress={onTaskPress}
           onComplete={onComplete}
-          hasPrerequisites={tasksWithPrerequisites?.has(item.id) ?? false}
+          hasPrerequisites={
+            tasksWithPrerequisites?.has(item.originalTaskId ?? item.id) ??
+            false
+          }
         />
       )}
       keyExtractor={(item) => item.id}

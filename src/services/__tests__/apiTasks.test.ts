@@ -1,4 +1,4 @@
-import { tasksMethods } from "../apiTasks";
+import { tasksMethods, DependencyBlockedError } from "../apiTasks";
 import type { ApiRequestOptions } from "../../types";
 
 describe("apiTasks", () => {
@@ -448,6 +448,95 @@ describe("apiTasks", () => {
         method: "PATCH",
         body: JSON.stringify({ new_position: 2 }),
       });
+    });
+  });
+
+  describe("DependencyBlockedError", () => {
+    it("builds message from blocker titles", () => {
+      const err = new DependencyBlockedError({
+        task_id: "t1",
+        can_override: false,
+        blockers: [
+          { strength: "hard", is_met: false, upstream_task: { title: "A" } },
+          { strength: "hard", is_met: false, upstream_task: { title: "B" } },
+        ],
+      } as never);
+      expect(err.message).toContain("A");
+      expect(err.message).toContain("B");
+      expect(err.taskId).toBe("t1");
+      expect(err.canOverride).toBe(false);
+    });
+
+    it("uses Unknown task when upstream title missing", () => {
+      const err = new DependencyBlockedError({
+        task_id: "t2",
+        can_override: true,
+        blockers: [{ strength: "hard", is_met: false, upstream_task: undefined }],
+      } as never);
+      expect(err.message).toContain("Unknown task");
+      expect(err.canOverride).toBe(true);
+    });
+  });
+
+  describe("occurrence order APIs", () => {
+    it("reorderOccurrences posts body", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ updated: true });
+      const body = { date: "2026-04-01", ordered_task_ids: ["a", "b"] };
+      await api.reorderOccurrences(body as never);
+      expect(api.request).toHaveBeenCalledWith("/tasks/reorder-occurrences", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+    });
+
+    it("getOccurrenceOrder requests day endpoint", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ order: [] });
+      await api.getOccurrenceOrder("2026-04-02");
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/occurrence-order?date=2026-04-02",
+      );
+    });
+
+    it("getOccurrenceOrderRange requests range endpoint", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({
+        permanent_order: [],
+        days: {},
+      });
+      await api.getOccurrenceOrderRange("2026-04-01", "2026-04-07");
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/occurrence-order/range?start_date=2026-04-01&end_date=2026-04-07",
+      );
+    });
+
+    it("clearOccurrenceOrder sends DELETE", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce(undefined);
+      await api.clearOccurrenceOrder("2026-04-03");
+      expect(api.request).toHaveBeenCalledWith("/tasks/occurrence-order/2026-04-03", {
+        method: "DELETE",
+      });
+    });
+
+    it("clearOccurrenceOrderFrom sends DELETE", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce(undefined);
+      await api.clearOccurrenceOrderFrom("2026-04-04");
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/occurrence-order/from/2026-04-04",
+        { method: "DELETE" },
+      );
+    });
+
+    it("getPermanentOrder delegates to range with single day", async () => {
+      jest.useFakeTimers({ now: new Date("2026-05-10T12:00:00Z") });
+      try {
+        (api.request as jest.Mock).mockResolvedValueOnce({ permanent_order: ["x"] });
+        const po = await api.getPermanentOrder();
+        expect(po).toEqual(["x"]);
+        expect(api.request).toHaveBeenCalledWith(
+          "/tasks/occurrence-order/range?start_date=2026-05-10&end_date=2026-05-10",
+        );
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 

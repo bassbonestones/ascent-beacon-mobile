@@ -9,6 +9,10 @@ import {
 } from "../../utils/taskSorting";
 import { useTimezone } from "../../hooks/useTimezone";
 import { TaskDependencyAdvisory } from "./TaskDependencyAdvisory";
+import {
+  TaskDependencyStatusBadges,
+  dependencyStatusAccessibilityLabel,
+} from "./TaskDependencyStatusBadges";
 
 /**
  * Format a date for overdue display (e.g., "Apr 7" or "April 7, 2026" if different year).
@@ -50,7 +54,8 @@ interface TaskCardProps {
   onMoveDown?: () => void;
   drag?: () => void;
   isActive?: boolean;
-  hasPrerequisites?: boolean; // Phase 4i: Show lock icon if task has unmet prerequisites
+  /** True when this task has dependency rules (from rules API); used if summary not embedded */
+  hasPrerequisites?: boolean;
 }
 
 const getStatusColor = (status: string, isOverdue: boolean): string => {
@@ -74,15 +79,6 @@ const formatDuration = (minutes: number): string => {
   const mins = minutes % 60;
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 };
-
-function readinessGlyph(task: Task): string | null {
-  const s = task.dependency_summary?.readiness_state;
-  if (!s || s === "ready") return null;
-  if (s === "blocked") return "○";
-  if (s === "partial") return "◐";
-  if (s === "advisory") return "◌";
-  return null;
-}
 
 const formatTime12h = (time: string): string => {
   const [hour, minute] = time.split(":");
@@ -115,7 +111,7 @@ export function TaskCard({
     timezone,
   );
   const taskWindow = getTaskWindow(task.recurrence_rule);
-  const readiness = readinessGlyph(task);
+  const depA11y = dependencyStatusAccessibilityLabel(task);
 
   const overdueDate =
     overdue && task.virtualOccurrenceDate
@@ -158,6 +154,7 @@ export function TaskCard({
               ⊘ Unaligned
             </Text>
           )}
+          <TaskDependencyStatusBadges task={task} />
           <TaskDependencyAdvisory task={task} />
         </View>
 
@@ -212,14 +209,9 @@ export function TaskCard({
             <Text style={styles.anytimeText}>📋 Anytime</Text>
           </View>
         )}
-        {readiness && (
+        {hasPrerequisites && !task.dependency_summary && (
           <View style={styles.prereqBadge}>
-            <Text style={styles.prereqText}>{readiness}</Text>
-          </View>
-        )}
-        {hasPrerequisites && (
-          <View style={styles.prereqBadge}>
-            <Text style={styles.prereqText}>🔗 Prereqs</Text>
+            <Text style={styles.prereqText}>🔗 Has prerequisites</Text>
           </View>
         )}
         {!task.is_lightning && task.duration_minutes > 0 && (
@@ -245,7 +237,9 @@ export function TaskCard({
         onPress={() => onPress(task)}
         onLongPress={drag}
         delayLongPress={150}
-        accessibilityLabel={`Task: ${task.title}`}
+        accessibilityLabel={
+          depA11y ? `Task: ${task.title}. ${depA11y}` : `Task: ${task.title}`
+        }
         accessibilityRole="button"
       >
         {cardContent}

@@ -719,6 +719,11 @@ export interface Task {
   occurrenceLabel?: string; // e.g., "(1 of 4)"
   /** Phase 4i-5: from GET /tasks when include_dependency_summary=true */
   dependency_summary?: TaskDependencySummary | null;
+  /** Per local day for virtual rows (list); keyed YYYY-MM-DD */
+  dependency_summaries_by_local_date?: Record<
+    string,
+    TaskDependencySummary
+  > | null;
 }
 
 export interface TaskListResponse {

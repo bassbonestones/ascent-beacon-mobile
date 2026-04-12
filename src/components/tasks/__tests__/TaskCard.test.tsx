@@ -408,7 +408,7 @@ describe("TaskCard", () => {
     });
   });
 
-  it("shows readiness glyph from dependency_summary", () => {
+  it("shows required-first badge when hard dependency unmet", () => {
     const task = createMockTask({
       dependency_summary: {
         readiness_state: "blocked",
@@ -423,7 +423,25 @@ describe("TaskCard", () => {
         onComplete={mockOnComplete}
       />,
     );
-    expect(screen.getByText("○")).toBeTruthy();
+    expect(screen.getByText("Required first")).toBeTruthy();
+  });
+
+  it("shows prereqs met when dependency_summary is ready", () => {
+    const task = createMockTask({
+      dependency_summary: {
+        readiness_state: "ready",
+        has_unmet_hard: false,
+        has_unmet_soft: false,
+      },
+    });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByText("Prereqs met")).toBeTruthy();
   });
 
   it("shows dependency advisory text when dependency_summary includes it", () => {
