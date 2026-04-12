@@ -45,6 +45,37 @@ export function parseWindowPartText(text: string): number {
 }
 
 /** String values for controlled inputs when a custom window is set (show zeros). */
+/**
+ * Human-readable duration for dependency modals (e.g. "1 day", "14 hours", "1 hour and 30 minutes").
+ */
+export function formatValidityWindowSummary(totalMinutes: number): string {
+  if (!Number.isFinite(totalMinutes) || totalMinutes < 1) {
+    return "";
+  }
+  const whole = Math.floor(totalMinutes);
+  const p = totalMinutesToParts(whole);
+  const parts: string[] = [];
+  if (p.days > 0) {
+    parts.push(`${p.days} day${p.days === 1 ? "" : "s"}`);
+  }
+  if (p.hours > 0) {
+    parts.push(`${p.hours} hour${p.hours === 1 ? "" : "s"}`);
+  }
+  if (p.minutes > 0) {
+    parts.push(`${p.minutes} minute${p.minutes === 1 ? "" : "s"}`);
+  }
+  if (parts.length === 0) {
+    return `${whole} minutes`;
+  }
+  if (parts.length === 1) {
+    return parts[0];
+  }
+  if (parts.length === 2) {
+    return `${parts[0]} and ${parts[1]}`;
+  }
+  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
+}
+
 export function partsToInputStrings(total: number | null): {
   days: string;
   hours: string;

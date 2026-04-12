@@ -1,4 +1,5 @@
 import {
+  formatValidityWindowSummary,
   parseWindowPartText,
   partsToInputStrings,
   partsToTotalMinutes,
@@ -58,6 +59,20 @@ describe("validityWindowParts", () => {
 
     it("returns 0 for invalid", () => {
       expect(parseWindowPartText("abc")).toBe(0);
+    });
+  });
+
+  describe("formatValidityWindowSummary", () => {
+    it("formats days and hours", () => {
+      expect(formatValidityWindowSummary(1500)).toBe("1 day and 1 hour");
+    });
+
+    it("formats minutes only when under an hour", () => {
+      expect(formatValidityWindowSummary(45)).toBe("45 minutes");
+    });
+
+    it("returns empty for invalid", () => {
+      expect(formatValidityWindowSummary(0)).toBe("");
     });
   });
 });

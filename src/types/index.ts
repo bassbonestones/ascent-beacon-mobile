@@ -1154,6 +1154,8 @@ export interface DependencyBlocker {
   required_count: number;
   completed_count: number;
   is_met: boolean;
+  /** For within_window: resolved lookback in minutes (same value used for counting). */
+  validity_window_minutes?: number | null;
 }
 
 // Info about a downstream task that depends on this task

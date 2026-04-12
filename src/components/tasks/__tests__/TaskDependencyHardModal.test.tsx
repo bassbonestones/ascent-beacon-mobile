@@ -15,6 +15,13 @@ const blocker = {
   required_count: 4,
   completed_count: 2,
   is_met: false,
+  validity_window_minutes: null,
+};
+
+const withinWindowBlocker = {
+  ...blocker,
+  scope: "within_window" as const,
+  validity_window_minutes: 1,
 };
 
 describe("TaskDependencyHardModal", () => {
@@ -38,5 +45,21 @@ describe("TaskDependencyHardModal", () => {
     expect(onPrereq).toHaveBeenCalled();
     fireEvent.press(getByLabelText("Override and complete current"));
     expect(onOverride).toHaveBeenCalled();
+  });
+
+  it("shows configured rolling window in progress line", () => {
+    const { getByText } = render(
+      <TaskDependencyHardModal
+        visible
+        taskTitle="Gym"
+        blockers={[withinWindowBlocker]}
+        onCompletePrereqs={jest.fn()}
+        onOverride={jest.fn()}
+        onCancel={jest.fn()}
+      />,
+    );
+    expect(
+      getByText(/2 of 4 completed in the last 1 minute/),
+    ).toBeTruthy();
   });
 });

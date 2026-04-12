@@ -1,8 +1,28 @@
 import React from "react";
-import { View, Text, TouchableOpacity, Modal, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Modal,
+  ScrollView,
+} from "react-native";
 import type { DependencyBlocker } from "../../types";
+import { formatValidityWindowSummary } from "./validityWindowParts";
 import { depModalStyles } from "./taskDependencyModalStyles";
 import { transparentModalProps } from "./transparentModalProps";
+
+/** Rolling window shown in copy; matches server counting for `within_window`. */
+function windowSuffixForBlocker(b: DependencyBlocker): string | null {
+  if (b.scope !== "within_window") {
+    return null;
+  }
+  const m = b.validity_window_minutes;
+  if (m == null || m < 1) {
+    return null;
+  }
+  const phrase = formatValidityWindowSummary(m);
+  return phrase ? ` in the last ${phrase}` : null;
+}
 
 export interface TaskDependencyHardModalProps {
   visible: boolean;
@@ -42,6 +62,7 @@ export function TaskDependencyHardModal({
                 {b.required_count > 1 && (
                   <Text style={depModalStyles.progress}>
                     {b.completed_count} of {b.required_count} completed
+                    {windowSuffixForBlocker(b) ?? ""}
                   </Text>
                 )}
               </View>
