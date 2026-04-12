@@ -135,10 +135,6 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
         // This ensures virtual occurrences are regenerated with correct completion status
         if (updated.is_recurring) {
           await fetchTasks();
-          showAlert(
-            "Completed",
-            "Occurrence marked complete. Task will recur.",
-          );
         } else {
           // Non-recurring: update in place
           setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
