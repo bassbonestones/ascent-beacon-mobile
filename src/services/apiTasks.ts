@@ -153,11 +153,14 @@ export interface TasksListParams {
   client_today?: string; // Client's local date as YYYY-MM-DD
   days_ahead?: number; // How many days ahead to load completion data (default: 14)
   include_dependency_summary?: boolean;
+  /** IANA timezone for intraday dependency summary anchors */
+  client_timezone?: string;
 }
 
 export interface GetTaskParams {
   include_dependency_summary?: boolean;
   client_today?: string;
+  client_timezone?: string;
 }
 
 /**
@@ -188,6 +191,9 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
       if (params.include_dependency_summary) {
         searchParams.append("include_dependency_summary", "true");
       }
+      if (params.client_timezone) {
+        searchParams.append("client_timezone", params.client_timezone);
+      }
 
       const queryString = searchParams.toString();
       const url = queryString ? `/tasks?${queryString}` : "/tasks";
@@ -201,6 +207,9 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
       }
       if (params.client_today) {
         searchParams.append("client_today", params.client_today);
+      }
+      if (params.client_timezone) {
+        searchParams.append("client_timezone", params.client_timezone);
       }
       const qs = searchParams.toString();
       const url = qs ? `/tasks/${taskId}?${qs}` : `/tasks/${taskId}`;

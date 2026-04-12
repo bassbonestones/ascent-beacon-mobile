@@ -4,6 +4,14 @@ import { useTasks } from "../useTasks";
 import api from "../../services/api";
 import type { Task, TaskStatus } from "../../types";
 
+jest.mock("../useTimezone", () => ({
+  useTimezone: () => ({
+    timezone: undefined,
+    setTimezone: jest.fn(),
+    hasOverride: false,
+  }),
+}));
+
 jest.mock("../../services/api", () => ({
   __esModule: true,
   default: {
@@ -74,7 +82,10 @@ describe("useTasks", () => {
 
       await waitFor(() => {
         expect(mockedApi.getTasks).toHaveBeenCalledWith(
-          expect.objectContaining({ include_dependency_summary: true }),
+          expect.objectContaining({
+            include_dependency_summary: true,
+            client_timezone: expect.any(String),
+          }),
         );
       });
     });

@@ -109,6 +109,17 @@ describe("apiTasks", () => {
         "/tasks?client_today=2026-04-07&include_dependency_summary=true",
       );
     });
+
+    it("should include client_timezone when provided", async () => {
+      await api.getTasks({
+        client_today: "2026-04-07",
+        include_dependency_summary: true,
+        client_timezone: "America/Chicago",
+      });
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks?client_today=2026-04-07&include_dependency_summary=true&client_timezone=America%2FChicago",
+      );
+    });
   });
 
   describe("getTask", () => {

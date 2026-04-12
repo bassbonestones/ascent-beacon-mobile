@@ -1,7 +1,8 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import api from "../services/api";
 import { showAlert } from "../utils/alert";
 import { toLocalDateString } from "../utils/taskSorting";
+import { useTimezone } from "./useTimezone";
 import type {
   Task,
   CreateTaskRequest,
@@ -29,6 +30,15 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
   const [completedCount, setCompletedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const { timezone: timezoneOverride } = useTimezone();
+
+  const clientTimezone = useMemo(
+    () =>
+      timezoneOverride ??
+      Intl.DateTimeFormat().resolvedOptions().timeZone ??
+      "UTC",
+    [timezoneOverride],
+  );
 
   // Memoize clientToday string to avoid unnecessary re-fetches
   // We derive the date string immediately so it can be used as a stable dependency
@@ -50,6 +60,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
         client_today: clientTodayStr,
         days_ahead: options.daysAhead,
         include_dependency_summary: true,
+        client_timezone: clientTimezone,
       });
       setTasks(response.tasks);
       setPendingCount(response.pending_count);
@@ -67,6 +78,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
     options.includeCompleted,
     options.daysAhead,
     clientTodayStr,
+    clientTimezone,
   ]);
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import type { Task } from "../types";
+import type { Task, TaskDependencySummary } from "../types";
 
 /**
  * Convert a Date to local YYYY-MM-DD string.
@@ -1061,6 +1061,12 @@ function getIntradayOccurrences(
   }
 }
 
+/** Slot key for API ``dependency_summaries_by_local_date`` (strip leading ``__``). */
+export function occurrenceSlotKeyFromSuffix(suffix: string): string {
+  if (!suffix) return "";
+  return suffix.startsWith("__") ? suffix.slice(2) : suffix;
+}
+
 /**
  * Generate future occurrences of recurring tasks for the Upcoming view.
  * Creates virtual task copies with unique IDs and an occurrence date.
@@ -1257,6 +1263,7 @@ export function generateRecurringOccurrences(
             originalTaskId: task.id,
             occurrenceIndex: occIndex,
             occurrenceLabel: occurrenceLabel,
+            occurrenceSlotKey: occurrenceSlotKeyFromSuffix(occ.suffix),
           };
           result.push(virtualTask);
           occIndex++;
@@ -1294,6 +1301,7 @@ export function generateRecurringOccurrences(
           isVirtualOccurrence: true,
           virtualOccurrenceDate: todayStr,
           originalTaskId: task.id,
+          occurrenceSlotKey: "",
         };
         result.push(virtualTask);
         daysGenerated++;
@@ -1430,6 +1438,7 @@ export function generateRecurringOccurrences(
               virtualOccurrenceDate: dayStr,
               originalTaskId: task.id,
               isOverdue: isOverdue, // Mark as overdue for UI highlighting
+              occurrenceSlotKey: occurrenceSlotKeyFromSuffix(occ.suffix),
             };
             result.push(virtualTask);
             occIndex++;
@@ -1544,6 +1553,11 @@ export function generateRecurringOccurrences(
           status = "skipped";
         }
 
+        const totalOccurrences = intradayOccs.length;
+        const occurrenceLabelFut =
+          totalOccurrences > 1
+            ? `(${occIndex + 1} of ${totalOccurrences})`
+            : undefined;
         const virtualTask: Task = {
           ...task,
           id: `${task.id}__${dayStr}${occ.suffix}`,
@@ -1556,6 +1570,9 @@ export function generateRecurringOccurrences(
           isVirtualOccurrence: true,
           virtualOccurrenceDate: dayStr,
           originalTaskId: task.id,
+          occurrenceIndex: occIndex,
+          occurrenceLabel: occurrenceLabelFut,
+          occurrenceSlotKey: occurrenceSlotKeyFromSuffix(occ.suffix),
         };
         result.push(virtualTask);
         occIndex++;
@@ -1567,11 +1584,28 @@ export function generateRecurringOccurrences(
   return result;
 }
 
+function dependencySummaryForDaySlot(
+  dayEntry: TaskDependencySummary | Record<string, TaskDependencySummary> | null,
+  slotKey: string,
+): TaskDependencySummary | null {
+  if (dayEntry == null) return null;
+  if (
+    typeof dayEntry === "object" &&
+    "has_unmet_hard" in dayEntry &&
+    typeof (dayEntry as TaskDependencySummary).has_unmet_hard === "boolean"
+  ) {
+    return dayEntry as TaskDependencySummary;
+  }
+  const inner = dayEntry as Record<string, TaskDependencySummary>;
+  return inner[slotKey] ?? inner[""] ?? null;
+}
+
 /**
  * Attach the correct `dependency_summary` for a virtual row using
- * `dependency_summaries_by_local_date` from GET /tasks (per calendar day).
+ * `dependency_summaries_by_local_date` from GET /tasks (per calendar day and
+ * intraday slot via ``occurrenceSlotKey``).
  *
- * Map lookup always uses ``virtualOccurrenceDate`` as the key (``d``), not
+ * Map lookup always uses ``virtualOccurrenceDate`` as the outer key (``d``), not
  * ``clientTodayStr``. The latter is only used for the fallback: when the batch
  * map omits this calendar day but the list row still carries the API's
  * top-level ``dependency_summary`` for the client's "today" anchor (see
@@ -1586,12 +1620,20 @@ export function withOccurrenceDependencySummary(
   }
   const d = task.virtualOccurrenceDate;
   const map = task.dependency_summaries_by_local_date;
+  const slotKey = task.occurrenceSlotKey ?? "";
+  /** Intraday virtual rows must never reuse top-level ``dependency_summary`` (first-slot only). */
+  const mayUseTopLevelSummaryFallback = slotKey === "";
 
   if (map != null && Object.prototype.hasOwnProperty.call(map, d)) {
-    return { ...task, dependency_summary: map[d] ?? null };
+    const summary = dependencySummaryForDaySlot(map[d] ?? null, slotKey);
+    return { ...task, dependency_summary: summary };
   }
 
-  if (task.dependency_summary != null && d === clientTodayStr) {
+  if (
+    mayUseTopLevelSummaryFallback &&
+    task.dependency_summary != null &&
+    d === clientTodayStr
+  ) {
     return task;
   }
 

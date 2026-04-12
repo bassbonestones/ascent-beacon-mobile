@@ -1212,6 +1212,7 @@ describe("taskSorting", () => {
         isVirtualOccurrence: true,
         virtualOccurrenceDate: "2026-06-12",
         originalTaskId: "orig-1",
+        occurrenceSlotKey: "",
         dependency_summaries_by_local_date: {
           "2026-06-12": {
             readiness_state: "blocked",
@@ -1229,6 +1230,36 @@ describe("taskSorting", () => {
       expect(out.dependency_summary?.has_unmet_hard).toBe(true);
     });
 
+    it("picks per-slot nested summary when occurrenceSlotKey is set", () => {
+      const ready = {
+        readiness_state: "ready" as const,
+        has_unmet_hard: false,
+        has_unmet_soft: false,
+      };
+      const blocked = {
+        readiness_state: "blocked" as const,
+        has_unmet_hard: true,
+        has_unmet_soft: false,
+      };
+      const t = createMockTask({
+        isVirtualOccurrence: true,
+        virtualOccurrenceDate: "2026-06-12",
+        originalTaskId: "orig-1",
+        occurrenceSlotKey: "1400",
+        dependency_summaries_by_local_date: {
+          "2026-06-12": {
+            "0900": ready,
+            "1400": blocked,
+          },
+        },
+      });
+      const out = withOccurrenceDependencySummary(t, "2026-06-10");
+      expect(out.dependency_summary?.has_unmet_hard).toBe(true);
+      const tFirst = { ...t, occurrenceSlotKey: "0900" };
+      const outFirst = withOccurrenceDependencySummary(tFirst, "2026-06-10");
+      expect(outFirst.dependency_summary?.has_unmet_hard).toBe(false);
+    });
+
     it("returns non-virtual task unchanged", () => {
       const t = createMockTask({
         isVirtualOccurrence: false,
@@ -1243,6 +1274,7 @@ describe("taskSorting", () => {
       const t = createMockTask({
         isVirtualOccurrence: true,
         virtualOccurrenceDate: "2026-06-12",
+        occurrenceSlotKey: "",
         dependency_summaries_by_local_date: {
           "2026-06-11": {
             readiness_state: "ready",
@@ -1260,6 +1292,24 @@ describe("taskSorting", () => {
       expect(out.dependency_summary).toBeNull();
     });
 
+    it("does not reuse top-level dependency_summary for intraday rows when map omits the day", () => {
+      const summary = {
+        readiness_state: "blocked" as const,
+        has_unmet_hard: true,
+        has_unmet_soft: false,
+      };
+      const today = "2026-06-10";
+      const t = createMockTask({
+        isVirtualOccurrence: true,
+        virtualOccurrenceDate: today,
+        occurrenceSlotKey: "0900",
+        dependency_summaries_by_local_date: {},
+        dependency_summary: summary,
+      });
+      const out = withOccurrenceDependencySummary(t, today);
+      expect(out.dependency_summary).toBeNull();
+    });
+
     it("keeps top-level summary when virtual row is client today but batch map omits that key", () => {
       const summary = {
         readiness_state: "blocked" as const,
@@ -1270,6 +1320,7 @@ describe("taskSorting", () => {
       const t = createMockTask({
         isVirtualOccurrence: true,
         virtualOccurrenceDate: today,
+        occurrenceSlotKey: "",
         dependency_summaries_by_local_date: {
           "2026-06-11": {
             readiness_state: "ready" as const,
@@ -1287,6 +1338,7 @@ describe("taskSorting", () => {
       const t = createMockTask({
         isVirtualOccurrence: true,
         virtualOccurrenceDate: "2026-06-12",
+        occurrenceSlotKey: "",
         dependency_summaries_by_local_date: {
           "2026-06-12": null as unknown as TaskDependencySummary,
         },
@@ -1309,6 +1361,7 @@ describe("taskSorting", () => {
       const t = createMockTask({
         isVirtualOccurrence: true,
         virtualOccurrenceDate: "2026-06-10",
+        occurrenceSlotKey: "",
         dependency_summaries_by_local_date: {},
         dependency_summary: summary,
       });

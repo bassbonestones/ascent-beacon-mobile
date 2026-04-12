@@ -717,12 +717,14 @@ export interface Task {
   // For multi-per-day recurring tasks: occurrence index (0-based) and label
   occurrenceIndex?: number;
   occurrenceLabel?: string; // e.g., "(1 of 4)"
+  /** Key for ``dependency_summaries_by_local_date`` slot map ("" or "0730", "occ1", …) */
+  occurrenceSlotKey?: string;
   /** Phase 4i-5: from GET /tasks when include_dependency_summary=true */
   dependency_summary?: TaskDependencySummary | null;
-  /** Per local day for virtual rows (list); keyed YYYY-MM-DD */
+  /** Per local day → per intraday slot for list badges (YYYY-MM-DD → slotKey → summary) */
   dependency_summaries_by_local_date?: Record<
     string,
-    TaskDependencySummary
+    Record<string, TaskDependencySummary> | TaskDependencySummary
   > | null;
 }
 
