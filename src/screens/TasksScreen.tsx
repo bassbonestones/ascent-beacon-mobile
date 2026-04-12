@@ -310,28 +310,35 @@ export default function TasksScreen({
   }, [navigation, listViewMode, refetchTodayOrder, refetchRangeOrder]);
 
   // Phase 4i: Fetch dependency rules to determine which tasks have prerequisites
-  // This builds a Set of task IDs that have at least one upstream dependency
+  // (lock icon). Must refresh when the task list changes and when returning to this
+  // screen so edits that add prerequisites are reflected (length-only deps miss that).
+  const refreshTasksWithPrerequisites = useCallback(async () => {
+    if (tasks.length === 0) {
+      setTasksWithPrerequisites(new Set());
+      return;
+    }
+    try {
+      const response = await api.getDependencyRules({});
+      const taskIdsWithPrereqs = new Set<string>(
+        response.rules.map((rule) => rule.downstream_task_id),
+      );
+      setTasksWithPrerequisites(taskIdsWithPrereqs);
+    } catch (error) {
+      console.warn("Failed to fetch dependency rules:", error);
+      setTasksWithPrerequisites(new Set());
+    }
+  }, [tasks]);
+
   useEffect(() => {
-    const fetchTasksWithPrerequisites = async () => {
-      if (tasks.length === 0) {
-        setTasksWithPrerequisites(new Set());
-        return;
-      }
-      try {
-        // Fetch all dependency rules (batch approach)
-        const response = await api.getDependencyRules({});
-        // Build set of downstream_task_ids (tasks that have prerequisites)
-        const taskIdsWithPrereqs = new Set<string>(
-          response.rules.map((rule) => rule.downstream_task_id),
-        );
-        setTasksWithPrerequisites(taskIdsWithPrereqs);
-      } catch (error) {
-        console.warn("Failed to fetch dependency rules:", error);
-        setTasksWithPrerequisites(new Set());
-      }
-    };
-    fetchTasksWithPrerequisites();
-  }, [tasks.length]); // Re-fetch when tasks are added/removed
+    void refreshTasksWithPrerequisites();
+  }, [refreshTasksWithPrerequisites]);
+
+  useEffect(() => {
+    const unsub = navigation.addListener("focus", () => {
+      void refreshTasksWithPrerequisites();
+    });
+    return unsub;
+  }, [navigation, refreshTasksWithPrerequisites]);
 
   // Phase 4g: Auto-skip missed habitual task occurrences on mount/tasks change
   // This runs when tasks are loaded and silently skips overdue habitual occurrences

@@ -98,11 +98,10 @@ export function useTaskDependencyActions(params: UseTaskDependencyActionsParams)
       task,
       paramsRef.current.getCurrentDate,
     );
-    if (!paramsRef.current.tasksWithPrerequisites.has(taskId)) {
-      await paramsRef.current.completeTask(taskId, scheduledFor, localDate);
-      paramsRef.current.onFlowFinished?.();
-      return;
-    }
+    // Always preflight with dependency-status. The tasksWithPrerequisites Set is only
+    // refreshed when task *count* changes, so it stays stale after editing a task to add
+    // prerequisites — skipping preflight then hits POST /complete → 409 → generic alert
+    // instead of the dependency modals.
     const status = await api.getDependencyStatus(taskId, scheduledFor);
     if (status.all_met) {
       await paramsRef.current.completeTask(taskId, scheduledFor, localDate);
@@ -127,6 +126,7 @@ export function useTaskDependencyActions(params: UseTaskDependencyActionsParams)
         scheduledFor,
         localDate,
       });
+      return;
     }
   }, []);
 

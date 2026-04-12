@@ -125,6 +125,20 @@ export const prerequisiteSelectorStyles = StyleSheet.create({
     color: "#F9FAFB",
     fontSize: 14,
   },
+  windowRow: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "flex-end",
+  },
+  windowField: {
+    flex: 1,
+    minWidth: 0,
+  },
+  windowFieldLabel: {
+    color: "#9CA3AF",
+    fontSize: 11,
+    marginBottom: 4,
+  },
   addButton: {
     backgroundColor: "#374151",
     borderRadius: 8,

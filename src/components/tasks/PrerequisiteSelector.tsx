@@ -3,6 +3,12 @@ import { View, Text, TouchableOpacity, TextInput } from "react-native";
 import type { Task, DependencyStrength, DependencyScope } from "../../types";
 import { TaskSearchModal } from "./TaskSearchModal";
 import { prerequisiteSelectorStyles as styles } from "./prerequisiteSelectorStyles";
+import {
+  parseWindowPartText,
+  partsToInputStrings,
+  partsToTotalMinutes,
+  totalMinutesToParts,
+} from "./validityWindowParts";
 
 // User-facing labels
 const STRENGTH_LABELS: Record<DependencyStrength, string> = {
@@ -193,12 +199,23 @@ export function PrerequisiteSelector({
     onPrerequisitesChange(updated);
   };
 
-  const handleWindowChange = (index: number, minutes: string) => {
+  const handleWindowPartChange = (
+    index: number,
+    field: "days" | "hours" | "minutes",
+    text: string,
+  ) => {
     const updated = [...prerequisites];
-    const parsed = parseInt(minutes, 10);
+    const prereq = updated[index];
+    const p = totalMinutesToParts(prereq.validityWindowMinutes);
+    const parsed = parseWindowPartText(text);
+    const next = {
+      days: field === "days" ? parsed : p.days,
+      hours: field === "hours" ? parsed : p.hours,
+      minutes: field === "minutes" ? parsed : p.minutes,
+    };
     updated[index] = {
-      ...updated[index],
-      validityWindowMinutes: isNaN(parsed) || parsed < 1 ? null : parsed,
+      ...prereq,
+      validityWindowMinutes: partsToTotalMinutes(next),
     };
     onPrerequisitesChange(updated);
   };
@@ -216,7 +233,9 @@ export function PrerequisiteSelector({
         Tasks that must be completed before this one
       </Text>
 
-      {prerequisites.map((prereq, index) => (
+      {prerequisites.map((prereq, index) => {
+        const windowInputs = partsToInputStrings(prereq.validityWindowMinutes);
+        return (
         <View key={prereq.task.id} style={styles.prereqItem}>
           {/* Main row */}
           <View style={styles.prereqMain}>
@@ -366,26 +385,62 @@ export function PrerequisiteSelector({
               {/* Window (only for within_window scope) */}
               {prereq.scope === "within_window" && (
                 <>
-                  <Text style={styles.optionLabel}>Time window (minutes)</Text>
-                  <TextInput
-                    style={styles.countInput}
-                    value={
-                      prereq.validityWindowMinutes !== null
-                        ? String(prereq.validityWindowMinutes)
-                        : ""
-                    }
-                    onChangeText={(text) => handleWindowChange(index, text)}
-                    placeholder="Auto (based on recurrence)"
-                    placeholderTextColor="#6B7280"
-                    keyboardType="numeric"
-                    accessibilityLabel="Validity window in minutes"
-                  />
+                  <Text style={styles.optionLabel}>Time window</Text>
+                  <Text style={styles.helpText}>
+                    Leave all fields empty to use auto (based on upstream
+                    recurrence). Otherwise enter days, hours, and/or minutes.
+                  </Text>
+                  <View style={styles.windowRow}>
+                    <View style={styles.windowField}>
+                      <Text style={styles.windowFieldLabel}>Days</Text>
+                      <TextInput
+                        style={styles.countInput}
+                        value={windowInputs.days}
+                        onChangeText={(text) =>
+                          handleWindowPartChange(index, "days", text)
+                        }
+                        placeholder="—"
+                        placeholderTextColor="#6B7280"
+                        keyboardType="numeric"
+                        accessibilityLabel="Validity window days"
+                      />
+                    </View>
+                    <View style={styles.windowField}>
+                      <Text style={styles.windowFieldLabel}>Hours</Text>
+                      <TextInput
+                        style={styles.countInput}
+                        value={windowInputs.hours}
+                        onChangeText={(text) =>
+                          handleWindowPartChange(index, "hours", text)
+                        }
+                        placeholder="—"
+                        placeholderTextColor="#6B7280"
+                        keyboardType="numeric"
+                        accessibilityLabel="Validity window hours"
+                      />
+                    </View>
+                    <View style={styles.windowField}>
+                      <Text style={styles.windowFieldLabel}>Minutes</Text>
+                      <TextInput
+                        style={styles.countInput}
+                        value={windowInputs.minutes}
+                        onChangeText={(text) =>
+                          handleWindowPartChange(index, "minutes", text)
+                        }
+                        placeholder="—"
+                        placeholderTextColor="#6B7280"
+                        keyboardType="numeric"
+                        accessibilityLabel="Validity window minutes"
+                      />
+                    </View>
+                  </View>
                 </>
               )}
             </View>
           )}
         </View>
-      ))}
+        );
+      })}
 
       {/* Add button */}
       <TouchableOpacity

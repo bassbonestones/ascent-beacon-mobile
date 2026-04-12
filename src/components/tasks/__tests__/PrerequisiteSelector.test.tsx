@@ -346,7 +346,10 @@ describe("PrerequisiteSelector", () => {
 
     fireEvent.press(screen.getByText("▼ More options"));
 
-    expect(screen.getByText("Time window (minutes)")).toBeTruthy();
+    expect(screen.getByText("Time window")).toBeTruthy();
+    expect(screen.getByLabelText("Validity window days")).toBeTruthy();
+    expect(screen.getByLabelText("Validity window hours")).toBeTruthy();
+    expect(screen.getByLabelText("Validity window minutes")).toBeTruthy();
   });
 
   it("shows recurring indicator for recurring tasks", () => {
@@ -598,13 +601,46 @@ describe("PrerequisiteSelector", () => {
       // Expand to see window input
       fireEvent.press(screen.getByText("▼ More options"));
 
-      // Change window to invalid value
-      const windowInput = screen.getByDisplayValue("60");
-      fireEvent.changeText(windowInput, "invalid");
+      // 60 min → 0d 1h 0m; invalid text parses to 0 → total 0 → null
+      const hoursInput = screen.getByLabelText("Validity window hours");
+      fireEvent.changeText(hoursInput, "invalid");
 
       expect(mockOnChange).toHaveBeenCalledWith([
         expect.objectContaining({
-          validityWindowMinutes: null, // Invalid input defaults to null
+          validityWindowMinutes: null,
+        }),
+      ]);
+    });
+
+    it("combines days, hours, and minutes into total minutes", () => {
+      const prerequisites: SelectedPrerequisite[] = [
+        {
+          task: {
+            id: "recurring-up",
+            title: "Recurring Up",
+            is_recurring: true,
+          } as any,
+          strength: "hard",
+          scope: "within_window",
+          requiredCount: 1,
+          validityWindowMinutes: null,
+        },
+      ];
+
+      render(
+        <PrerequisiteSelector
+          {...defaultProps}
+          prerequisites={prerequisites}
+          currentTaskIsRecurring={true}
+        />,
+      );
+
+      fireEvent.press(screen.getByText("▼ More options"));
+
+      fireEvent.changeText(screen.getByLabelText("Validity window days"), "1");
+      expect(mockOnChange).toHaveBeenCalledWith([
+        expect.objectContaining({
+          validityWindowMinutes: 1440,
         }),
       ]);
     });

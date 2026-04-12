@@ -26,10 +26,22 @@ jest.mock("../../hooks/useGoals");
 jest.mock("../../hooks/useOccurrenceOrderRange");
 jest.mock("../../utils/alert");
 jest.mock("../../context/TimeContext");
+const defaultDependencyStatus = {
+  task_id: "t-1",
+  scheduled_for: null as string | null,
+  dependencies: [],
+  has_unmet_hard: false,
+  has_unmet_soft: false,
+  all_met: true,
+  dependents: [],
+  readiness_state: "ready" as const,
+};
+
 jest.mock("../../services/api", () => ({
   __esModule: true,
   default: {
     getDependencyRules: jest.fn(),
+    getDependencyStatus: jest.fn(),
     createDependencyRule: jest.fn(),
     deleteDependencyRule: jest.fn(),
   },
@@ -146,6 +158,7 @@ describe("TasksScreen", () => {
     mockedUseTime.mockReturnValue(createMockTimeContext());
     // Initialize api mocks for dependency handling
     mockedApi.getDependencyRules.mockResolvedValue({ rules: [], total: 0 });
+    mockedApi.getDependencyStatus.mockResolvedValue(defaultDependencyStatus);
     mockedApi.createDependencyRule.mockResolvedValue({
       id: "rule-1",
       user_id: "user-1",
