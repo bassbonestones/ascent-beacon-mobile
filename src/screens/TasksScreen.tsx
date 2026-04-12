@@ -966,6 +966,9 @@ export default function TasksScreen({
             console.warn("Failed to create dependency rule:", error);
           }
         }
+        // createTask already refetched once before rules existed; embedded
+        // dependency_summary is only built for tasks that have downstream rules.
+        await refetch();
       }
 
       taskForm.resetForm();
@@ -973,7 +976,7 @@ export default function TasksScreen({
     } catch {
       // Error handled in hook
     }
-  }, [taskForm, createTask, currentDate]);
+  }, [taskForm, createTask, currentDate, refetch]);
 
   const handleEdit = useCallback(
     async (task: Task) => {
@@ -1101,6 +1104,9 @@ export default function TasksScreen({
         }
       }
 
+      // updateTask merged a row without dependency_summary; rules may have changed.
+      await refetch();
+
       taskForm.resetForm();
       setEditingTask(null);
       setSelectedTask(null);
@@ -1108,7 +1114,7 @@ export default function TasksScreen({
     } catch {
       // Error handled in hook
     }
-  }, [editingTask, taskForm, updateTask]);
+  }, [editingTask, taskForm, updateTask, refetch]);
 
   const handleComplete = useCallback(
     async (task: Task) => {
