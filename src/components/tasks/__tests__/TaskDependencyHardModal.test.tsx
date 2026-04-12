@@ -24,6 +24,12 @@ const withinWindowBlocker = {
   validity_window_minutes: 1,
 };
 
+const withinWindowNoMinutes = {
+  ...blocker,
+  scope: "within_window" as const,
+  validity_window_minutes: null as number | null,
+};
+
 describe("TaskDependencyHardModal", () => {
   it("renders blockers and actions", () => {
     const onPrereq = jest.fn();
@@ -61,5 +67,20 @@ describe("TaskDependencyHardModal", () => {
     expect(
       getByText(/2 of 4 completed in the last 1 minute/),
     ).toBeTruthy();
+  });
+
+  it("omits window suffix when within_window but validity minutes missing", () => {
+    const { getByText, queryByText } = render(
+      <TaskDependencyHardModal
+        visible
+        taskTitle="Gym"
+        blockers={[withinWindowNoMinutes]}
+        onCompletePrereqs={jest.fn()}
+        onOverride={jest.fn()}
+        onCancel={jest.fn()}
+      />,
+    );
+    expect(getByText(/2 of 4 completed/)).toBeTruthy();
+    expect(queryByText(/in the last/)).toBeNull();
   });
 });

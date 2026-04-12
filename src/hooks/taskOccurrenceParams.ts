@@ -112,5 +112,13 @@ export function buildOccurrenceParams(
     scheduledFor = d.toISOString();
     localDate = task.scheduled_date;
   }
+
+  // Expanded recurring rows carry `virtualOccurrenceDate` (YYYY-MM-DD) for that occurrence.
+  // Pin it for every API call so `local_date` matches the list row and Time Machine "today",
+  // even if `scheduled_for` UTC lands on an adjacent calendar date.
+  if (task.is_recurring && task.virtualOccurrenceDate) {
+    localDate = task.virtualOccurrenceDate;
+  }
+
   return { scheduledFor, localDate };
 }

@@ -200,5 +200,21 @@ describe("dependenciesMethods mixin", () => {
       );
       expect(result).toEqual(status);
     });
+
+    it("includes local_date when provided with scheduled_for", async () => {
+      const status = { task_id: "task-1", readiness: "ready" };
+      (api.request as jest.Mock).mockResolvedValueOnce(status);
+
+      const result = await api.getDependencyStatus(
+        "task-1",
+        "2024-01-15T10:00:00Z",
+        "2024-01-15",
+      );
+
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks/task-1/dependency-status?scheduled_for=2024-01-15T10%3A00%3A00Z&local_date=2024-01-15",
+      );
+      expect(result).toEqual(status);
+    });
   });
 });

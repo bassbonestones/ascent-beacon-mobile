@@ -48,6 +48,16 @@ describe("buildOccurrenceParams", () => {
     expect(p.scheduledFor).toBeDefined();
   });
 
+  it("pins virtualOccurrenceDate over getCurrentDate when both are set", () => {
+    const task = {
+      is_recurring: true,
+      scheduled_at: "2026-01-01T08:00:00.000Z",
+      virtualOccurrenceDate: "2026-04-15",
+    } as Task;
+    const p = buildOccurrenceParams(task, () => fixed);
+    expect(p.localDate).toBe("2026-04-15");
+  });
+
   it("returns empty for unscheduled non-recurring", () => {
     const task = { is_recurring: false } as Task;
     const p = buildOccurrenceParams(task, () => fixed);

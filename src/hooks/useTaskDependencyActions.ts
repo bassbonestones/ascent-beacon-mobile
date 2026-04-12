@@ -102,7 +102,7 @@ export function useTaskDependencyActions(params: UseTaskDependencyActionsParams)
     // refreshed when task *count* changes, so it stays stale after editing a task to add
     // prerequisites — skipping preflight then hits POST /complete → 409 → generic alert
     // instead of the dependency modals.
-    const status = await api.getDependencyStatus(taskId, scheduledFor);
+    const status = await api.getDependencyStatus(taskId, scheduledFor, localDate);
     if (status.all_met) {
       await paramsRef.current.completeTask(taskId, scheduledFor, localDate);
       paramsRef.current.onFlowFinished?.();

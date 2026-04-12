@@ -39,6 +39,7 @@ export interface DependenciesMethods {
   getDependencyStatus(
     taskId: string,
     scheduledFor?: string,
+    localDate?: string,
   ): Promise<DependencyStatusResponse>;
 }
 
@@ -121,10 +122,14 @@ export const dependenciesMethods = <TBase extends Constructor<ApiServiceBase>>(
     async getDependencyStatus(
       taskId: string,
       scheduledFor?: string,
+      localDate?: string,
     ): Promise<DependencyStatusResponse> {
       const searchParams = new URLSearchParams();
       if (scheduledFor) {
         searchParams.append("scheduled_for", scheduledFor);
+      }
+      if (localDate) {
+        searchParams.append("local_date", localDate);
       }
       const queryString = searchParams.toString();
       const url = queryString
