@@ -495,46 +495,24 @@ export default function TasksScreen({
           return false;
         }).length;
 
-        if (statusFilter === "pending") {
-          let todayTasks = filterTasksForToday(withOccurrences, currentDate);
-          // Only show pending virtual occurrences (exclude completed and skipped)
-          todayTasks = todayTasks.filter(
-            (t) =>
-              t.status === "pending" &&
-              !t.completed_for_today &&
-              !t.skipped_for_today,
-          );
-          if (condenseRecurring) {
-            todayTasks = condenseRecurringTasks(todayTasks);
-          }
-
-          // Group tasks by date (like Upcoming view)
-          // This allows overdue tasks to be grouped by their original date
+        /** Pending + All: group by date, apply saved occurrence order per date for untimed rows. */
+        const buildOrderedTodaySectionData = (todayTasks: Task[]) => {
           const grouped = groupTasksByDate(todayTasks);
-
-          // Get unscheduled tasks (no-date) - these go into today's section
           const noDateTasks = grouped.get("no-date") || [];
-
-          // Get dated sections, sorted by date (oldest first for overdue)
           const dateKeys = Array.from(grouped.keys())
             .filter((k) => k !== "no-date")
             .sort();
 
-          // Build sections for each date
           const sectionData = dateKeys.map((dateKey) => {
             let sectionTasks = grouped.get(dateKey) || [];
 
-            // If this is today's section, add unscheduled tasks
             if (dateKey === todayDateStr && noDateTasks.length > 0) {
-              // Unscheduled tasks go after dated tasks (they're untimed)
               sectionTasks = [...sectionTasks, ...noDateTasks];
             }
 
-            // Extract untimed tasks for reordering
             const untimedIndices: number[] = [];
             const untimedTasks: Task[] = [];
             sectionTasks.forEach((task, idx) => {
-              // Untimed = date-only scheduled OR unscheduled (no scheduled_at)
               const isUntimed =
                 task.scheduling_mode !== "anytime" && !task.scheduled_at;
               if (isUntimed) {
@@ -544,13 +522,10 @@ export default function TasksScreen({
             });
 
             if (untimedTasks.length > 0) {
-              // Apply order for this specific date
               const reorderedUntimed = applyTodayOrderForDate(
                 untimedTasks,
                 dateKey,
               );
-
-              // Put them back in their positions
               const finalSorted = [...sectionTasks];
               untimedIndices.forEach((originalIdx, i) => {
                 finalSorted[originalIdx] = reorderedUntimed[i];
@@ -558,7 +533,6 @@ export default function TasksScreen({
               sectionTasks = finalSorted;
             }
 
-            // Dates before today are overdue
             const isOverdue = dateKey < todayDateStr;
 
             return {
@@ -568,15 +542,11 @@ export default function TasksScreen({
             };
           });
 
-          // If there are no dated sections but there are unscheduled tasks,
-          // create a today section just for them
           if (sectionData.length === 0 && noDateTasks.length > 0) {
-            // Apply ordering to unscheduled tasks
             const reorderedNoDate = applyTodayOrderForDate(
               noDateTasks,
               todayDateStr,
             );
-
             sectionData.push({
               title: formatDateHeader(todayDateStr, currentDate, false),
               dateKey: todayDateStr,
@@ -587,10 +557,27 @@ export default function TasksScreen({
             });
           }
 
-          // Flatten all tasks for sortedTasks (used by drag reordering)
-          const allSorted = sectionData.flatMap((section) =>
+          const sortedTasksFlat = sectionData.flatMap((section) =>
             section.data.filter((item): item is Task => !("_type" in item)),
           );
+
+          return { sectionData, sortedTasks: sortedTasksFlat };
+        };
+
+        if (statusFilter === "pending") {
+          let todayTasks = filterTasksForToday(withOccurrences, currentDate);
+          todayTasks = todayTasks.filter(
+            (t) =>
+              t.status === "pending" &&
+              !t.completed_for_today &&
+              !t.skipped_for_today,
+          );
+          if (condenseRecurring) {
+            todayTasks = condenseRecurringTasks(todayTasks);
+          }
+
+          const { sectionData, sortedTasks: allSorted } =
+            buildOrderedTodaySectionData(todayTasks);
 
           return {
             sortedTasks: allSorted,
@@ -691,19 +678,16 @@ export default function TasksScreen({
             viewCompletedCount: todayCompleted,
           };
         }
-        // For "all", show all virtual occurrences for today
+        // For "all", show all statuses for today + overdue; same section layout + order as Pending
         let allTodayTasks = filterTasksForToday(withOccurrences, currentDate);
         if (condenseRecurring) {
           allTodayTasks = condenseRecurringTasks(allTodayTasks);
         }
-        const todaySection = {
-          title: formatDateHeader(todayDateStr, currentDate),
-          dateKey: todayDateStr,
-          data: createSectionDataWithSubtitles(allTodayTasks, todayDateStr),
-        };
+        const { sectionData, sortedTasks: allSorted } =
+          buildOrderedTodaySectionData(allTodayTasks);
         return {
-          sortedTasks: allTodayTasks,
-          sections: [todaySection],
+          sortedTasks: allSorted,
+          sections: sectionData,
           viewPendingCount: todayPending,
           viewCompletedCount: todayCompleted,
         };
