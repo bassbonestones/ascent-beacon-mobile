@@ -1005,6 +1005,40 @@ function generateIntervalTimes(
 }
 
 /**
+ * Distinct prerequisite completion slots per local day (matches backend intraday expansion).
+ * Used to cap ``required_occurrence_count`` in dependency UI for next_occurrence / within_window.
+ */
+export function countIntradayOccurrenceSlotsPerDay(
+  recurrenceRule: string | null | undefined,
+): number {
+  if (!recurrenceRule?.trim()) {
+    return 1;
+  }
+  const parsed = parseRRule(recurrenceRule);
+  return Math.max(1, getIntradayOccurrences(parsed).length);
+}
+
+/** Default validity window length in minutes from upstream RRULE (align with backend get_upstream_recurrence_interval_minutes). */
+export function defaultRecurrenceIntervalMinutesFromRRule(
+  recurrenceRule: string | null | undefined,
+): number {
+  const r = (recurrenceRule || "").toUpperCase();
+  if (r.includes("FREQ=YEARLY")) {
+    return 525600;
+  }
+  if (r.includes("FREQ=MONTHLY")) {
+    return 43200;
+  }
+  if (r.includes("FREQ=WEEKLY")) {
+    return 10080;
+  }
+  if (r.includes("FREQ=HOURLY")) {
+    return 60;
+  }
+  return 1440;
+}
+
+/**
  * Generate intraday occurrences for a single day.
  * Returns array of { time: string | null, suffix: string } for each occurrence.
  */

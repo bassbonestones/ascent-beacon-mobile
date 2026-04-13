@@ -9,6 +9,11 @@ import {
   partsToTotalMinutes,
   totalMinutesToParts,
 } from "./validityWindowParts";
+import {
+  implicitRequiredCountAllOccurrencesRecurring,
+  maxRequiredCompletionsForNextOccurrence,
+  maxRequiredCompletionsForWithinWindow,
+} from "./prerequisiteDependencyLimits";
 
 // User-facing labels
 const STRENGTH_LABELS: Record<DependencyStrength, string> = {
@@ -20,6 +25,16 @@ const SCOPE_LABELS: Record<DependencyScope, string> = {
   all_occurrences: "Always required first",
   next_occurrence: "One-for-one",
   within_window: "Within time window",
+};
+
+/** One-line hint: which completions count (not the numeric threshold). */
+const SCOPE_HELP_SELECTED: Record<DependencyScope, string> = {
+  all_occurrences:
+    "Every prerequisite occurrence in this period must finish before any dependent occurrence in the same period.",
+  next_occurrence:
+    "Each dependent occurrence looks at prerequisite completions tied to this occurrence (including order vs its scheduled time).",
+  within_window:
+    "Counts prerequisite completions in a rolling clock window ending at this occurrence’s scheduled time.",
 };
 
 /** Which scopes are meaningful for this upstream/downstream recurrence pair. */
@@ -55,6 +70,24 @@ interface PrerequisiteSelectorProps {
   onPrerequisitesChange: (prerequisites: SelectedPrerequisite[]) => void;
   currentTaskId?: string;
   currentTaskIsRecurring?: boolean;
+}
+
+function clampRequiredCountForPrerequisite(p: SelectedPrerequisite): number {
+  if (!p.task.is_recurring) {
+    return 1;
+  }
+  if (p.scope === "all_occurrences") {
+    return implicitRequiredCountAllOccurrencesRecurring(p.task);
+  }
+  if (p.scope === "within_window") {
+    const cap = maxRequiredCompletionsForWithinWindow(
+      p.task,
+      p.validityWindowMinutes,
+    );
+    return Math.max(1, Math.min(p.requiredCount, cap));
+  }
+  const cap = maxRequiredCompletionsForNextOccurrence(p.task);
+  return Math.max(1, Math.min(p.requiredCount, cap));
 }
 
 // Infer default scope based on task recurrence
@@ -104,8 +137,13 @@ export function PrerequisiteSelector({
     const needsCountFix = prerequisites.some(
       (p) => !p.task.is_recurring && p.requiredCount !== 1,
     );
+    const needsRecurringCountClamp = prerequisites.some(
+      (p) =>
+        p.task.is_recurring &&
+        clampRequiredCountForPrerequisite(p) !== p.requiredCount,
+    );
 
-    if (!needsScopeFix && !needsCountFix) {
+    if (!needsScopeFix && !needsCountFix && !needsRecurringCountClamp) {
       normalizeDepsSentFor.current = null;
       return;
     }
@@ -132,6 +170,16 @@ export function PrerequisiteSelector({
     updated = updated.map((p) => {
       if (!p.task.is_recurring && p.requiredCount !== 1) {
         return { ...p, requiredCount: 1 };
+      }
+      return p;
+    });
+    updated = updated.map((p) => {
+      if (!p.task.is_recurring) {
+        return p;
+      }
+      const nextCount = clampRequiredCountForPrerequisite(p);
+      if (nextCount !== p.requiredCount) {
+        return { ...p, requiredCount: nextCount };
       }
       return p;
     });
@@ -180,21 +228,25 @@ export function PrerequisiteSelector({
   const handleScopeChange = (index: number, scope: DependencyScope) => {
     const updated = [...prerequisites];
     const prev = updated[index];
-    updated[index] = {
+    const nextRow: SelectedPrerequisite = {
       ...prev,
       scope,
       validityWindowMinutes:
         scope === "within_window" ? prev.validityWindowMinutes : null,
     };
+    nextRow.requiredCount = clampRequiredCountForPrerequisite(nextRow);
+    updated[index] = nextRow;
     onPrerequisitesChange(updated);
   };
 
   const handleCountChange = (index: number, count: string) => {
     const updated = [...prerequisites];
     const parsed = parseInt(count, 10);
+    const raw = isNaN(parsed) || parsed < 1 ? 1 : parsed;
+    const row = { ...updated[index], requiredCount: raw };
     updated[index] = {
-      ...updated[index],
-      requiredCount: isNaN(parsed) || parsed < 1 ? 1 : parsed,
+      ...row,
+      requiredCount: clampRequiredCountForPrerequisite(row),
     };
     onPrerequisitesChange(updated);
   };
@@ -213,10 +265,12 @@ export function PrerequisiteSelector({
       hours: field === "hours" ? parsed : p.hours,
       minutes: field === "minutes" ? parsed : p.minutes,
     };
-    updated[index] = {
+    const nextPrereq: SelectedPrerequisite = {
       ...prereq,
       validityWindowMinutes: partsToTotalMinutes(next),
     };
+    nextPrereq.requiredCount = clampRequiredCountForPrerequisite(nextPrereq);
+    updated[index] = nextPrereq;
     onPrerequisitesChange(updated);
   };
 
@@ -349,17 +403,22 @@ export function PrerequisiteSelector({
                         </TouchableOpacity>
                       ))}
                     </View>
+                    <Text style={styles.helpText}>
+                      {SCOPE_HELP_SELECTED[prereq.scope]}
+                    </Text>
                   </>
                 );
               })()}
 
-              {/* Count: only recurring upstream can require N completions */}
-              {showRequiredCompletionCountEditor(!!prereq.task.is_recurring) ? (
+              {/* Count: recurring upstream, except all_occurrences (implicit full period) */}
+              {showRequiredCompletionCountEditor(!!prereq.task.is_recurring) &&
+              prereq.scope !== "all_occurrences" ? (
                 <>
                   <Text style={styles.optionLabel}>Required completions</Text>
                   <Text style={styles.helpText}>
-                    How many times the prerequisite must be completed for this
-                    rule (e.g. 4 waters before gym).
+                    {prereq.scope === "within_window"
+                      ? `How many prerequisite completions in the time window count toward this rule (e.g. glasses of water). Maximum for this window and schedule: ${maxRequiredCompletionsForWithinWindow(prereq.task, prereq.validityWindowMinutes)}.`
+                      : `How many prerequisite completions count toward this dependent occurrence. Maximum for this prerequisite’s schedule: ${maxRequiredCompletionsForNextOccurrence(prereq.task)}.`}
                   </Text>
                   <TextInput
                     style={styles.countInput}
@@ -368,6 +427,17 @@ export function PrerequisiteSelector({
                     keyboardType="numeric"
                     accessibilityLabel="Required completion count"
                   />
+                </>
+              ) : prereq.task.is_recurring && prereq.scope === "all_occurrences" ? (
+                <>
+                  <Text style={styles.optionLabel}>Requirement</Text>
+                  <Text style={styles.helpText}>
+                    All scheduled prerequisite occurrences in the same period must
+                    be completed before any dependent occurrence in that period.
+                    The number of prerequisite completions (
+                    {implicitRequiredCountAllOccurrencesRecurring(prereq.task)}) is
+                    set automatically from this task’s repeat pattern.
+                  </Text>
                 </>
               ) : (
                 <>
