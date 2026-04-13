@@ -438,8 +438,13 @@ export default function TasksScreen({
   }, [tasks, loading, currentDate, skipTask]);
 
   // Filter and sort tasks based on view mode
-  const { sortedTasks, sections, viewPendingCount, viewCompletedCount } =
-    useMemo(() => {
+  const {
+    sortedTasks,
+    sections,
+    viewPendingCount,
+    viewCompletedCount,
+    viewSkippedCount,
+  } = useMemo(() => {
       if (listViewMode === "today") {
         // Today view: overdue → timed → todos
         // Get today's LOCAL date as YYYY-MM-DD string for comparison
@@ -493,6 +498,22 @@ export default function TasksScreen({
           const scheduledDateStr = getTaskScheduledDateStr(t);
           if (scheduledDateStr === todayDateStr) return true;
           return false;
+        }).length;
+
+        const todaySkipped = withOccurrences.filter((t) => {
+          if (!isSkippedForToday(t)) return false;
+          if (
+            t.is_recurring &&
+            t.skipped_for_today &&
+            !t.isVirtualOccurrence
+          ) {
+            return true;
+          }
+          const scheduledDateStr = getTaskScheduledDateStr(t);
+          if (scheduledDateStr === todayDateStr) {
+            return true;
+          }
+          return !isTaskScheduled(t);
         }).length;
 
         /** Pending + All: group by date, apply saved occurrence order per date for untimed rows. */
@@ -584,6 +605,7 @@ export default function TasksScreen({
             sections: sectionData,
             viewPendingCount: todayPending,
             viewCompletedCount: todayCompleted,
+            viewSkippedCount: todaySkipped,
           };
         } else if (statusFilter === "completed") {
           // Show completed tasks that are relevant to today
@@ -638,6 +660,7 @@ export default function TasksScreen({
             sections: [todaySection],
             viewPendingCount: todayPending,
             viewCompletedCount: todayCompleted,
+            viewSkippedCount: todaySkipped,
           };
         } else if (statusFilter === "skipped") {
           // Show skipped tasks that are relevant to today
@@ -676,6 +699,7 @@ export default function TasksScreen({
             sections: [todaySection],
             viewPendingCount: todayPending,
             viewCompletedCount: todayCompleted,
+            viewSkippedCount: todaySkipped,
           };
         }
         // For "all", show all statuses for today + overdue; same section layout + order as Pending
@@ -690,6 +714,7 @@ export default function TasksScreen({
           sections: sectionData,
           viewPendingCount: todayPending,
           viewCompletedCount: todayCompleted,
+          viewSkippedCount: todaySkipped,
         };
       } else if (listViewMode === "anytime") {
         // Anytime view: show backlog tasks with no schedule
@@ -704,6 +729,9 @@ export default function TasksScreen({
         ).length;
         const anytimeCompleted = anytimeTasks.filter(
           (t) => t.status === "completed",
+        ).length;
+        const anytimeSkipped = tasks.filter(
+          (t) => t.scheduling_mode === "anytime" && t.status === "skipped",
         ).length;
 
         // Apply status filter
@@ -740,6 +768,7 @@ export default function TasksScreen({
           sections: null,
           viewPendingCount: anytimePending,
           viewCompletedCount: anytimeCompleted,
+          viewSkippedCount: anytimeSkipped,
         };
       } else {
         // Upcoming view: group by date (includes today and future)
@@ -769,6 +798,9 @@ export default function TasksScreen({
         ).length;
         const upcomingCompleted = allUpcoming.filter(
           (t) => t.status === "completed",
+        ).length;
+        const upcomingSkipped = allUpcoming.filter(
+          (t) => t.status === "skipped",
         ).length;
 
         if (statusFilter === "pending") {
@@ -852,6 +884,7 @@ export default function TasksScreen({
           sections: sectionData,
           viewPendingCount: upcomingPending,
           viewCompletedCount: upcomingCompleted,
+          viewSkippedCount: upcomingSkipped,
         };
       }
     }, [
@@ -1455,6 +1488,10 @@ export default function TasksScreen({
             <View style={styles.summaryItem}>
               <Text style={styles.summaryCount}>{viewCompletedCount}</Text>
               <Text style={styles.summaryLabel}>completed</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryCount}>{viewSkippedCount}</Text>
+              <Text style={styles.summaryLabel}>skipped</Text>
             </View>
             {overdueCount > 0 && (
               <View style={styles.summaryItem}>
