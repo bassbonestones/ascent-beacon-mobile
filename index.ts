@@ -1,3 +1,8 @@
+// RNGH must be first (React Navigation / touch pipeline). Reanimated immediately after.
+// See https://reactnavigation.org/docs/getting-started/#installing-dependencies-into-a-bare-react-native-project
+import "react-native-gesture-handler";
+import "react-native-reanimated";
+
 import { registerRootComponent } from "expo";
 
 import App from "./App";

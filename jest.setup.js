@@ -54,5 +54,17 @@ jest.mock("@react-navigation/native", () => {
   };
 });
 
+// DraggableTaskList.native uses this; avoid loading Reanimated in Jest.
+jest.mock("react-native-draggable-flatlist", () => {
+  const React = require("react");
+  const { FlatList } = require("react-native");
+  const Mock = (props) => <FlatList {...props} />;
+  return {
+    __esModule: true,
+    default: Mock,
+    ScaleDecorator: ({ children }) => children,
+  };
+});
+
 // Global test timeout
 jest.setTimeout(10000);
