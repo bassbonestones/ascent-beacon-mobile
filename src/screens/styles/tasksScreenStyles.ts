@@ -654,6 +654,11 @@ export const styles = StyleSheet.create({
     color: "#9CA3AF",
     fontSize: 14,
   },
+  listFooterLink: {
+    color: "#6200ee",
+    fontSize: 14,
+    fontWeight: "600",
+  },
   // Phase 4e: Anytime task reorder buttons
   reorderButtons: {
     position: "absolute",

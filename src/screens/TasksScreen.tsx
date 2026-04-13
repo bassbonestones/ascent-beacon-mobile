@@ -155,11 +155,22 @@ export default function TasksScreen({
   const [loadingMore, setLoadingMore] = useState(false);
   // Track if current load is a "load more" (not initial/refresh) to avoid scroll reset
   const isLoadingMoreRef = useRef(false);
+  /** SectionList viewport vs content — used to avoid onEndReached loops when content fits on screen (e.g. Upcoming + condense). */
+  const [upcomingSectionMetrics, setUpcomingSectionMetrics] = useState({
+    viewportHeight: 0,
+    contentHeight: 0,
+  });
 
   // Reset daysAhead when view mode or filter changes
   useEffect(() => {
     setDaysAhead(INITIAL_DAYS_AHEAD);
   }, [listViewMode, statusFilter]);
+
+  useEffect(() => {
+    if (listViewMode !== "upcoming") {
+      setUpcomingSectionMetrics({ viewportHeight: 0, contentHeight: 0 });
+    }
+  }, [listViewMode]);
 
   // Form state (extracted to hook)
   const taskForm = useTaskForm();
@@ -871,6 +882,38 @@ export default function TasksScreen({
     setDaysAhead((prev) => Math.min(prev + LOAD_MORE_DAYS, MAX_DAYS_AHEAD));
   }, [canLoadMore, loadingMore, loading]);
 
+  const UPCOMING_LOAD_MORE_SCROLL_PADDING = 48;
+
+  /**
+   * SectionList calls onEndReached when the list is shorter than the viewport too,
+   * which would otherwise bump daysAhead in a tight loop (especially with condense).
+   */
+  const handleUpcomingEndReached = useCallback(() => {
+    if (!canLoadMore || loadingMore || loading) return;
+    const { viewportHeight, contentHeight } = upcomingSectionMetrics;
+    if (viewportHeight <= 0 || contentHeight <= 0) return;
+    if (contentHeight <= viewportHeight + UPCOMING_LOAD_MORE_SCROLL_PADDING) {
+      return;
+    }
+    handleLoadMore();
+  }, [
+    canLoadMore,
+    loadingMore,
+    loading,
+    upcomingSectionMetrics,
+    handleLoadMore,
+  ]);
+
+  const showUpcomingManualLoadMore =
+    listViewMode === "upcoming" &&
+    canLoadMore &&
+    !loadingMore &&
+    !loading &&
+    upcomingSectionMetrics.viewportHeight > 0 &&
+    upcomingSectionMetrics.contentHeight > 0 &&
+    upcomingSectionMetrics.contentHeight <=
+      upcomingSectionMetrics.viewportHeight + UPCOMING_LOAD_MORE_SCROLL_PADDING;
+
   // Reset loadingMore when loading completes
   useEffect(() => {
     if (!loading && isLoadingMoreRef.current) {
@@ -1521,6 +1564,25 @@ export default function TasksScreen({
         <SectionList
           sections={sections}
           extraData={tasks}
+          onLayout={
+            listViewMode === "upcoming"
+              ? (e) => {
+                  const h = e.nativeEvent.layout.height;
+                  setUpcomingSectionMetrics((m) =>
+                    m.viewportHeight === h ? m : { ...m, viewportHeight: h },
+                  );
+                }
+              : undefined
+          }
+          onContentSizeChange={
+            listViewMode === "upcoming"
+              ? (_, h) => {
+                  setUpcomingSectionMetrics((m) =>
+                    m.contentHeight === h ? m : { ...m, contentHeight: h },
+                  );
+                }
+              : undefined
+          }
           renderSectionHeader={({ section }) => {
             // Filter out subtitle markers and get actual tasks
             const tasksOnly = section.data.filter(
@@ -1615,12 +1677,20 @@ export default function TasksScreen({
           refreshing={loading && !loadingMore}
           onRefresh={refetch}
           stickySectionHeadersEnabled={false}
-          onEndReached={canLoadMore ? handleLoadMore : undefined}
+          onEndReached={canLoadMore ? handleUpcomingEndReached : undefined}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
             <View style={styles.listFooter}>
               {loadingMore ? (
                 <ActivityIndicator size="small" color="#6200ee" />
+              ) : showUpcomingManualLoadMore ? (
+                <TouchableOpacity
+                  onPress={handleLoadMore}
+                  accessibilityRole="button"
+                  accessibilityLabel="Load more upcoming days"
+                >
+                  <Text style={styles.listFooterLink}>Load more upcoming days</Text>
+                </TouchableOpacity>
               ) : !canLoadMore &&
                 (statusFilter === "pending" || statusFilter === "all") ? (
                 <Text style={styles.listFooterText}>All tasks loaded</Text>
