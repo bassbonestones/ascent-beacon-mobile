@@ -48,7 +48,6 @@ import {
   filterTasksForUpcoming,
   isTaskOverdue,
   condenseRecurringTasks,
-  condenseRecurringTasksAllStatusesForDay,
   groupTasksByDate,
   formatDateHeader,
   generateRecurringOccurrences,
@@ -172,6 +171,20 @@ export default function TasksScreen({
       setUpcomingSectionMetrics({ viewportHeight: 0, contentHeight: 0 });
     }
   }, [listViewMode]);
+
+  /**
+   * Condense shrinks list height; viewport/content metrics are parent state and were
+   * measured for the previous list. Stale heights defeat the short-list guard in
+   * ``handleUpcomingEndReached`` and cause repeated ``daysAhead`` bumps (infinite load).
+   */
+  useEffect(() => {
+    if (listViewMode !== "upcoming") {
+      return;
+    }
+    setUpcomingSectionMetrics({ viewportHeight: 0, contentHeight: 0 });
+    setLoadingMore(false);
+    isLoadingMoreRef.current = false;
+  }, [condenseRecurring, listViewMode]);
 
   // Form state (extracted to hook)
   const taskForm = useTaskForm();
@@ -681,20 +694,7 @@ export default function TasksScreen({
         // For "all", show all virtual occurrences for today
         let allTodayTasks = filterTasksForToday(withOccurrences, currentDate);
         if (condenseRecurring) {
-          const byDate = groupTasksByDate(allTodayTasks);
-          const dateKeysAll = Array.from(byDate.keys())
-            .filter((k) => k !== "no-date")
-            .sort();
-          const merged: Task[] = [];
-          for (const dk of dateKeysAll) {
-            merged.push(
-              ...condenseRecurringTasksAllStatusesForDay(byDate.get(dk) ?? []),
-            );
-          }
-          merged.push(
-            ...condenseRecurringTasksAllStatusesForDay(byDate.get("no-date") ?? []),
-          );
-          allTodayTasks = merged;
+          allTodayTasks = condenseRecurringTasks(allTodayTasks);
         }
         const todaySection = {
           title: formatDateHeader(todayDateStr, currentDate),
@@ -805,6 +805,9 @@ export default function TasksScreen({
         } else {
           // "all" - show all tasks today + future (pending + completed + skipped)
           upcomingTasks = allUpcoming;
+          if (condenseRecurring) {
+            upcomingTasks = condenseRecurringTasks(upcomingTasks);
+          }
         }
 
         const grouped = groupTasksByDate(upcomingTasks);
@@ -853,10 +856,6 @@ export default function TasksScreen({
             sectionTasks = finalSorted;
           }
 
-          if (statusFilter === "all" && condenseRecurring) {
-            sectionTasks = condenseRecurringTasksAllStatusesForDay(sectionTasks);
-          }
-
           return {
             title: formatDateHeader(dateKey, currentDate),
             dateKey,
@@ -864,17 +863,8 @@ export default function TasksScreen({
           };
         });
 
-        const sortedTasksUpcoming =
-          statusFilter === "all" && condenseRecurring
-            ? sectionData.flatMap((section) =>
-                section.data.filter(
-                  (item: SectionItem): item is Task => !isSubtitleMarker(item),
-                ),
-              )
-            : upcomingTasks;
-
         return {
-          sortedTasks: sortedTasksUpcoming,
+          sortedTasks: upcomingTasks,
           sections: sectionData,
           viewPendingCount: upcomingPending,
           viewCompletedCount: upcomingCompleted,
@@ -890,6 +880,20 @@ export default function TasksScreen({
       applyTodayOrderForDate,
       applyUpcomingOrderForDate,
     ]);
+
+  /** VirtualizedList only compares ``data``/``sections`` and ``extraData`` by reference; include condense so toggles always invalidate recycled rows. */
+  const sectionListExtraData = useMemo(
+    () => ({ tasks, condenseRecurring }),
+    [tasks, condenseRecurring],
+  );
+
+  const hasSectionTasks =
+    sections != null &&
+    sections.some((sec) =>
+      sec.data.some((item: SectionItem) => !isSubtitleMarker(item)),
+    );
+  const isListEmpty =
+    sortedTasks.length === 0 && (sections == null || !hasSectionTasks);
 
   // Count overdue tasks
   const overdueCount = useMemo(() => {
@@ -1551,7 +1555,7 @@ export default function TasksScreen({
 
       {loading && !loadingMore ? (
         <ActivityIndicator size="large" style={styles.loader} />
-      ) : sortedTasks.length === 0 ? (
+      ) : isListEmpty ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateTitle}>
             {listViewMode === "today"
@@ -1595,8 +1599,9 @@ export default function TasksScreen({
       ) : (listViewMode === "today" || listViewMode === "upcoming") &&
         sections ? (
         <SectionList
+          key={`tasks-sections-${listViewMode}-${statusFilter}-${condenseRecurring}`}
           sections={sections}
-          extraData={tasks}
+          extraData={sectionListExtraData}
           onLayout={
             listViewMode === "upcoming"
               ? (e) => {
@@ -1710,31 +1715,40 @@ export default function TasksScreen({
           refreshing={loading && !loadingMore}
           onRefresh={refetch}
           stickySectionHeadersEnabled={false}
-          onEndReached={canLoadMore ? handleUpcomingEndReached : undefined}
-          onEndReachedThreshold={0.5}
+          onEndReached={
+            listViewMode === "upcoming" && canLoadMore
+              ? handleUpcomingEndReached
+              : undefined
+          }
+          onEndReachedThreshold={listViewMode === "upcoming" ? 0.5 : undefined}
           ListFooterComponent={
-            <View style={styles.listFooter}>
-              {loadingMore ? (
-                <ActivityIndicator size="small" color="#6200ee" />
-              ) : showUpcomingManualLoadMore ? (
-                <TouchableOpacity
-                  onPress={handleLoadMore}
-                  accessibilityRole="button"
-                  accessibilityLabel="Load more upcoming days"
-                >
-                  <Text style={styles.listFooterLink}>Load more upcoming days</Text>
-                </TouchableOpacity>
-              ) : !canLoadMore &&
-                (statusFilter === "pending" || statusFilter === "all") ? (
-                <Text style={styles.listFooterText}>All tasks loaded</Text>
-              ) : null}
-            </View>
+            listViewMode === "upcoming" ? (
+              <View style={styles.listFooter}>
+                {loadingMore ? (
+                  <ActivityIndicator size="small" color="#6200ee" />
+                ) : showUpcomingManualLoadMore ? (
+                  <TouchableOpacity
+                    onPress={handleLoadMore}
+                    accessibilityRole="button"
+                    accessibilityLabel="Load more upcoming days"
+                  >
+                    <Text style={styles.listFooterLink}>
+                      Load more upcoming days
+                    </Text>
+                  </TouchableOpacity>
+                ) : !canLoadMore &&
+                  (statusFilter === "pending" || statusFilter === "all") ? (
+                  <Text style={styles.listFooterText}>All tasks loaded</Text>
+                ) : null}
+              </View>
+            ) : null
           }
         />
       ) : (
         <FlatList
+          key={`tasks-flat-${listViewMode}-${statusFilter}-${condenseRecurring}`}
           data={sortedTasks}
-          extraData={tasks}
+          extraData={sectionListExtraData}
           renderItem={({ item }) => (
             <TaskCard
               task={item}

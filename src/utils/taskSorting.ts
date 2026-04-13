@@ -734,32 +734,12 @@ export function filterTasksForUpcoming(
   });
 }
 
-/** Display bucket for All+condense (one surviving row per recurring group per bucket per day). */
-export type OccurrenceCondenseStatus = "completed" | "skipped" | "pending";
-
-/**
- * Maps a task row to completed / skipped / pending for condense-all grouping.
- * Aligns with list filters: explicit status, then recurring per-occurrence flags.
- */
-export function occurrenceDisplayStatusForCondense(
-  task: Task,
-): OccurrenceCondenseStatus {
-  if (task.status === "skipped") return "skipped";
-  if (task.status === "completed") return "completed";
-  if (task.status === "pending") {
-    if (task.skipped_for_today) return "skipped";
-    if (task.completed_for_today) return "completed";
-  }
-  return "pending";
-}
-
-function recurringCondenseGroupKey(task: Task): string {
-  return `${task.goal_id || "no-goal"}-${task.title}`;
-}
-
 function occurrenceSortTimeMs(task: Task): number {
   if (task.scheduled_at) {
     return parseAsUtc(task.scheduled_at).getTime();
+  }
+  if (task.virtualOccurrenceDate) {
+    return new Date(`${task.virtualOccurrenceDate}T00:00:00`).getTime();
   }
   return 0;
 }
@@ -767,78 +747,42 @@ function occurrenceSortTimeMs(task: Task): number {
 function compareOccurrencesForCondense(a: Task, b: Task): number {
   const dt = occurrenceSortTimeMs(a) - occurrenceSortTimeMs(b);
   if (dt !== 0) return dt;
+  const ai = a.occurrenceIndex ?? 0;
+  const bi = b.occurrenceIndex ?? 0;
+  if (ai !== bi) return ai - bi;
   return a.id.localeCompare(b.id);
 }
 
 /**
- * For one calendar section: keep each non-recurring row; for recurring, keep the
- * earliest occurrence per (goal+title, display status) bucket.
- * Preserves original list order; drops later rows that duplicate a bucket.
- */
-export function condenseRecurringTasksAllStatusesForDay(
-  tasks: Task[],
-): Task[] {
-  const recurring: Task[] = [];
-  for (const task of tasks) {
-    if (task.is_recurring) recurring.push(task);
-  }
-
-  const bestByCompositeKey = new Map<string, Task>();
-  for (const task of recurring) {
-    const status = occurrenceDisplayStatusForCondense(task);
-    const composite = `${recurringCondenseGroupKey(task)}::${status}`;
-    const existing = bestByCompositeKey.get(composite);
-    if (!existing || compareOccurrencesForCondense(task, existing) < 0) {
-      bestByCompositeKey.set(composite, task);
-    }
-  }
-
-  const out: Task[] = [];
-  for (const task of tasks) {
-    if (!task.is_recurring) {
-      out.push(task);
-      continue;
-    }
-    const composite = `${recurringCondenseGroupKey(task)}::${occurrenceDisplayStatusForCondense(task)}`;
-    const best = bestByCompositeKey.get(composite);
-    if (best && best.id === task.id) {
-      out.push(task);
-    }
-  }
-  return out;
-}
-
-/**
- * Condense recurring tasks - show only first occurrence.
- * Returns tasks with condensed recurring tasks grouped.
+ * Condense recurring tasks — one surviving row per recurring **template** (same as Pending
+ * condense): group by goal + ``originalTaskId`` (or base ``id``), keep earliest occurrence
+ * by scheduled time / virtual date / occurrence index.
  */
 export function condenseRecurringTasks(tasks: Task[]): Task[] {
-  // Separate recurring and non-recurring
   const nonRecurring: Task[] = [];
-  const recurringByTitle: Map<string, Task[]> = new Map();
+  const recurringByTemplate: Map<string, Task[]> = new Map();
+
+  const templateKey = (task: Task): string => {
+    const stableId = task.originalTaskId ?? task.id;
+    return `${task.goal_id || "no-goal"}-${stableId}`;
+  };
 
   for (const task of tasks) {
     if (task.is_recurring) {
-      const key = `${task.goal_id || "no-goal"}-${task.title}`;
-      if (!recurringByTitle.has(key)) {
-        recurringByTitle.set(key, []);
+      const key = templateKey(task);
+      if (!recurringByTemplate.has(key)) {
+        recurringByTemplate.set(key, []);
       }
-      recurringByTitle.get(key)!.push(task);
+      recurringByTemplate.get(key)!.push(task);
     } else {
       nonRecurring.push(task);
     }
   }
 
-  // For recurring tasks, only keep the first (sorted by scheduled_at)
   const condensed: Task[] = [];
-  for (const [, taskGroup] of recurringByTitle) {
-    taskGroup.sort((a, b) => {
-      const aTime = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
-      const bTime = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
-      return aTime - bTime;
-    });
-    // Add first occurrence
-    condensed.push(taskGroup[0]);
+  for (const [, taskGroup] of recurringByTemplate) {
+    taskGroup.sort((a, b) => compareOccurrencesForCondense(a, b));
+    condensed.push(taskGroup[0]!);
   }
 
   return [...nonRecurring, ...condensed];
