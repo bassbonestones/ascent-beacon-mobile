@@ -74,6 +74,7 @@ describe("GoalDetailView", () => {
   const mockOnBack = jest.fn();
   const mockOnDelete = jest.fn();
   const mockOnStatusChange = jest.fn();
+  const mockOnPause = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -87,6 +88,7 @@ describe("GoalDetailView", () => {
         onBack={mockOnBack}
         onDelete={mockOnDelete}
         onStatusChange={mockOnStatusChange}
+        onPause={mockOnPause}
       />,
     );
     expect(screen.getByText("My Goal Title")).toBeTruthy();
@@ -292,8 +294,24 @@ describe("GoalDetailView", () => {
         onBack={mockOnBack}
         onDelete={mockOnDelete}
         onStatusChange={mockOnStatusChange}
+        onPause={mockOnPause}
       />,
     );
     expect(screen.queryByText(/Progress may be inaccurate/)).toBeNull();
+  });
+
+  it("shows pause action for active goals", () => {
+    const goal = createMockGoal({ record_state: "active" });
+    render(
+      <GoalDetailView
+        goal={goal}
+        onBack={mockOnBack}
+        onDelete={mockOnDelete}
+        onStatusChange={mockOnStatusChange}
+        onPause={mockOnPause}
+      />,
+    );
+    fireEvent.press(screen.getByLabelText("Pause goal"));
+    expect(mockOnPause).toHaveBeenCalledWith(goal);
   });
 });

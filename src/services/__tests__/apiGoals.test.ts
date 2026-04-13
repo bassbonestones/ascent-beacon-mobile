@@ -66,6 +66,14 @@ describe("apiGoals", () => {
         "/goals?status=completed&include_completed=true&parent_only=false",
       );
     });
+
+    it("should add paused and archived include params", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ goals: [] });
+      await api.getGoals({ include_paused: true, include_archived: true });
+      expect(api.request).toHaveBeenCalledWith(
+        "/goals?include_paused=true&include_archived=true",
+      );
+    });
   });
 
   describe("getGoal", () => {
@@ -180,6 +188,47 @@ describe("apiGoals", () => {
       expect(api.request).toHaveBeenCalledWith("/goals/reschedule", {
         method: "POST",
         body: JSON.stringify(request),
+      });
+    });
+  });
+
+  describe("archive endpoints", () => {
+    it("should call archive-preview endpoint", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({
+        goal_id: "g1",
+        subtree_goal_ids: ["g1"],
+        tasks_requiring_resolution: [],
+      });
+      await api.previewArchive("g1");
+      expect(api.request).toHaveBeenCalledWith("/goals/g1/archive-preview");
+    });
+
+    it("should call archive endpoint with payload", async () => {
+      const payload = {
+        tracking_mode: "failed" as const,
+        task_resolutions: [{ task_id: "t1", action: "pause_task" as const }],
+      };
+      (api.request as jest.Mock).mockResolvedValueOnce({ id: "g1" });
+      await api.archiveGoal("g1", payload);
+      expect(api.request).toHaveBeenCalledWith("/goals/g1/archive", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    });
+
+    it("should call unpause endpoint", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ id: "g1" });
+      await api.unpauseGoal("g1");
+      expect(api.request).toHaveBeenCalledWith("/goals/g1/unpause", {
+        method: "POST",
+      });
+    });
+
+    it("should call pause endpoint", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ id: "g1" });
+      await api.pauseGoal("g1");
+      expect(api.request).toHaveBeenCalledWith("/goals/g1/pause", {
+        method: "POST",
       });
     });
   });

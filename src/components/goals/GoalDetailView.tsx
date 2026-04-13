@@ -12,6 +12,9 @@ interface GoalDetailViewProps {
   onBack: () => void;
   onDelete: (goal: Goal) => void;
   onStatusChange: (goal: Goal, status: GoalStatus) => void;
+  onArchive?: (goal: Goal) => void;
+  onPause?: (goal: Goal) => void;
+  onUnpause?: (goal: Goal) => void;
 }
 
 const STATUSES: GoalStatus[] = [
@@ -26,7 +29,14 @@ export function GoalDetailView({
   onBack,
   onDelete,
   onStatusChange,
+  onArchive = () => {},
+  onPause = () => {},
+  onUnpause = () => {},
 }: GoalDetailViewProps): React.ReactElement {
+  const stateLabel = goal.record_state ? goal.record_state.toUpperCase() : "ACTIVE";
+  const isArchived = goal.record_state === "archived";
+  const isPaused = goal.record_state === "paused";
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -43,8 +53,11 @@ export function GoalDetailView({
           onPress={() => onDelete(goal)}
           accessibilityLabel="Delete goal"
           accessibilityRole="button"
+          disabled={isArchived}
         >
-          <Text style={styles.deleteButton}>Delete</Text>
+          <Text style={[styles.deleteButton, isArchived && styles.disabledActionText]}>
+            Delete
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -60,6 +73,11 @@ export function GoalDetailView({
           <Text style={styles.statusTextLarge}>
             {getStatusLabel(goal.status)}
           </Text>
+        </View>
+
+        <View style={styles.detailSection}>
+          <Text style={styles.detailLabel}>Record State</Text>
+          <Text style={styles.detailText}>{stateLabel}</Text>
         </View>
 
         {goal.description && (
@@ -101,6 +119,7 @@ export function GoalDetailView({
                 onPress={() => onStatusChange(goal, status)}
                 accessibilityLabel={`Set status to ${getStatusLabel(status)}`}
                 accessibilityRole="button"
+                disabled={isArchived}
               >
                 <Text
                   style={[
@@ -112,6 +131,48 @@ export function GoalDetailView({
                 </Text>
               </TouchableOpacity>
             ))}
+          </View>
+        </View>
+
+        <View style={styles.detailSection}>
+          <Text style={styles.detailLabel}>Visibility Controls</Text>
+          <View style={styles.statusButtons}>
+            <TouchableOpacity
+              style={styles.statusButton}
+              onPress={() => onArchive(goal)}
+              accessibilityLabel="Archive goal"
+              accessibilityRole="button"
+              disabled={isArchived}
+            >
+              <Text
+                style={[
+                  styles.statusButtonText,
+                  isArchived && styles.disabledActionText,
+                ]}
+              >
+                Archive (Stop Tracking)
+              </Text>
+            </TouchableOpacity>
+            {!isArchived && !isPaused && (
+              <TouchableOpacity
+                style={styles.statusButton}
+                onPress={() => onPause(goal)}
+                accessibilityLabel="Pause goal"
+                accessibilityRole="button"
+              >
+                <Text style={styles.statusButtonText}>Pause</Text>
+              </TouchableOpacity>
+            )}
+            {isPaused && (
+              <TouchableOpacity
+                style={styles.statusButton}
+                onPress={() => onUnpause(goal)}
+                accessibilityLabel="Unpause goal"
+                accessibilityRole="button"
+              >
+                <Text style={styles.statusButtonText}>Unpause</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 

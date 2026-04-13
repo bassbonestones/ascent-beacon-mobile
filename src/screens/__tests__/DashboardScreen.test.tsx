@@ -57,7 +57,7 @@ describe("DashboardScreen", () => {
         navigation={mockNavigation}
       />,
     );
-    expect(getByText("Welcome back")).toBeTruthy();
+    expect(getByText("Welcome back")).toBeOnTheScreen();
   });
 
   it("displays user display name", () => {
@@ -68,7 +68,7 @@ describe("DashboardScreen", () => {
         navigation={mockNavigation}
       />,
     );
-    expect(getByText("John Doe")).toBeTruthy();
+    expect(getByText("John Doe")).toBeOnTheScreen();
   });
 
   it("displays fallback to email when no display name", () => {
@@ -84,7 +84,7 @@ describe("DashboardScreen", () => {
       />,
     );
     // Component shows email as fallback when display_name is not set
-    expect(getByText("test@example.com")).toBeTruthy();
+    expect(getByText("test@example.com")).toBeOnTheScreen();
   });
 
   it("displays User when no name or email", () => {
@@ -99,7 +99,7 @@ describe("DashboardScreen", () => {
         navigation={mockNavigation}
       />,
     );
-    expect(getByText("User")).toBeTruthy();
+    expect(getByText("User")).toBeOnTheScreen();
   });
 
   it("renders logout button", () => {
@@ -110,7 +110,7 @@ describe("DashboardScreen", () => {
         navigation={mockNavigation}
       />,
     );
-    expect(getByText("Logout")).toBeTruthy();
+    expect(getByText("Logout")).toBeOnTheScreen();
   });
 
   it("calls onLogout when logout button is pressed", () => {
@@ -133,8 +133,8 @@ describe("DashboardScreen", () => {
         navigation={mockNavigation}
       />,
     );
-    expect(getByText("Ascent Beacon")).toBeTruthy();
-    expect(getByText("Navigate your climb")).toBeTruthy();
+    expect(getByText("Ascent Beacon")).toBeOnTheScreen();
+    expect(getByText("Navigate your climb")).toBeOnTheScreen();
   });
 
   it("renders Values module", () => {
@@ -145,8 +145,8 @@ describe("DashboardScreen", () => {
         navigation={mockNavigation}
       />,
     );
-    expect(getByText("Values")).toBeTruthy();
-    expect(getByText("Discover what matters")).toBeTruthy();
+    expect(getByText("Values")).toBeOnTheScreen();
+    expect(getByText("Discover what matters")).toBeOnTheScreen();
   });
 
   it("renders Priorities module", () => {
@@ -157,8 +157,8 @@ describe("DashboardScreen", () => {
         navigation={mockNavigation}
       />,
     );
-    expect(getByText("Priorities")).toBeTruthy();
-    expect(getByText("Anchor what's important")).toBeTruthy();
+    expect(getByText("Priorities")).toBeOnTheScreen();
+    expect(getByText("Anchor what's important")).toBeOnTheScreen();
   });
 
   it("renders Alignment module as coming soon", () => {
@@ -169,7 +169,7 @@ describe("DashboardScreen", () => {
         navigation={mockNavigation}
       />,
     );
-    expect(getByText("Alignment")).toBeTruthy();
+    expect(getByText("Alignment")).toBeOnTheScreen();
     expect(getAllByText("Coming soon").length).toBeGreaterThan(0);
   });
 
@@ -217,7 +217,7 @@ describe("DashboardScreen", () => {
         navigation={mockNavigation}
       />,
     );
-    expect(getByText(/Most stress isn't from doing too much/)).toBeTruthy();
+    expect(getByText(/Most stress isn't from doing too much/)).toBeOnTheScreen();
   });
 
   it("does not show gear icon when time machine is disabled", () => {
@@ -243,7 +243,7 @@ describe("DashboardScreen", () => {
         navigation={mockNavigation}
       />,
     );
-    expect(getByLabelText("Open Time Machine")).toBeTruthy();
+    expect(getByLabelText("Open Time Machine")).toBeOnTheScreen();
   });
 
   it("enables time machine on triple tap of title", () => {

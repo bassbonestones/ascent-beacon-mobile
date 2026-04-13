@@ -574,6 +574,11 @@ export interface Goal {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+  /** Phase 4j — false when no priority links (alignment warning). */
+  is_aligned_with_priorities?: boolean;
+  record_state?: string;
+  archived_at?: string | null;
+  archive_tracking_mode?: string | null;
   priorities: GoalPriorityInfo[];
 }
 
@@ -619,6 +624,35 @@ export interface RescheduleGoalsRequest {
   goal_updates: GoalRescheduleItem[];
 }
 
+export interface ArchivePreviewTaskItem {
+  task_id: string;
+  goal_id?: string | null;
+  title: string;
+}
+
+export interface GoalArchivePreviewResponse {
+  goal_id: string;
+  subtree_goal_ids: string[];
+  tasks_requiring_resolution: ArchivePreviewTaskItem[];
+}
+
+export type GoalArchiveResolutionAction =
+  | "reassign"
+  | "keep_unaligned"
+  | "pause_task"
+  | "archive_task";
+
+export interface GoalArchiveTaskResolution {
+  task_id: string;
+  action: GoalArchiveResolutionAction;
+  goal_id?: string;
+}
+
+export interface ArchiveGoalRequest {
+  tracking_mode: "failed" | "ignored";
+  task_resolutions: GoalArchiveTaskResolution[];
+}
+
 export interface UseGoalsReturn {
   goals: Goal[];
   loading: boolean;
@@ -628,6 +662,10 @@ export interface UseGoalsReturn {
   updateGoal: (id: string, data: UpdateGoalRequest) => Promise<Goal>;
   updateGoalStatus: (id: string, status: GoalStatus) => Promise<Goal>;
   deleteGoal: (id: string) => Promise<void>;
+  previewArchive: (goalId: string) => Promise<GoalArchivePreviewResponse>;
+  archiveGoal: (goalId: string, request: ArchiveGoalRequest) => Promise<Goal>;
+  pauseGoal: (goalId: string) => Promise<Goal>;
+  unpauseGoal: (goalId: string) => Promise<Goal>;
 }
 
 // ============================================================================
@@ -669,6 +707,8 @@ export interface Task {
   description: string | null;
   duration_minutes: number;
   status: TaskStatus;
+  record_state?: string;
+  unaligned_execution_acknowledged_at?: string | null;
   // Scheduling: scheduled_date for date-only, scheduled_at for timed
   scheduled_date: string | null; // YYYY-MM-DD, for date-only tasks
   scheduled_at: string | null; // ISO datetime string, for timed tasks
@@ -981,6 +1021,8 @@ export interface UseTasksReturn {
     localDate?: string,
   ) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
+  pauseTask: (id: string) => Promise<Task>;
+  unpauseTask: (id: string) => Promise<Task>;
   // Phase 4e: Anytime tasks
   reorderTask: (id: string, newPosition: number) => Promise<Task>;
 }

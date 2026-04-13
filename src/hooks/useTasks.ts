@@ -17,6 +17,8 @@ export interface UseTasksOptions {
   goalId?: string;
   status?: string;
   includeCompleted?: boolean;
+  includePaused?: boolean;
+  includeArchived?: boolean;
   daysAhead?: number; // How many days ahead to load completion data (default: 14)
   clientToday?: Date; // Override "today" for time travel support (default: new Date())
 }
@@ -61,6 +63,8 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
         days_ahead: options.daysAhead,
         include_dependency_summary: true,
         client_timezone: clientTimezone,
+        include_paused: options.includePaused,
+        include_archived: options.includeArchived,
       });
       setTasks(response.tasks);
       setPendingCount(response.pending_count);
@@ -76,6 +80,8 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
     options.goalId,
     options.status,
     options.includeCompleted,
+    options.includePaused,
+    options.includeArchived,
     options.daysAhead,
     clientTodayStr,
     clientTimezone,
@@ -249,6 +255,34 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
     [tasks],
   );
 
+  const unpauseTask = useCallback(
+    async (id: string): Promise<Task> => {
+      try {
+        const updated = await api.unpauseTask(id);
+        await fetchTasks();
+        return updated;
+      } catch (err) {
+        showAlert("Error", "Failed to unpause task");
+        throw err instanceof Error ? err : new Error(String(err));
+      }
+    },
+    [fetchTasks],
+  );
+
+  const pauseTask = useCallback(
+    async (id: string): Promise<Task> => {
+      try {
+        const updated = await api.pauseTask(id);
+        await fetchTasks();
+        return updated;
+      } catch (err) {
+        showAlert("Error", "Failed to pause task");
+        throw err instanceof Error ? err : new Error(String(err));
+      }
+    },
+    [fetchTasks],
+  );
+
   const reorderTask = useCallback(
     async (id: string, newPosition: number): Promise<Task> => {
       // Optimistic update: reorder locally first for instant feedback
@@ -324,6 +358,8 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
     skipTask,
     reopenTask,
     deleteTask,
+    pauseTask,
+    unpauseTask,
     reorderTask,
   };
 }

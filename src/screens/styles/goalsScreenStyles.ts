@@ -45,6 +45,9 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     color: "#EF4444",
   },
+  disabledActionText: {
+    color: "#6B7280",
+  },
   addButton: {
     backgroundColor: "#3B82F6",
     paddingHorizontal: 12,
@@ -56,6 +59,9 @@ export const styles = StyleSheet.create({
     fontWeight: "600",
   },
   filterRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
@@ -266,6 +272,30 @@ export const styles = StyleSheet.create({
   warningBoxText: {
     fontSize: 14,
     color: "#FCD34D",
+  },
+  archiveTaskCard: {
+    borderWidth: 1,
+    borderColor: "#374151",
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+  },
+  archiveTaskTitle: {
+    color: "#F9FAFB",
+    fontSize: 15,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  archiveTaskChoice: {
+    color: "#9CA3AF",
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  archiveTargetList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
   },
 });
 

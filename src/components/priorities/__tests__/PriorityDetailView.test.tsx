@@ -89,7 +89,7 @@ describe("PriorityDetailView", () => {
 
   it("renders priority title", () => {
     render(<PriorityDetailView {...defaultProps} />);
-    expect(screen.getByText("Test Priority")).toBeTruthy();
+    expect(screen.getByText("Test Priority")).toBeOnTheScreen();
   });
 
   it("returns null when no active revision", () => {
@@ -102,12 +102,12 @@ describe("PriorityDetailView", () => {
 
   it("renders priority details header", () => {
     render(<PriorityDetailView {...defaultProps} />);
-    expect(screen.getByText("Priority Details")).toBeTruthy();
+    expect(screen.getByText("Priority Details")).toBeOnTheScreen();
   });
 
   it("shows importance score", () => {
     render(<PriorityDetailView {...defaultProps} />);
-    expect(screen.getByText("3/5")).toBeTruthy();
+    expect(screen.getByText("3/5")).toBeOnTheScreen();
   });
 
   it("calls onStashToggle when stash button pressed", () => {
@@ -126,12 +126,12 @@ describe("PriorityDetailView", () => {
     render(
       <PriorityDetailView {...defaultProps} priority={anchoredPriority} />,
     );
-    expect(screen.getByText("🔒 This priority is anchored")).toBeTruthy();
+    expect(screen.getByText("🔒 This priority is anchored")).toBeOnTheScreen();
   });
 
   it("shows unstash label for stashed priorities", () => {
     const stashedPriority = createMockPriority({ is_stashed: true });
     render(<PriorityDetailView {...defaultProps} priority={stashedPriority} />);
-    expect(screen.getByLabelText("Unstash priority")).toBeTruthy();
+    expect(screen.getByLabelText("Unstash priority")).toBeOnTheScreen();
   });
 });

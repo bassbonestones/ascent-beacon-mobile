@@ -12,6 +12,10 @@ jest.mock("../../services/api", () => ({
     updateGoal: jest.fn(),
     updateGoalStatus: jest.fn(),
     deleteGoal: jest.fn(),
+    previewArchive: jest.fn(),
+    archiveGoal: jest.fn(),
+    pauseGoal: jest.fn(),
+    unpauseGoal: jest.fn(),
   },
 }));
 
@@ -51,6 +55,14 @@ describe("useGoals", () => {
       goals: mockGoals,
       reschedule_count: 0,
     });
+    mockedApi.previewArchive.mockResolvedValue({
+      goal_id: "g1",
+      subtree_goal_ids: ["g1"],
+      tasks_requiring_resolution: [],
+    });
+    mockedApi.archiveGoal.mockResolvedValue(mockGoals[0]);
+    mockedApi.pauseGoal.mockResolvedValue(mockGoals[0]);
+    mockedApi.unpauseGoal.mockResolvedValue(mockGoals[0]);
   });
 
   describe("initial fetch", () => {
@@ -84,6 +96,8 @@ describe("useGoals", () => {
           includeCompleted: true,
           parentOnly: true,
           priorityId: "p1",
+          includePaused: true,
+          includeArchived: true,
         }),
       );
 
@@ -92,6 +106,8 @@ describe("useGoals", () => {
           include_completed: true,
           parent_only: true,
           priority_id: "p1",
+          include_paused: true,
+          include_archived: true,
         });
       });
     });
@@ -281,6 +297,53 @@ describe("useGoals", () => {
 
       expect(mockedApi.getGoals).toHaveBeenCalled();
       expect(result.current.goals).toEqual([]);
+    });
+  });
+
+  describe("archive and visibility helpers", () => {
+    it("previews archive requirements", async () => {
+      const { result } = renderHook(() => useGoals());
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      await act(async () => {
+        await result.current.previewArchive("g1");
+      });
+      expect(mockedApi.previewArchive).toHaveBeenCalledWith("g1");
+    });
+
+    it("archives goal and refetches", async () => {
+      const { result } = renderHook(() => useGoals());
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      mockedApi.getGoals.mockClear();
+      await act(async () => {
+        await result.current.archiveGoal("g1", {
+          tracking_mode: "failed",
+          task_resolutions: [],
+        });
+      });
+      expect(mockedApi.archiveGoal).toHaveBeenCalled();
+      expect(mockedApi.getGoals).toHaveBeenCalled();
+    });
+
+    it("unpauses goal and refetches", async () => {
+      const { result } = renderHook(() => useGoals());
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      mockedApi.getGoals.mockClear();
+      await act(async () => {
+        await result.current.unpauseGoal("g1");
+      });
+      expect(mockedApi.unpauseGoal).toHaveBeenCalledWith("g1");
+      expect(mockedApi.getGoals).toHaveBeenCalled();
+    });
+
+    it("pauses goal and refetches", async () => {
+      const { result } = renderHook(() => useGoals());
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      mockedApi.getGoals.mockClear();
+      await act(async () => {
+        await result.current.pauseGoal("g1");
+      });
+      expect(mockedApi.pauseGoal).toHaveBeenCalledWith("g1");
+      expect(mockedApi.getGoals).toHaveBeenCalled();
     });
   });
 });

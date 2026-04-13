@@ -139,6 +139,8 @@ export default function TasksScreen({
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
+  const [includePaused, setIncludePaused] = useState(false);
+  const [includeArchived, setIncludeArchived] = useState(false);
   const [skipModalTask, setSkipModalTask] = useState<Task | null>(null);
   const [overdueModalTask, setOverdueModalTask] = useState<Task | null>(null);
   const [condenseRecurring, setCondenseRecurring] = useState(false);
@@ -237,12 +239,16 @@ export default function TasksScreen({
     skipTask,
     reopenTask,
     deleteTask,
+    pauseTask,
+    unpauseTask,
     reorderTask,
   } = useTasks({
     status: apiStatusFilter,
     includeCompleted: apiIncludeCompleted,
     daysAhead: effectiveDaysAhead,
     clientToday: getCurrentDate(), // Support time travel
+    includePaused,
+    includeArchived,
   });
 
   const onDependencyFlowFinished = useCallback(() => {
@@ -1281,9 +1287,13 @@ export default function TasksScreen({
   const handleDelete = useCallback(
     async (task: Task) => {
       // Build confirmation message - warn about completion history for recurring tasks
-      let message = `Delete "${task.title}"?`;
+      let message =
+        `Delete "${task.title}"?\n\n` +
+        "Delete can be hard or soft depending on dependencies. Soft-deleted tasks are not recoverable via restore.";
       if (task.is_recurring) {
-        message = `Delete "${task.title}" and all its completion history?\n\nThis recurring task's entire history will be permanently removed.`;
+        message =
+          `Delete "${task.title}" and all its completion history?\n\n` +
+          "This recurring task's entire history will be permanently removed. Restore is not supported.";
       }
 
       if (await showConfirm("Delete Task", message)) {
@@ -1299,6 +1309,41 @@ export default function TasksScreen({
       }
     },
     [deleteTask],
+  );
+
+  const handleUnpause = useCallback(
+    async (task: Task) => {
+      try {
+        const taskId = task.originalTaskId || task.id;
+        await unpauseTask(taskId);
+        setSelectedTask(null);
+        setScreenMode("list");
+      } catch {
+        // Error handled in hook
+      }
+    },
+    [unpauseTask],
+  );
+
+  const handlePause = useCallback(
+    async (task: Task) => {
+      const confirmed = await showConfirm(
+        "Pause Task",
+        `Pause "${task.title}"? It will be hidden from active execution until unpaused.`,
+      );
+      if (!confirmed) {
+        return;
+      }
+      try {
+        const taskId = task.originalTaskId || task.id;
+        await pauseTask(taskId);
+        setSelectedTask(null);
+        setScreenMode("list");
+      } catch {
+        // Error handled in hook
+      }
+    },
+    [pauseTask],
   );
 
   const affectedSkipCascadeRows = useMemo(
@@ -1431,6 +1476,8 @@ export default function TasksScreen({
           onComplete={handleComplete}
           onSkip={handleSkip}
           onReopen={handleReopen}
+          onPause={handlePause}
+          onUnpause={handleUnpause}
           onDelete={handleDelete}
           onEdit={handleEdit}
           onViewTracking={(task) => {
@@ -1572,6 +1619,41 @@ export default function TasksScreen({
             </TouchableOpacity>
           ),
         )}
+      </View>
+      <View style={styles.filterRow}>
+        <TouchableOpacity
+          style={[styles.filterToggle, includePaused && styles.filterToggleActive]}
+          onPress={() => setIncludePaused(!includePaused)}
+          accessibilityLabel={includePaused ? "Hide paused tasks" : "Include paused tasks"}
+        >
+          <Text
+            style={[
+              styles.filterToggleText,
+              includePaused && styles.filterToggleTextActive,
+            ]}
+          >
+            {includePaused ? "✓ Paused Included" : "Include Paused"}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.filterToggle,
+            includeArchived && styles.filterToggleActive,
+          ]}
+          onPress={() => setIncludeArchived(!includeArchived)}
+          accessibilityLabel={
+            includeArchived ? "Hide archived tasks" : "Include archived tasks"
+          }
+        >
+          <Text
+            style={[
+              styles.filterToggleText,
+              includeArchived && styles.filterToggleTextActive,
+            ]}
+          >
+            {includeArchived ? "✓ Archived Included" : "Include Archived"}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {loading && !loadingMore ? (

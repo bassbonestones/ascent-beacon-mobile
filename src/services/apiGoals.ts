@@ -7,6 +7,8 @@ import type {
   UpdateGoalStatusRequest,
   SetPriorityLinksRequest,
   RescheduleGoalsRequest,
+  GoalArchivePreviewResponse,
+  ArchiveGoalRequest,
 } from "../types";
 import type ApiServiceBase from "./apiBase";
 
@@ -33,6 +35,10 @@ export interface GoalsMethods {
 
   // Bulk operations
   rescheduleGoals(request: RescheduleGoalsRequest): Promise<GoalListResponse>;
+  previewArchive(goalId: string): Promise<GoalArchivePreviewResponse>;
+  archiveGoal(goalId: string, request: ArchiveGoalRequest): Promise<Goal>;
+  pauseGoal(goalId: string): Promise<Goal>;
+  unpauseGoal(goalId: string): Promise<Goal>;
 }
 
 export interface GoalsListParams {
@@ -41,6 +47,8 @@ export interface GoalsListParams {
   include_completed?: boolean;
   parent_only?: boolean;
   past_target_date?: boolean;
+  include_paused?: boolean;
+  include_archived?: boolean;
 }
 
 /**
@@ -72,6 +80,15 @@ export const goalsMethods = <TBase extends Constructor<ApiServiceBase>>(
         searchParams.append(
           "past_target_date",
           String(params.past_target_date),
+        );
+      }
+      if (params.include_paused !== undefined) {
+        searchParams.append("include_paused", String(params.include_paused));
+      }
+      if (params.include_archived !== undefined) {
+        searchParams.append(
+          "include_archived",
+          String(params.include_archived),
         );
       }
 
@@ -156,6 +173,31 @@ export const goalsMethods = <TBase extends Constructor<ApiServiceBase>>(
       return await this.request<GoalListResponse>("/goals/reschedule", {
         method: "POST",
         body: JSON.stringify(request),
+      });
+    }
+
+    async previewArchive(goalId: string): Promise<GoalArchivePreviewResponse> {
+      return await this.request<GoalArchivePreviewResponse>(
+        `/goals/${goalId}/archive-preview`,
+      );
+    }
+
+    async archiveGoal(goalId: string, request: ArchiveGoalRequest): Promise<Goal> {
+      return await this.request<Goal>(`/goals/${goalId}/archive`, {
+        method: "POST",
+        body: JSON.stringify(request),
+      });
+    }
+
+    async pauseGoal(goalId: string): Promise<Goal> {
+      return await this.request<Goal>(`/goals/${goalId}/pause`, {
+        method: "POST",
+      });
+    }
+
+    async unpauseGoal(goalId: string): Promise<Goal> {
+      return await this.request<Goal>(`/goals/${goalId}/unpause`, {
+        method: "POST",
       });
     }
   };

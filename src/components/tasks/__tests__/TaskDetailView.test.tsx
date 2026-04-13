@@ -41,6 +41,8 @@ describe("TaskDetailView", () => {
     onComplete: jest.fn(),
     onSkip: jest.fn(),
     onReopen: jest.fn(),
+    onPause: jest.fn(),
+    onUnpause: jest.fn(),
     onDelete: jest.fn(),
     onEdit: jest.fn(),
   };

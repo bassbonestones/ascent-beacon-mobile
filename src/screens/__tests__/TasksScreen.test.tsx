@@ -120,6 +120,8 @@ const defaultTasksHook: UseTasksReturn = {
   skipTask: jest.fn(),
   reopenTask: jest.fn(),
   deleteTask: jest.fn(),
+  pauseTask: jest.fn(),
+  unpauseTask: jest.fn(),
   reorderTask: jest.fn(),
 };
 
@@ -132,6 +134,10 @@ const defaultGoalsHook: UseGoalsReturn = {
   updateGoal: jest.fn(),
   updateGoalStatus: jest.fn(),
   deleteGoal: jest.fn(),
+  previewArchive: jest.fn(),
+  archiveGoal: jest.fn(),
+  pauseGoal: jest.fn(),
+  unpauseGoal: jest.fn(),
 };
 
 describe("TasksScreen", () => {
@@ -670,9 +676,28 @@ describe("TasksScreen", () => {
       await waitFor(() => {
         expect(mockedShowConfirm).toHaveBeenCalledWith(
           "Delete Task",
-          'Delete "Delete Me"?',
+          expect.stringContaining('Delete "Delete Me"?'),
         );
         expect(deleteTask).toHaveBeenCalledWith("t-1");
+      });
+    });
+
+    it("pauses task when confirmed", async () => {
+      const pauseTask = jest.fn().mockResolvedValue(undefined);
+      const tasks = [createMockTask({ id: "t-1", title: "Pause Me" })];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks,
+        pauseTask,
+      });
+      mockedShowConfirm.mockResolvedValue(true);
+
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Task: Pause Me"));
+      fireEvent.press(screen.getByLabelText("Pause task"));
+
+      await waitFor(() => {
+        expect(pauseTask).toHaveBeenCalledWith("t-1");
       });
     });
   });

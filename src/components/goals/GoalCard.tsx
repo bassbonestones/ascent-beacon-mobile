@@ -13,6 +13,11 @@ interface GoalCardProps {
 }
 
 export function GoalCard({ goal, onPress }: GoalCardProps): React.ReactElement {
+  const showAlignmentWarning =
+    goal.is_aligned_with_priorities === false ||
+    (goal.is_aligned_with_priorities === undefined &&
+      goal.priorities.length === 0);
+
   return (
     <TouchableOpacity
       style={styles.goalCard}
@@ -40,6 +45,11 @@ export function GoalCard({ goal, onPress }: GoalCardProps): React.ReactElement {
       )}
       {goal.target_date && (
         <Text style={styles.targetDate}>Target: {goal.target_date}</Text>
+      )}
+      {showAlignmentWarning && (
+        <Text style={styles.warningText}>
+          ⚠️ This goal isn&apos;t linked to any priority
+        </Text>
       )}
       {goal.has_incomplete_breakdown && goal.progress_cached === 0 && (
         <Text style={styles.warningText}>⚠️ No tasks defined yet</Text>

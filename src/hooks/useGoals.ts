@@ -3,6 +3,8 @@ import api from "../services/api";
 import { showAlert } from "../utils/alert";
 import type {
   Goal,
+  ArchiveGoalRequest,
+  GoalArchivePreviewResponse,
   CreateGoalRequest,
   UpdateGoalRequest,
   GoalStatus,
@@ -13,6 +15,8 @@ export interface UseGoalsOptions {
   includeCompleted?: boolean;
   parentOnly?: boolean;
   priorityId?: string;
+  includePaused?: boolean;
+  includeArchived?: boolean;
 }
 
 /**
@@ -31,6 +35,8 @@ export function useGoals(options: UseGoalsOptions = {}): UseGoalsReturn {
         include_completed: options.includeCompleted,
         parent_only: options.parentOnly,
         priority_id: options.priorityId,
+        include_paused: options.includePaused,
+        include_archived: options.includeArchived,
       });
       setGoals(response.goals);
     } catch (err) {
@@ -40,7 +46,13 @@ export function useGoals(options: UseGoalsOptions = {}): UseGoalsReturn {
     } finally {
       setLoading(false);
     }
-  }, [options.includeCompleted, options.parentOnly, options.priorityId]);
+  }, [
+    options.includeCompleted,
+    options.parentOnly,
+    options.priorityId,
+    options.includePaused,
+    options.includeArchived,
+  ]);
 
   useEffect(() => {
     fetchGoals();
@@ -101,6 +113,40 @@ export function useGoals(options: UseGoalsOptions = {}): UseGoalsReturn {
     }
   }, []);
 
+  const previewArchive = useCallback(
+    async (goalId: string): Promise<GoalArchivePreviewResponse> => {
+      return await api.previewArchive(goalId);
+    },
+    [],
+  );
+
+  const archiveGoal = useCallback(
+    async (goalId: string, request: ArchiveGoalRequest): Promise<Goal> => {
+      const archived = await api.archiveGoal(goalId, request);
+      await fetchGoals();
+      return archived;
+    },
+    [fetchGoals],
+  );
+
+  const pauseGoal = useCallback(
+    async (goalId: string): Promise<Goal> => {
+      const updated = await api.pauseGoal(goalId);
+      await fetchGoals();
+      return updated;
+    },
+    [fetchGoals],
+  );
+
+  const unpauseGoal = useCallback(
+    async (goalId: string): Promise<Goal> => {
+      const updated = await api.unpauseGoal(goalId);
+      await fetchGoals();
+      return updated;
+    },
+    [fetchGoals],
+  );
+
   return {
     goals,
     loading,
@@ -110,6 +156,10 @@ export function useGoals(options: UseGoalsOptions = {}): UseGoalsReturn {
     updateGoal,
     updateGoalStatus,
     deleteGoal,
+    previewArchive,
+    archiveGoal,
+    pauseGoal,
+    unpauseGoal,
   };
 }
 

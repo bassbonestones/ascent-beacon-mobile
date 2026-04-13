@@ -120,6 +120,16 @@ describe("apiTasks", () => {
         "/tasks?client_today=2026-04-07&include_dependency_summary=true&client_timezone=America%2FChicago",
       );
     });
+
+    it("should include paused and archived flags when set", async () => {
+      await api.getTasks({
+        include_paused: true,
+        include_archived: true,
+      });
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks?include_paused=true&include_archived=true",
+      );
+    });
   });
 
   describe("getTask", () => {
@@ -175,6 +185,26 @@ describe("apiTasks", () => {
       await api.deleteTask("t1");
       expect(api.request).toHaveBeenCalledWith("/tasks/t1", {
         method: "DELETE",
+      });
+    });
+  });
+
+  describe("unpauseTask", () => {
+    it("should call request with POST to unpause endpoint", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ id: "t1" });
+      await api.unpauseTask("t1");
+      expect(api.request).toHaveBeenCalledWith("/tasks/t1/unpause", {
+        method: "POST",
+      });
+    });
+  });
+
+  describe("pauseTask", () => {
+    it("should call request with POST to pause endpoint", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({ id: "t1" });
+      await api.pauseTask("t1");
+      expect(api.request).toHaveBeenCalledWith("/tasks/t1/pause", {
+        method: "POST",
       });
     });
   });

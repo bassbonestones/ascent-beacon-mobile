@@ -14,6 +14,8 @@ interface TaskDetailViewProps {
   onComplete: (task: Task) => void;
   onSkip: (task: Task) => void;
   onReopen: (task: Task) => void;
+  onPause: (task: Task) => void;
+  onUnpause: (task: Task) => void;
   onDelete: (task: Task) => void;
   onEdit: (task: Task) => void;
   onViewTracking?: (task: Task) => void;
@@ -360,6 +362,8 @@ export function TaskDetailView({
   onComplete,
   onSkip,
   onReopen,
+  onPause,
+  onUnpause,
   onDelete,
   onEdit,
   onViewTracking,
@@ -373,6 +377,8 @@ export function TaskDetailView({
     !task.skipped_for_today;
   const isCompleted = task.status === "completed" || task.completed_for_today;
   const isSkipped = task.status === "skipped" || task.skipped_for_today;
+  const isArchived = task.record_state === "archived";
+  const isPaused = task.record_state === "paused";
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
@@ -518,6 +524,12 @@ export function TaskDetailView({
               {formatDate(task.created_at)}
             </Text>
           </View>
+          <View style={styles.detailMetaRow}>
+            <Text style={styles.detailMetaLabel}>Record State</Text>
+            <Text style={styles.detailMetaValue}>
+              {(task.record_state || "active").toUpperCase()}
+            </Text>
+          </View>
         </View>
 
         {/* Phase 4i: Dependencies */}
@@ -540,11 +552,12 @@ export function TaskDetailView({
             onPress={() => onEdit(task)}
             accessibilityLabel="Edit task"
             accessibilityRole="button"
+            disabled={isArchived}
           >
             <Text style={styles.actionButtonText}>✏️ Edit Task</Text>
           </TouchableOpacity>
 
-          {isPending && (
+          {isPending && !isArchived && !isPaused && (
             <>
               <TouchableOpacity
                 style={[styles.actionButton, styles.completeButton]}
@@ -577,11 +590,34 @@ export function TaskDetailView({
             </TouchableOpacity>
           )}
 
+          {!isArchived && !isPaused && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.skipButton]}
+              onPress={() => onPause(task)}
+              accessibilityLabel="Pause task"
+              accessibilityRole="button"
+            >
+              <Text style={styles.actionButtonText}>Pause Task</Text>
+            </TouchableOpacity>
+          )}
+
+          {isPaused && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.reopenButton]}
+              onPress={() => onUnpause(task)}
+              accessibilityLabel="Unpause task"
+              accessibilityRole="button"
+            >
+              <Text style={styles.actionButtonText}>↩ Unpause Task</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={[styles.actionButton, styles.deleteButton]}
             onPress={() => onDelete(task)}
             accessibilityLabel="Delete task"
             accessibilityRole="button"
+            disabled={isArchived}
           >
             <Text style={styles.deleteButtonText}>Delete Task</Text>
           </TouchableOpacity>

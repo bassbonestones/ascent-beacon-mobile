@@ -22,6 +22,8 @@ jest.mock("../../services/api", () => ({
     skipTask: jest.fn(),
     reopenTask: jest.fn(),
     deleteTask: jest.fn(),
+    pauseTask: jest.fn(),
+    unpauseTask: jest.fn(),
     reorderTask: jest.fn(),
   },
 }));
@@ -429,6 +431,21 @@ describe("useTasks", () => {
         "Error",
         "Failed to delete task",
       );
+    });
+  });
+
+  describe("pauseTask", () => {
+    it("pauses a task and refetches", async () => {
+      const pausedTask = { ...createMockTask("t1", "Task 1"), record_state: "paused" };
+      mockedApi.pauseTask.mockResolvedValue(pausedTask);
+      const { result } = renderHook(() => useTasks());
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      mockedApi.getTasks.mockClear();
+      await act(async () => {
+        await result.current.pauseTask("t1");
+      });
+      expect(mockedApi.pauseTask).toHaveBeenCalledWith("t1");
+      expect(mockedApi.getTasks).toHaveBeenCalled();
     });
   });
 

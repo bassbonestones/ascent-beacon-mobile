@@ -66,6 +66,7 @@ jest.mock("../styles/goalsScreenStyles", () => ({
     warningBox: {},
     warningBoxText: {},
     deleteButton: {},
+    disabledActionText: {},
   },
   getStatusColor: (status: string) => "#888",
   getStatusLabel: (status: string) => {
@@ -83,6 +84,10 @@ jest.mock("../styles/goalsScreenStyles", () => ({
 const mockCreateGoal = jest.fn();
 const mockUpdateGoalStatus = jest.fn();
 const mockDeleteGoal = jest.fn();
+const mockPreviewArchive = jest.fn();
+const mockArchiveGoal = jest.fn();
+const mockPauseGoal = jest.fn();
+const mockUnpauseGoal = jest.fn();
 const mockRefetch = jest.fn();
 
 jest.mock("../../hooks/useGoals", () => ({
@@ -94,6 +99,10 @@ jest.mock("../../hooks/useGoals", () => ({
     createGoal: mockCreateGoal,
     updateGoalStatus: mockUpdateGoalStatus,
     deleteGoal: mockDeleteGoal,
+    previewArchive: mockPreviewArchive,
+    archiveGoal: mockArchiveGoal,
+    pauseGoal: mockPauseGoal,
+    unpauseGoal: mockUnpauseGoal,
   })),
 }));
 
@@ -153,6 +162,10 @@ describe("GoalsScreen", () => {
       createGoal: mockCreateGoal,
       updateGoalStatus: mockUpdateGoalStatus,
       deleteGoal: mockDeleteGoal,
+      previewArchive: mockPreviewArchive,
+      archiveGoal: mockArchiveGoal,
+      pauseGoal: mockPauseGoal,
+      unpauseGoal: mockUnpauseGoal,
     });
   });
 
@@ -191,6 +204,10 @@ describe("GoalsScreen", () => {
         createGoal: mockCreateGoal,
         updateGoalStatus: mockUpdateGoalStatus,
         deleteGoal: mockDeleteGoal,
+        previewArchive: mockPreviewArchive,
+        archiveGoal: mockArchiveGoal,
+        pauseGoal: mockPauseGoal,
+        unpauseGoal: mockUnpauseGoal,
       });
 
       render(<GoalsScreen user={mockUser} navigation={mockNavigation} />);
@@ -211,6 +228,10 @@ describe("GoalsScreen", () => {
         createGoal: mockCreateGoal,
         updateGoalStatus: mockUpdateGoalStatus,
         deleteGoal: mockDeleteGoal,
+        previewArchive: mockPreviewArchive,
+        archiveGoal: mockArchiveGoal,
+        pauseGoal: mockPauseGoal,
+        unpauseGoal: mockUnpauseGoal,
       });
 
       render(<GoalsScreen user={mockUser} navigation={mockNavigation} />);
@@ -235,6 +256,14 @@ describe("GoalsScreen", () => {
       expect(screen.getByText("✓ Showing Completed")).toBeTruthy();
     });
 
+    it("toggles paused and archived include filters", () => {
+      render(<GoalsScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Include paused goals"));
+      fireEvent.press(screen.getByLabelText("Include archived goals"));
+      expect(screen.getByText("✓ Paused Included")).toBeTruthy();
+      expect(screen.getByText("✓ Archived Included")).toBeTruthy();
+    });
+
     it("navigates to detail view when goal pressed", () => {
       const goal = createMockGoal({ title: "My Goal" });
       (useGoals as jest.Mock).mockReturnValue({
@@ -245,6 +274,7 @@ describe("GoalsScreen", () => {
         createGoal: mockCreateGoal,
         updateGoalStatus: mockUpdateGoalStatus,
         deleteGoal: mockDeleteGoal,
+        pauseGoal: mockPauseGoal,
       });
 
       render(<GoalsScreen user={mockUser} navigation={mockNavigation} />);
@@ -325,6 +355,7 @@ describe("GoalsScreen", () => {
         createGoal: mockCreateGoal,
         updateGoalStatus: mockUpdateGoalStatus,
         deleteGoal: mockDeleteGoal,
+        pauseGoal: mockPauseGoal,
       });
 
       render(<GoalsScreen user={mockUser} navigation={mockNavigation} />);

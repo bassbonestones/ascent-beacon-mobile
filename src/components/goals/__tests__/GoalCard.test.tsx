@@ -58,6 +58,7 @@ const createMockGoal = (overrides: Partial<Goal> = {}): Goal => ({
   completed_at: null,
   total_time_minutes: 0,
   completed_time_minutes: 0,
+  is_aligned_with_priorities: true,
   priorities: [],
   ...overrides,
 });
@@ -139,6 +140,17 @@ describe("GoalCard", () => {
     const goal = createMockGoal({ priorities: [] });
     render(<GoalCard goal={goal} onPress={mockOnPress} />);
     expect(screen.queryByText("Priorities:")).toBeNull();
+  });
+
+  it("shows alignment warning when not linked to priorities", () => {
+    const goal = createMockGoal({
+      is_aligned_with_priorities: false,
+      priorities: [],
+    });
+    render(<GoalCard goal={goal} onPress={mockOnPress} />);
+    expect(
+      screen.getByText("⚠️ This goal isn't linked to any priority"),
+    ).toBeTruthy();
   });
 
   it("calls onPress with goal when pressed", () => {

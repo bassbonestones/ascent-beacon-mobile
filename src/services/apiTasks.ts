@@ -69,6 +69,8 @@ export interface TasksMethods {
   createTask(data: CreateTaskRequest): Promise<Task>;
   updateTask(taskId: string, data: UpdateTaskRequest): Promise<Task>;
   deleteTask(taskId: string): Promise<void>;
+  pauseTask(taskId: string): Promise<Task>;
+  unpauseTask(taskId: string): Promise<Task>;
 
   // Status transitions
   completeTask(taskId: string, data?: CompleteTaskRequest): Promise<Task>;
@@ -155,6 +157,8 @@ export interface TasksListParams {
   include_dependency_summary?: boolean;
   /** IANA timezone for intraday dependency summary anchors */
   client_timezone?: string;
+  include_paused?: boolean;
+  include_archived?: boolean;
 }
 
 export interface GetTaskParams {
@@ -193,6 +197,12 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
       }
       if (params.client_timezone) {
         searchParams.append("client_timezone", params.client_timezone);
+      }
+      if (params.include_paused !== undefined) {
+        searchParams.append("include_paused", String(params.include_paused));
+      }
+      if (params.include_archived !== undefined) {
+        searchParams.append("include_archived", String(params.include_archived));
       }
 
       const queryString = searchParams.toString();
@@ -233,6 +243,18 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
     async deleteTask(taskId: string): Promise<void> {
       await this.request<void>(`/tasks/${taskId}`, {
         method: "DELETE",
+      });
+    }
+
+    async pauseTask(taskId: string): Promise<Task> {
+      return await this.request<Task>(`/tasks/${taskId}/pause`, {
+        method: "POST",
+      });
+    }
+
+    async unpauseTask(taskId: string): Promise<Task> {
+      return await this.request<Task>(`/tasks/${taskId}/unpause`, {
+        method: "POST",
       });
     }
 
