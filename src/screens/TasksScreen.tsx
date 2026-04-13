@@ -48,6 +48,7 @@ import {
   filterTasksForUpcoming,
   isTaskOverdue,
   condenseRecurringTasks,
+  condenseRecurringTasksAllStatusesForDay,
   groupTasksByDate,
   formatDateHeader,
   generateRecurringOccurrences,
@@ -678,7 +679,23 @@ export default function TasksScreen({
           };
         }
         // For "all", show all virtual occurrences for today
-        const allTodayTasks = filterTasksForToday(withOccurrences, currentDate);
+        let allTodayTasks = filterTasksForToday(withOccurrences, currentDate);
+        if (condenseRecurring) {
+          const byDate = groupTasksByDate(allTodayTasks);
+          const dateKeysAll = Array.from(byDate.keys())
+            .filter((k) => k !== "no-date")
+            .sort();
+          const merged: Task[] = [];
+          for (const dk of dateKeysAll) {
+            merged.push(
+              ...condenseRecurringTasksAllStatusesForDay(byDate.get(dk) ?? []),
+            );
+          }
+          merged.push(
+            ...condenseRecurringTasksAllStatusesForDay(byDate.get("no-date") ?? []),
+          );
+          allTodayTasks = merged;
+        }
         const todaySection = {
           title: formatDateHeader(todayDateStr, currentDate),
           dateKey: todayDateStr,
@@ -836,6 +853,10 @@ export default function TasksScreen({
             sectionTasks = finalSorted;
           }
 
+          if (statusFilter === "all" && condenseRecurring) {
+            sectionTasks = condenseRecurringTasksAllStatusesForDay(sectionTasks);
+          }
+
           return {
             title: formatDateHeader(dateKey, currentDate),
             dateKey,
@@ -843,8 +864,17 @@ export default function TasksScreen({
           };
         });
 
+        const sortedTasksUpcoming =
+          statusFilter === "all" && condenseRecurring
+            ? sectionData.flatMap((section) =>
+                section.data.filter(
+                  (item: SectionItem): item is Task => !isSubtitleMarker(item),
+                ),
+              )
+            : upcomingTasks;
+
         return {
-          sortedTasks: upcomingTasks,
+          sortedTasks: sortedTasksUpcoming,
           sections: sectionData,
           viewPendingCount: upcomingPending,
           viewCompletedCount: upcomingCompleted,
@@ -1448,24 +1478,27 @@ export default function TasksScreen({
             )}
           </>
         )}
-        <TouchableOpacity
-          style={[
-            styles.condenseToggle,
-            condenseRecurring && styles.condenseToggleActive,
-          ]}
-          onPress={() => setCondenseRecurring(!condenseRecurring)}
-          accessibilityLabel="Condense recurring tasks"
-          accessibilityRole="switch"
-        >
-          <Text
-            style={[
-              styles.condenseToggleText,
-              condenseRecurring && styles.condenseToggleTextActive,
-            ]}
-          >
-            Condense
-          </Text>
-        </TouchableOpacity>
+        {(listViewMode === "today" || listViewMode === "upcoming") &&
+          (statusFilter === "pending" || statusFilter === "all") && (
+            <TouchableOpacity
+              style={[
+                styles.condenseToggle,
+                condenseRecurring && styles.condenseToggleActive,
+              ]}
+              onPress={() => setCondenseRecurring(!condenseRecurring)}
+              accessibilityLabel="Condense recurring tasks"
+              accessibilityRole="switch"
+            >
+              <Text
+                style={[
+                  styles.condenseToggleText,
+                  condenseRecurring && styles.condenseToggleTextActive,
+                ]}
+              >
+                Condense
+              </Text>
+            </TouchableOpacity>
+          )}
       </View>
 
       <View style={styles.viewModeRow}>

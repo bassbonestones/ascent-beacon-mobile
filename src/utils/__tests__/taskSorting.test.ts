@@ -7,6 +7,8 @@ import {
   formatDateHeader,
   isTaskOverdue,
   condenseRecurringTasks,
+  condenseRecurringTasksAllStatusesForDay,
+  occurrenceDisplayStatusForCondense,
   formatTaskTime,
   generateRecurringOccurrences,
   getTaskWindow,
@@ -530,6 +532,103 @@ describe("taskSorting", () => {
 
       const condensed = condenseRecurringTasks(tasks);
       expect(condensed.length).toBe(2);
+    });
+  });
+
+  describe("occurrenceDisplayStatusForCondense", () => {
+    it("maps explicit completed and skipped status", () => {
+      expect(
+        occurrenceDisplayStatusForCondense(createMockTask({ status: "completed" })),
+      ).toBe("completed");
+      expect(
+        occurrenceDisplayStatusForCondense(createMockTask({ status: "skipped" })),
+      ).toBe("skipped");
+    });
+
+    it("maps pending with per-occurrence flags", () => {
+      expect(
+        occurrenceDisplayStatusForCondense(
+          createMockTask({ status: "pending", skipped_for_today: true }),
+        ),
+      ).toBe("skipped");
+      expect(
+        occurrenceDisplayStatusForCondense(
+          createMockTask({ status: "pending", completed_for_today: true }),
+        ),
+      ).toBe("completed");
+      expect(
+        occurrenceDisplayStatusForCondense(createMockTask({ status: "pending" })),
+      ).toBe("pending");
+    });
+  });
+
+  describe("condenseRecurringTasksAllStatusesForDay", () => {
+    it("keeps non-recurring rows", () => {
+      const tasks = [
+        createMockTask({ id: "n1", is_recurring: false }),
+        createMockTask({ id: "n2", is_recurring: false }),
+      ];
+      expect(condenseRecurringTasksAllStatusesForDay(tasks)).toHaveLength(2);
+    });
+
+    it("keeps first pending and completed for same recurring title same day", () => {
+      const tasks = [
+        createMockTask({
+          id: "a-p1",
+          title: "Daily",
+          is_recurring: true,
+          status: "pending",
+          scheduled_at: "2024-06-15T09:00:00Z",
+        }),
+        createMockTask({
+          id: "a-p2",
+          title: "Daily",
+          is_recurring: true,
+          status: "pending",
+          scheduled_at: "2024-06-15T14:00:00Z",
+        }),
+        createMockTask({
+          id: "a-c1",
+          title: "Daily",
+          is_recurring: true,
+          status: "completed",
+          scheduled_at: "2024-06-15T20:00:00Z",
+        }),
+      ];
+      const out = condenseRecurringTasksAllStatusesForDay(tasks);
+      expect(out.map((t) => t.id).sort()).toEqual(["a-c1", "a-p1"].sort());
+      expect(out).toHaveLength(2);
+    });
+
+    it("keeps first skipped and first pending separately", () => {
+      const tasks = [
+        createMockTask({
+          id: "s1",
+          title: "Habit",
+          is_recurring: true,
+          status: "pending",
+          skipped_for_today: true,
+          scheduled_at: "2024-06-15T08:00:00Z",
+        }),
+        createMockTask({
+          id: "s2",
+          title: "Habit",
+          is_recurring: true,
+          status: "pending",
+          skipped_for_today: true,
+          scheduled_at: "2024-06-15T18:00:00Z",
+        }),
+        createMockTask({
+          id: "p1",
+          title: "Habit",
+          is_recurring: true,
+          status: "pending",
+          scheduled_at: "2024-06-15T12:00:00Z",
+        }),
+      ];
+      const out = condenseRecurringTasksAllStatusesForDay(tasks);
+      expect(out.map((t) => t.id).sort()).toEqual(["p1", "s1"].sort());
+      expect(out).toHaveLength(2);
     });
   });
 
