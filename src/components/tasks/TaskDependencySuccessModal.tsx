@@ -1,7 +1,23 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import { View, Text, TouchableOpacity, Modal, ScrollView } from "react-native";
 import { depModalStyles } from "./taskDependencyModalStyles";
 import { transparentModalProps } from "./transparentModalProps";
+
+/** Merge consecutive duplicate titles so the list can show "(×2)" on the title line. */
+export function aggregateSuccessTitles(
+  titles: string[],
+): { title: string; count: number }[] {
+  const out: { title: string; count: number }[] = [];
+  for (const t of titles) {
+    const last = out[out.length - 1];
+    if (last && last.title === t) {
+      last.count += 1;
+    } else {
+      out.push({ title: t, count: 1 });
+    }
+  }
+  return out;
+}
 
 export interface TaskDependencySuccessModalProps {
   visible: boolean;
@@ -35,6 +51,8 @@ export function TaskDependencySuccessModal({
   const heading =
     kind === "complete_chain" ? "Completed together" : "Skipped together";
 
+  const rows = useMemo(() => aggregateSuccessTitles(titles), [titles]);
+
   return (
     <Modal
       visible={visible}
@@ -45,9 +63,17 @@ export function TaskDependencySuccessModal({
         <View style={depModalStyles.card}>
           <Text style={depModalStyles.title}>{heading}</Text>
           <ScrollView style={{ maxHeight: 240 }}>
-            {titles.map((t, i) => (
-              <Text key={`${t}-${i}`} style={depModalStyles.blockerTitle}>
-                {i + 1}. {t}
+            {rows.map((row, i) => (
+              <Text
+                key={`${row.title}-${i}-${row.count}`}
+                style={depModalStyles.blockerTitle}
+              >
+                {i + 1}. {row.title}
+                {row.count > 1 ? (
+                  <Text style={depModalStyles.blockerTitleCount}>
+                    {` (×${row.count})`}
+                  </Text>
+                ) : null}
               </Text>
             ))}
           </ScrollView>

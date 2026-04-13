@@ -35,6 +35,12 @@ export const depModalStyles = StyleSheet.create({
     fontWeight: "500",
     color: "#1F2937",
   },
+  /** Multiplicity suffix on success lists, e.g. (×2) */
+  blockerTitleCount: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#22C55E",
+  },
   progress: {
     fontSize: 13,
     color: "#6B7280",
