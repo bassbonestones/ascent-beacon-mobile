@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { combineTopInset } from "../../utils/combineTopInset";
@@ -7,6 +7,7 @@ import { styles } from "../../screens/styles/tasksScreenStyles";
 import { parseAsUtc, getTimezoneAbbreviation } from "../../utils/taskSorting";
 import { useTimezone } from "../../hooks/useTimezone";
 import { TaskDependenciesSection } from "./TaskDependenciesSection";
+import { ConfirmPromptModal } from "../ConfirmPromptModal";
 
 interface TaskDetailViewProps {
   task: Task;
@@ -14,12 +15,31 @@ interface TaskDetailViewProps {
   onComplete: (task: Task) => void;
   onSkip: (task: Task) => void;
   onReopen: (task: Task) => void;
-  onPause: (task: Task) => void;
+  onPause: (task: Task) => void | Promise<void>;
   onUnpause: (task: Task) => void;
-  onDelete: (task: Task) => void;
+  onArchive: (task: Task) => void | Promise<void>;
+  onDelete: (task: Task) => void | Promise<void>;
   onEdit: (task: Task) => void;
   onViewTracking?: (task: Task) => void;
+  /** When the linked goal is paused, resumes the goal (not the task record). */
+  onUnpauseGoal?: (goalId: string) => void | Promise<void>;
 }
+
+const ARCHIVE_CONFIRM_TITLE = "Archive this task?";
+const ARCHIVE_CONFIRM_PROMPT =
+  "Archiving permanently removes this task from your active lists and scheduling. " +
+  "Past completions and habit tracking history stay in the system for continuity and reports—you are not wiping your record.\n\n" +
+  "This cannot be undone from the app; archived tasks do not return to active execution.";
+
+const DELETE_CONFIRM_TITLE = "Permanently delete this task?";
+const DELETE_CONFIRM_PROMPT =
+  "Deleting removes this task and its associated data from your account. Completion history, habit metrics, and related records may be removed or adjusted depending on dependencies and server rules.\n\n" +
+  "This can affect alignment scores, goal progress, and dashboards. This action cannot be undone.";
+
+const PAUSE_CONFIRM_TITLE = "Pause this task?";
+
+const pauseConfirmPrompt = (taskTitle: string): string =>
+  `Pause "${taskTitle}"? It will be hidden from active execution until you unpause it.`;
 
 const getStatusLabel = (status: TaskStatus): string => {
   switch (status) {
@@ -364,21 +384,34 @@ export function TaskDetailView({
   onReopen,
   onPause,
   onUnpause,
+  onArchive,
   onDelete,
   onEdit,
   onViewTracking,
+  onUnpauseGoal,
 }: TaskDetailViewProps): React.ReactElement {
   const { timezone } = useTimezone();
   const insets = useSafeAreaInsets();
   const topPad = combineTopInset(insets.top);
+  const [confirmKind, setConfirmKind] = useState<
+    "pause" | "archive" | "delete" | null
+  >(null);
+  const taskRecordState = String(task.record_state ?? "active").toLowerCase();
+  const goalRecordState = String(
+    task.goal?.record_state ?? "active",
+  ).toLowerCase();
+  const isTaskRecordPaused = taskRecordState === "paused";
+  const isGoalPaused = goalRecordState === "paused";
+  const isArchived = taskRecordState === "archived";
+
   const isPending =
     task.status === "pending" &&
     !task.completed_for_today &&
     !task.skipped_for_today;
   const isCompleted = task.status === "completed" || task.completed_for_today;
   const isSkipped = task.status === "skipped" || task.skipped_for_today;
-  const isArchived = task.record_state === "archived";
-  const isPaused = task.record_state === "paused";
+  /** Block execution actions when the task or its goal is paused */
+  const isPausedForActions = isTaskRecordPaused || isGoalPaused;
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
@@ -532,6 +565,33 @@ export function TaskDetailView({
           </View>
         </View>
 
+        {isGoalPaused && task.goal && (
+          <View style={styles.goalPausedNotice}>
+            <Text style={styles.goalPausedNoticeText}>
+              This goal is paused, so this task cannot be completed or skipped until
+              the goal is active again. Unpause the goal to continue.
+            </Text>
+            {onUnpauseGoal ? (
+              <TouchableOpacity
+                style={styles.goalPausedNoticeButton}
+                onPress={() => {
+                  void onUnpauseGoal(task.goal!.id);
+                }}
+                accessibilityLabel="Unpause linked goal"
+                accessibilityRole="button"
+              >
+                <Text style={styles.goalPausedNoticeButtonText}>
+                  Unpause goal
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.goalPausedNoticeHint}>
+                Unpause this goal from the Goals screen.
+              </Text>
+            )}
+          </View>
+        )}
+
         {/* Phase 4i: Dependencies */}
         <TaskDependenciesSection taskId={task.originalTaskId || task.id} />
 
@@ -557,7 +617,7 @@ export function TaskDetailView({
             <Text style={styles.actionButtonText}>✏️ Edit Task</Text>
           </TouchableOpacity>
 
-          {isPending && !isArchived && !isPaused && (
+          {isPending && !isArchived && !isPausedForActions && (
             <>
               <TouchableOpacity
                 style={[styles.actionButton, styles.completeButton]}
@@ -590,10 +650,10 @@ export function TaskDetailView({
             </TouchableOpacity>
           )}
 
-          {!isArchived && !isPaused && (
+          {!isArchived && !isTaskRecordPaused && !isGoalPaused && (
             <TouchableOpacity
               style={[styles.actionButton, styles.skipButton]}
-              onPress={() => onPause(task)}
+              onPress={() => setConfirmKind("pause")}
               accessibilityLabel="Pause task"
               accessibilityRole="button"
             >
@@ -601,7 +661,7 @@ export function TaskDetailView({
             </TouchableOpacity>
           )}
 
-          {isPaused && (
+          {isTaskRecordPaused && (
             <TouchableOpacity
               style={[styles.actionButton, styles.reopenButton]}
               onPress={() => onUnpause(task)}
@@ -612,9 +672,20 @@ export function TaskDetailView({
             </TouchableOpacity>
           )}
 
+          {!isArchived && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.archiveButton]}
+              onPress={() => setConfirmKind("archive")}
+              accessibilityLabel="Archive task"
+              accessibilityRole="button"
+            >
+              <Text style={styles.actionButtonText}>Archive Task</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => onDelete(task)}
+            onPress={() => setConfirmKind("delete")}
             accessibilityLabel="Delete task"
             accessibilityRole="button"
             disabled={isArchived}
@@ -623,6 +694,50 @@ export function TaskDetailView({
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <ConfirmPromptModal
+        visible={confirmKind === "pause"}
+        title={PAUSE_CONFIRM_TITLE}
+        prompt={pauseConfirmPrompt(task.title)}
+        confirmButtonText="Pause"
+        onCancel={() => setConfirmKind(null)}
+        onConfirm={async () => {
+          try {
+            await onPause(task);
+          } finally {
+            setConfirmKind(null);
+          }
+        }}
+      />
+      <ConfirmPromptModal
+        visible={confirmKind === "archive"}
+        title={ARCHIVE_CONFIRM_TITLE}
+        prompt={ARCHIVE_CONFIRM_PROMPT}
+        confirmButtonText="Archive"
+        onCancel={() => setConfirmKind(null)}
+        onConfirm={async () => {
+          try {
+            await onArchive(task);
+          } finally {
+            setConfirmKind(null);
+          }
+        }}
+      />
+      <ConfirmPromptModal
+        visible={confirmKind === "delete"}
+        title={DELETE_CONFIRM_TITLE}
+        prompt={DELETE_CONFIRM_PROMPT}
+        confirmButtonText="Delete permanently"
+        confirmDestructive
+        onCancel={() => setConfirmKind(null)}
+        onConfirm={async () => {
+          try {
+            await onDelete(task);
+          } finally {
+            setConfirmKind(null);
+          }
+        }}
+      />
     </View>
   );
 }

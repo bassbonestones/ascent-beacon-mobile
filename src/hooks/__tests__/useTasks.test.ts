@@ -22,6 +22,7 @@ jest.mock("../../services/api", () => ({
     skipTask: jest.fn(),
     reopenTask: jest.fn(),
     deleteTask: jest.fn(),
+    archiveTask: jest.fn(),
     pauseTask: jest.fn(),
     unpauseTask: jest.fn(),
     reorderTask: jest.fn(),
@@ -430,6 +431,48 @@ describe("useTasks", () => {
       expect(Alert.alert).toHaveBeenCalledWith(
         "Error",
         "Failed to delete task",
+      );
+    });
+  });
+
+  describe("archiveTask", () => {
+    it("archives a task and refetches", async () => {
+      const archived = {
+        ...createMockTask("t1", "Task 1"),
+        record_state: "archived",
+      };
+      mockedApi.archiveTask.mockResolvedValue(archived);
+
+      const { result } = renderHook(() => useTasks());
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      mockedApi.getTasks.mockClear();
+
+      await act(async () => {
+        await result.current.archiveTask("t1");
+      });
+
+      expect(mockedApi.archiveTask).toHaveBeenCalledWith("t1");
+      expect(mockedApi.getTasks).toHaveBeenCalled();
+    });
+
+    it("handles error when archiveTask fails", async () => {
+      mockedApi.archiveTask.mockRejectedValue(new Error("Failed to archive"));
+
+      const { result } = renderHook(() => useTasks());
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await expect(
+        act(async () => {
+          await result.current.archiveTask("t1");
+        }),
+      ).rejects.toThrow("Failed to archive");
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        "Error",
+        "Failed to archive task",
       );
     });
   });

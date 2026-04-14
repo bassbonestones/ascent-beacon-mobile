@@ -689,6 +689,8 @@ export interface TaskGoalInfo {
   id: string;
   title: string;
   status: GoalStatus;
+  /** Phase 4j: so list rows can style tasks under a paused goal */
+  record_state?: string;
 }
 
 /** Phase 4i-5: embedded on Task when API includes dependency summary */
@@ -1021,6 +1023,7 @@ export interface UseTasksReturn {
     localDate?: string,
   ) => Promise<Task>;
   deleteTask: (id: string) => Promise<void>;
+  archiveTask: (id: string) => Promise<void>;
   pauseTask: (id: string) => Promise<Task>;
   unpauseTask: (id: string) => Promise<Task>;
   // Phase 4e: Anytime tasks

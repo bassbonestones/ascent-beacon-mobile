@@ -310,6 +310,42 @@ describe("TaskCard", () => {
     expect(screen.getByLabelText("Task: Accessible Task")).toBeTruthy();
   });
 
+  it("uses paused accessibility label when record_state is paused", () => {
+    const task = createMockTask({
+      title: "On Hold",
+      record_state: "paused",
+    });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByLabelText("Paused task: On Hold")).toBeTruthy();
+  });
+
+  it("uses paused styling when linked goal is paused but task row is still active", () => {
+    const task = createMockTask({
+      title: "Under paused goal",
+      record_state: "active",
+      goal: {
+        id: "goal-1",
+        title: "Paused Goal",
+        status: "in_progress",
+        record_state: "paused",
+      },
+    });
+    render(
+      <TaskCard
+        task={task}
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByLabelText("Paused task: Under paused goal")).toBeTruthy();
+  });
+
   it("has button accessibility role", () => {
     const task = createMockTask();
     render(

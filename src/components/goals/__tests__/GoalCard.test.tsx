@@ -13,6 +13,9 @@ jest.mock("../../../screens/styles/goalsScreenStyles", () => ({
     goalCard: {},
     goalHeader: {},
     goalTitle: {},
+    badgeColumn: {},
+    recordStateBadge: {},
+    recordStateText: {},
     statusBadge: {},
     statusText: {},
     goalDescription: {},
@@ -39,6 +42,13 @@ jest.mock("../../../screens/styles/goalsScreenStyles", () => ({
       abandoned: "Abandoned",
     };
     return labels[status] || status;
+  },
+  getRecordStateColor: () => "#888",
+  getRecordStateLabel: (recordState: string | undefined) => {
+    const state = recordState ?? "active";
+    if (state === "paused") return "Paused";
+    if (state === "archived") return "Archived";
+    return "Active";
   },
 }));
 
@@ -80,6 +90,32 @@ describe("GoalCard", () => {
     const goal = createMockGoal({ status: "in_progress" });
     render(<GoalCard goal={goal} onPress={mockOnPress} />);
     expect(screen.getByText("In Progress")).toBeTruthy();
+  });
+
+  it("renders record state badge Active when omitted", () => {
+    const goal = createMockGoal();
+    render(<GoalCard goal={goal} onPress={mockOnPress} />);
+    expect(screen.getByText("Active")).toBeTruthy();
+    expect(
+      screen.getByLabelText("Record state: Active"),
+    ).toBeTruthy();
+  });
+
+  it("renders record state badge for paused and archived", () => {
+    const { rerender } = render(
+      <GoalCard
+        goal={createMockGoal({ record_state: "paused" })}
+        onPress={mockOnPress}
+      />,
+    );
+    expect(screen.getByText("Paused")).toBeTruthy();
+    rerender(
+      <GoalCard
+        goal={createMockGoal({ id: "g2", record_state: "archived" })}
+        onPress={mockOnPress}
+      />,
+    );
+    expect(screen.getByText("Archived")).toBeTruthy();
   });
 
   it("renders description when provided", () => {

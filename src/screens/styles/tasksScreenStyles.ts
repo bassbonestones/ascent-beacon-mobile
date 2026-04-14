@@ -151,10 +151,18 @@ export const styles = StyleSheet.create({
   },
   summaryRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     paddingHorizontal: 16,
     paddingVertical: 8,
     gap: 16,
     alignItems: "center",
+  },
+  summaryToggleGroup: {
+    marginLeft: "auto",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
   },
   summaryItem: {
     flexDirection: "row",
@@ -174,7 +182,6 @@ export const styles = StyleSheet.create({
     color: "#EF4444",
   },
   condenseToggle: {
-    marginLeft: "auto",
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
@@ -194,6 +201,26 @@ export const styles = StyleSheet.create({
   condenseToggleTextActive: {
     color: "#FFFFFF",
   },
+  includePausedToggle: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#6B7280",
+    backgroundColor: "transparent",
+  },
+  includePausedToggleActive: {
+    backgroundColor: "#1F2937",
+    borderColor: "#60A5FA",
+  },
+  includePausedToggleText: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    fontWeight: "500",
+  },
+  includePausedToggleTextActive: {
+    color: "#60A5FA",
+  },
   loader: {
     marginTop: 40,
   },
@@ -201,12 +228,40 @@ export const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 100,
   },
-  taskCard: {
+  /** Outer shell: positioning context for overlay + complete control (no fill — fill is on Pressable). */
+  taskCardWrapper: {
+    marginBottom: 12,
+    position: "relative",
+  },
+  /** Default task row surface (Pressable). Background here so it paints correctly on web. */
+  taskCardSurface: {
     backgroundColor: "#1F2937",
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
-    position: "relative", // Required for absolute positioned children
+  },
+  taskCardSurfacePaused: {
+    backgroundColor: "#854d0e",
+    borderWidth: 1,
+    borderColor: "#a16207",
+    overflow: "hidden",
+  },
+  pausedWatermark: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 12,
+    zIndex: 1,
+  },
+  pauseIconLarge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  pauseBar: {
+    width: 16,
+    height: 64,
+    borderRadius: 4,
+    backgroundColor: "rgba(254, 243, 199, 0.35)",
   },
   taskHeader: {
     flexDirection: "row",
@@ -335,10 +390,6 @@ export const styles = StyleSheet.create({
   checkMark: {
     color: "#FFFFFF",
     fontWeight: "bold",
-  },
-  // New styles for non-nested button structure
-  taskCardPressable: {
-    flex: 1,
   },
   actionSpacer: {
     width: 48, // Space for absolute positioned button
@@ -494,6 +545,37 @@ export const styles = StyleSheet.create({
     marginBottom: 16,
     lineHeight: 24,
   },
+  goalPausedNotice: {
+    backgroundColor: "#422006",
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#CA8A04",
+  },
+  goalPausedNoticeText: {
+    color: "#FDE68A",
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  goalPausedNoticeButton: {
+    backgroundColor: "#CA8A04",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: "center",
+  },
+  goalPausedNoticeButtonText: {
+    color: "#111827",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  goalPausedNoticeHint: {
+    color: "#FCD34D",
+    fontSize: 13,
+    lineHeight: 18,
+  },
   detailMeta: {
     backgroundColor: "#1F2937",
     borderRadius: 8,
@@ -537,6 +619,9 @@ export const styles = StyleSheet.create({
   },
   reopenButton: {
     backgroundColor: "#3B82F6",
+  },
+  archiveButton: {
+    backgroundColor: "#B45309",
   },
   deleteButton: {
     backgroundColor: "transparent",

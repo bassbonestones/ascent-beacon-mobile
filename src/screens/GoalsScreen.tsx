@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -32,6 +32,8 @@ interface GoalsScreenProps {
 
 type ViewMode = "list" | "create" | "detail" | "archive";
 
+type RecordStateTab = "active" | "paused" | "archived";
+
 type ArchiveResolutionChoice = {
   action: GoalArchiveResolutionAction;
   goal_id?: string;
@@ -46,8 +48,11 @@ export default function GoalsScreen({
   const [newGoalTitle, setNewGoalTitle] = useState("");
   const [newGoalDescription, setNewGoalDescription] = useState("");
   const [showCompleted, setShowCompleted] = useState(false);
-  const [includePaused, setIncludePaused] = useState(false);
-  const [includeArchived, setIncludeArchived] = useState(false);
+  const [recordStateTab, setRecordStateTab] =
+    useState<RecordStateTab>("active");
+
+  const includePaused = recordStateTab === "paused";
+  const includeArchived = recordStateTab === "archived";
   const [archiveGoalTarget, setArchiveGoalTarget] = useState<Goal | null>(null);
   const [archivePreview, setArchivePreview] =
     useState<GoalArchivePreviewResponse | null>(null);
@@ -57,7 +62,7 @@ export default function GoalsScreen({
   >({});
 
   const {
-    goals,
+    goals: fetchedGoals,
     loading,
     error,
     refetch,
@@ -74,6 +79,18 @@ export default function GoalsScreen({
     includePaused,
     includeArchived,
   });
+
+  const displayGoals = useMemo(() => {
+    if (recordStateTab === "active") {
+      return fetchedGoals.filter(
+        (g) => (g.record_state ?? "active") === "active",
+      );
+    }
+    if (recordStateTab === "paused") {
+      return fetchedGoals.filter((g) => g.record_state === "paused");
+    }
+    return fetchedGoals.filter((g) => g.record_state === "archived");
+  }, [fetchedGoals, recordStateTab]);
 
   const handleCreateGoal = useCallback(async () => {
     if (!newGoalTitle.trim()) {
@@ -275,60 +292,65 @@ export default function GoalsScreen({
             {showCompleted ? "✓ Showing Completed" : "Show Completed"}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterToggle,
-            includePaused && styles.filterToggleActive,
-          ]}
-          onPress={() => setIncludePaused(!includePaused)}
-          accessibilityLabel={
-            includePaused ? "Hide paused goals" : "Include paused goals"
-          }
-          accessibilityRole="button"
-        >
-          <Text
+      </View>
+
+      <View style={styles.viewModeRow}>
+        {(["active", "paused", "archived"] as RecordStateTab[]).map((tab) => (
+          <TouchableOpacity
+            key={tab}
             style={[
-              styles.filterToggleText,
-              includePaused && styles.filterToggleTextActive,
+              styles.viewModeToggle,
+              recordStateTab === tab && styles.viewModeToggleActive,
             ]}
+            onPress={() => setRecordStateTab(tab)}
+            accessibilityLabel={
+              tab === "active"
+                ? "Show active goals"
+                : tab === "paused"
+                  ? "Show paused goals"
+                  : "Show archived goals"
+            }
+            accessibilityRole="tab"
+            accessibilityState={{ selected: recordStateTab === tab }}
           >
-            {includePaused ? "✓ Paused Included" : "Include Paused"}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterToggle,
-            includeArchived && styles.filterToggleActive,
-          ]}
-          onPress={() => setIncludeArchived(!includeArchived)}
-          accessibilityLabel={
-            includeArchived ? "Hide archived goals" : "Include archived goals"
-          }
-          accessibilityRole="button"
-        >
-          <Text
-            style={[
-              styles.filterToggleText,
-              includeArchived && styles.filterToggleTextActive,
-            ]}
-          >
-            {includeArchived ? "✓ Archived Included" : "Include Archived"}
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={[
+                styles.viewModeToggleText,
+                recordStateTab === tab && styles.viewModeToggleTextActive,
+              ]}
+            >
+              {tab === "active"
+                ? "Active"
+                : tab === "paused"
+                  ? "Paused"
+                  : "Archived"}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {loading ? (
         <ActivityIndicator size="large" style={styles.loader} />
-      ) : goals.length === 0 ? (
+      ) : displayGoals.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyStateTitle}>No goals yet</Text>
+          <Text style={styles.emptyStateTitle}>
+            {recordStateTab === "paused"
+              ? "No paused goals"
+              : recordStateTab === "archived"
+                ? "No archived goals"
+                : "No goals yet"}
+          </Text>
           <Text style={styles.emptyStateText}>
-            Create your first goal to start tracking your progress
+            {recordStateTab === "active"
+              ? "Create your first goal to start tracking your progress"
+              : recordStateTab === "paused"
+                ? "Paused goals are hidden from your active list. Pause a goal from its detail screen to see it here."
+                : "Archived goals stop active tracking. Archive a goal from its detail screen to see it here."}
           </Text>
         </View>
       ) : (
         <FlatList
-          data={goals}
+          data={displayGoals}
           renderItem={renderGoalItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}

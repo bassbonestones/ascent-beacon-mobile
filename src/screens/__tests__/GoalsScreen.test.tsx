@@ -27,7 +27,13 @@ jest.mock("../styles/goalsScreenStyles", () => ({
     filterToggleActive: {},
     filterToggleText: {},
     filterToggleTextActive: {},
+    viewModeRow: {},
+    viewModeToggle: {},
+    viewModeToggleActive: {},
+    viewModeToggleText: {},
+    viewModeToggleTextActive: {},
     loader: {},
+    backButtonRow: {},
     emptyState: {},
     emptyStateTitle: {},
     emptyStateText: {},
@@ -67,6 +73,10 @@ jest.mock("../styles/goalsScreenStyles", () => ({
     warningBoxText: {},
     deleteButton: {},
     disabledActionText: {},
+    archiveTaskCard: {},
+    archiveTaskTitle: {},
+    archiveTaskChoice: {},
+    archiveTargetList: {},
   },
   getStatusColor: (status: string) => "#888",
   getStatusLabel: (status: string) => {
@@ -77,6 +87,13 @@ jest.mock("../styles/goalsScreenStyles", () => ({
       abandoned: "Abandoned",
     };
     return labels[status] || status;
+  },
+  getRecordStateColor: () => "#888",
+  getRecordStateLabel: (recordState: string | undefined) => {
+    const state = recordState ?? "active";
+    if (state === "paused") return "Paused";
+    if (state === "archived") return "Archived";
+    return "Active";
   },
 }));
 
@@ -256,16 +273,89 @@ describe("GoalsScreen", () => {
       expect(screen.getByText("✓ Showing Completed")).toBeTruthy();
     });
 
-    it("toggles paused and archived include filters", () => {
+    it("renders record state tabs", () => {
       render(<GoalsScreen user={mockUser} navigation={mockNavigation} />);
-      fireEvent.press(screen.getByLabelText("Include paused goals"));
-      fireEvent.press(screen.getByLabelText("Include archived goals"));
-      expect(screen.getByText("✓ Paused Included")).toBeTruthy();
-      expect(screen.getByText("✓ Archived Included")).toBeTruthy();
+      expect(screen.getByText("Active")).toBeTruthy();
+      expect(screen.getByText("Paused")).toBeTruthy();
+      expect(screen.getByText("Archived")).toBeTruthy();
+    });
+
+    it("each tab shows only goals in that record state", () => {
+      const goals = [
+        createMockGoal({
+          id: "g-active",
+          title: "Only Active",
+          record_state: "active",
+        }),
+        createMockGoal({
+          id: "g-paused",
+          title: "Only Paused",
+          record_state: "paused",
+        }),
+        createMockGoal({
+          id: "g-archived",
+          title: "Only Archived",
+          record_state: "archived",
+        }),
+      ];
+      (useGoals as jest.Mock).mockReturnValue({
+        goals,
+        loading: false,
+        error: null,
+        refetch: mockRefetch,
+        createGoal: mockCreateGoal,
+        updateGoalStatus: mockUpdateGoalStatus,
+        deleteGoal: mockDeleteGoal,
+        previewArchive: mockPreviewArchive,
+        archiveGoal: mockArchiveGoal,
+        pauseGoal: mockPauseGoal,
+        unpauseGoal: mockUnpauseGoal,
+      });
+
+      render(<GoalsScreen user={mockUser} navigation={mockNavigation} />);
+      expect(screen.getByText("Only Active")).toBeTruthy();
+      expect(screen.queryByText("Only Paused")).toBeNull();
+      expect(screen.queryByText("Only Archived")).toBeNull();
+
+      fireEvent.press(screen.getByLabelText("Show paused goals"));
+      expect(screen.queryByText("Only Active")).toBeNull();
+      expect(screen.getByText("Only Paused")).toBeTruthy();
+      expect(screen.queryByText("Only Archived")).toBeNull();
+
+      fireEvent.press(screen.getByLabelText("Show archived goals"));
+      expect(screen.queryByText("Only Active")).toBeNull();
+      expect(screen.queryByText("Only Paused")).toBeNull();
+      expect(screen.getByText("Only Archived")).toBeTruthy();
+    });
+
+    it("shows paused empty state on paused tab when none paused", () => {
+      (useGoals as jest.Mock).mockReturnValue({
+        goals: [
+          createMockGoal({
+            id: "g-active",
+            title: "Solo Active",
+            record_state: "active",
+          }),
+        ],
+        loading: false,
+        error: null,
+        refetch: mockRefetch,
+        createGoal: mockCreateGoal,
+        updateGoalStatus: mockUpdateGoalStatus,
+        deleteGoal: mockDeleteGoal,
+        previewArchive: mockPreviewArchive,
+        archiveGoal: mockArchiveGoal,
+        pauseGoal: mockPauseGoal,
+        unpauseGoal: mockUnpauseGoal,
+      });
+
+      render(<GoalsScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Show paused goals"));
+      expect(screen.getByText("No paused goals")).toBeTruthy();
     });
 
     it("navigates to detail view when goal pressed", () => {
-      const goal = createMockGoal({ title: "My Goal" });
+      const goal = createMockGoal({ title: "My Goal", record_state: "active" });
       (useGoals as jest.Mock).mockReturnValue({
         goals: [goal],
         loading: false,
@@ -274,7 +364,10 @@ describe("GoalsScreen", () => {
         createGoal: mockCreateGoal,
         updateGoalStatus: mockUpdateGoalStatus,
         deleteGoal: mockDeleteGoal,
+        previewArchive: mockPreviewArchive,
+        archiveGoal: mockArchiveGoal,
         pauseGoal: mockPauseGoal,
+        unpauseGoal: mockUnpauseGoal,
       });
 
       render(<GoalsScreen user={mockUser} navigation={mockNavigation} />);

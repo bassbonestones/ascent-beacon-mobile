@@ -42,7 +42,7 @@ import {
 import { buildOccurrenceParams } from "../hooks/taskOccurrenceParams";
 import { useTaskDependencyActions } from "../hooks/useTaskDependencyActions";
 import { isSkipTaskPreviewResponse, rowsForSkipCascadeModal } from "../types";
-import { showAlert, showConfirm } from "../utils/alert";
+import { showAlert } from "../utils/alert";
 import {
   filterTasksForToday,
   filterTasksForUpcoming,
@@ -140,7 +140,6 @@ export default function TasksScreen({
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
   const [includePaused, setIncludePaused] = useState(false);
-  const [includeArchived, setIncludeArchived] = useState(false);
   const [skipModalTask, setSkipModalTask] = useState<Task | null>(null);
   const [overdueModalTask, setOverdueModalTask] = useState<Task | null>(null);
   const [condenseRecurring, setCondenseRecurring] = useState(false);
@@ -239,6 +238,7 @@ export default function TasksScreen({
     skipTask,
     reopenTask,
     deleteTask,
+    archiveTask,
     pauseTask,
     unpauseTask,
     reorderTask,
@@ -248,7 +248,6 @@ export default function TasksScreen({
     daysAhead: effectiveDaysAhead,
     clientToday: getCurrentDate(), // Support time travel
     includePaused,
-    includeArchived,
   });
 
   const onDependencyFlowFinished = useCallback(() => {
@@ -286,7 +285,11 @@ export default function TasksScreen({
     onFlowFinished: onDependencyFlowFinished,
   });
 
-  const { goals, loading: goalsLoading } = useGoals({ parentOnly: true });
+  const {
+    goals,
+    loading: goalsLoading,
+    unpauseGoal,
+  } = useGoals({ parentOnly: true });
 
   // Get current date for time-aware filtering
   const currentDate = getCurrentDate();
@@ -1286,29 +1289,30 @@ export default function TasksScreen({
 
   const handleDelete = useCallback(
     async (task: Task) => {
-      // Build confirmation message - warn about completion history for recurring tasks
-      let message =
-        `Delete "${task.title}"?\n\n` +
-        "Delete can be hard or soft depending on dependencies. Soft-deleted tasks are not recoverable via restore.";
-      if (task.is_recurring) {
-        message =
-          `Delete "${task.title}" and all its completion history?\n\n` +
-          "This recurring task's entire history will be permanently removed. Restore is not supported.";
-      }
-
-      if (await showConfirm("Delete Task", message)) {
-        try {
-          // Use originalTaskId for virtual occurrences, otherwise use task.id
-          const taskId = task.originalTaskId || task.id;
-          await deleteTask(taskId);
-          setSelectedTask(null);
-          setScreenMode("list");
-        } catch {
-          // Error handled in hook
-        }
+      try {
+        const taskId = task.originalTaskId || task.id;
+        await deleteTask(taskId);
+        setSelectedTask(null);
+        setScreenMode("list");
+      } catch {
+        // Error handled in hook
       }
     },
     [deleteTask],
+  );
+
+  const handleArchive = useCallback(
+    async (task: Task) => {
+      try {
+        const taskId = task.originalTaskId || task.id;
+        await archiveTask(taskId);
+        setSelectedTask(null);
+        setScreenMode("list");
+      } catch {
+        // Error handled in hook
+      }
+    },
+    [archiveTask],
   );
 
   const handleUnpause = useCallback(
@@ -1327,13 +1331,6 @@ export default function TasksScreen({
 
   const handlePause = useCallback(
     async (task: Task) => {
-      const confirmed = await showConfirm(
-        "Pause Task",
-        `Pause "${task.title}"? It will be hidden from active execution until unpaused.`,
-      );
-      if (!confirmed) {
-        return;
-      }
       try {
         const taskId = task.originalTaskId || task.id;
         await pauseTask(taskId);
@@ -1344,6 +1341,27 @@ export default function TasksScreen({
       }
     },
     [pauseTask],
+  );
+
+  const handleUnpauseGoal = useCallback(
+    async (goalId: string) => {
+      try {
+        await unpauseGoal(goalId);
+        await refetch();
+        setSelectedTask((prev) => {
+          if (!prev?.goal || prev.goal.id !== goalId) {
+            return prev;
+          }
+          return {
+            ...prev,
+            goal: { ...prev.goal, record_state: "active" },
+          };
+        });
+      } catch {
+        // Error handled in hook
+      }
+    },
+    [unpauseGoal, refetch],
   );
 
   const affectedSkipCascadeRows = useMemo(
@@ -1478,6 +1496,7 @@ export default function TasksScreen({
           onReopen={handleReopen}
           onPause={handlePause}
           onUnpause={handleUnpause}
+          onArchive={handleArchive}
           onDelete={handleDelete}
           onEdit={handleEdit}
           onViewTracking={(task) => {
@@ -1491,6 +1510,7 @@ export default function TasksScreen({
               taskTitle: task.title,
             });
           }}
+          onUnpauseGoal={handleUnpauseGoal}
         />
         {taskFlowModalsEl}
       </>
@@ -1524,7 +1544,7 @@ export default function TasksScreen({
         </TouchableOpacity>
       </View>
 
-      {/* Summary row: counts for Today view, condense toggle for both views */}
+      {/* Summary row: Today counts; Condense + Include Paused toggles (right-aligned) */}
       <View style={styles.summaryRow}>
         {listViewMode === "today" && (
           <>
@@ -1550,27 +1570,49 @@ export default function TasksScreen({
             )}
           </>
         )}
-        {(listViewMode === "today" || listViewMode === "upcoming") &&
-          (statusFilter === "pending" || statusFilter === "all") && (
-            <TouchableOpacity
-              style={[
-                styles.condenseToggle,
-                condenseRecurring && styles.condenseToggleActive,
-              ]}
-              onPress={() => setCondenseRecurring(!condenseRecurring)}
-              accessibilityLabel="Condense recurring tasks"
-              accessibilityRole="switch"
-            >
-              <Text
+        <View style={styles.summaryToggleGroup}>
+          {(listViewMode === "today" || listViewMode === "upcoming") &&
+            (statusFilter === "pending" || statusFilter === "all") && (
+              <TouchableOpacity
                 style={[
-                  styles.condenseToggleText,
-                  condenseRecurring && styles.condenseToggleTextActive,
+                  styles.condenseToggle,
+                  condenseRecurring && styles.condenseToggleActive,
                 ]}
+                onPress={() => setCondenseRecurring(!condenseRecurring)}
+                accessibilityLabel="Condense recurring tasks"
+                accessibilityRole="switch"
               >
-                Condense
-              </Text>
-            </TouchableOpacity>
-          )}
+                <Text
+                  style={[
+                    styles.condenseToggleText,
+                    condenseRecurring && styles.condenseToggleTextActive,
+                  ]}
+                >
+                  Condense
+                </Text>
+              </TouchableOpacity>
+            )}
+          <TouchableOpacity
+            style={[
+              styles.includePausedToggle,
+              includePaused && styles.includePausedToggleActive,
+            ]}
+            onPress={() => setIncludePaused(!includePaused)}
+            accessibilityLabel={
+              includePaused ? "Hide paused tasks" : "Include paused tasks"
+            }
+            accessibilityRole="switch"
+          >
+            <Text
+              style={[
+                styles.includePausedToggleText,
+                includePaused && styles.includePausedToggleTextActive,
+              ]}
+            >
+              {includePaused ? "✓ Paused" : "Paused"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.viewModeRow}>
@@ -1619,41 +1661,6 @@ export default function TasksScreen({
             </TouchableOpacity>
           ),
         )}
-      </View>
-      <View style={styles.filterRow}>
-        <TouchableOpacity
-          style={[styles.filterToggle, includePaused && styles.filterToggleActive]}
-          onPress={() => setIncludePaused(!includePaused)}
-          accessibilityLabel={includePaused ? "Hide paused tasks" : "Include paused tasks"}
-        >
-          <Text
-            style={[
-              styles.filterToggleText,
-              includePaused && styles.filterToggleTextActive,
-            ]}
-          >
-            {includePaused ? "✓ Paused Included" : "Include Paused"}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterToggle,
-            includeArchived && styles.filterToggleActive,
-          ]}
-          onPress={() => setIncludeArchived(!includeArchived)}
-          accessibilityLabel={
-            includeArchived ? "Hide archived tasks" : "Include archived tasks"
-          }
-        >
-          <Text
-            style={[
-              styles.filterToggleText,
-              includeArchived && styles.filterToggleTextActive,
-            ]}
-          >
-            {includeArchived ? "✓ Archived Included" : "Include Archived"}
-          </Text>
-        </TouchableOpacity>
       </View>
 
       {loading && !loadingMore ? (

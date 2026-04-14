@@ -255,6 +255,19 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
     [tasks],
   );
 
+  const archiveTask = useCallback(
+    async (id: string): Promise<void> => {
+      try {
+        await api.archiveTask(id);
+        await fetchTasks();
+      } catch (err) {
+        showAlert("Error", "Failed to archive task");
+        throw err instanceof Error ? err : new Error(String(err));
+      }
+    },
+    [fetchTasks],
+  );
+
   const unpauseTask = useCallback(
     async (id: string): Promise<Task> => {
       try {
@@ -358,6 +371,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
     skipTask,
     reopenTask,
     deleteTask,
+    archiveTask,
     pauseTask,
     unpauseTask,
     reorderTask,

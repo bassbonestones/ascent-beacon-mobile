@@ -17,7 +17,7 @@ import type {
   UseTasksReturn,
   UseGoalsReturn,
 } from "../../types";
-import { showAlert, showConfirm } from "../../utils/alert";
+import { showAlert } from "../../utils/alert";
 import { createMockTimeContext } from "../../testHelpers";
 import api from "../../services/api";
 
@@ -51,7 +51,6 @@ const mockedUseTasks = jest.mocked(useTasks);
 const mockedUseGoals = jest.mocked(useGoals);
 const mockedUseOccurrenceOrderRange = jest.mocked(useOccurrenceOrderRange);
 const mockedShowAlert = jest.mocked(showAlert);
-const mockedShowConfirm = jest.mocked(showConfirm);
 const mockedUseTime = jest.mocked(useTime);
 const mockedApi = api as jest.Mocked<typeof api>;
 
@@ -120,6 +119,7 @@ const defaultTasksHook: UseTasksReturn = {
   skipTask: jest.fn(),
   reopenTask: jest.fn(),
   deleteTask: jest.fn(),
+  archiveTask: jest.fn(),
   pauseTask: jest.fn(),
   unpauseTask: jest.fn(),
   reorderTask: jest.fn(),
@@ -160,7 +160,6 @@ describe("TasksScreen", () => {
       applyOrderForDate: (tasks) => tasks,
       hasOverridesForDate: () => false,
     });
-    mockedShowConfirm.mockResolvedValue(false);
     mockedUseTime.mockReturnValue(createMockTimeContext());
     // Initialize api mocks for dependency handling
     mockedApi.getDependencyRules.mockResolvedValue({ rules: [], total: 0 });
@@ -233,6 +232,8 @@ describe("TasksScreen", () => {
       expect(screen.getByLabelText("Show pending tasks")).toBeTruthy();
       expect(screen.getByLabelText("Show completed tasks")).toBeTruthy();
       expect(screen.getByLabelText("Show all tasks")).toBeTruthy();
+      expect(screen.getByLabelText("Include paused tasks")).toBeTruthy();
+      expect(screen.queryByLabelText("Include archived tasks")).toBeNull();
     });
 
     it("shows empty state when no tasks", () => {
@@ -659,7 +660,7 @@ describe("TasksScreen", () => {
       });
     });
 
-    it("deletes task when confirmed", async () => {
+    it("deletes task after in-app delete confirmation", async () => {
       const deleteTask = jest.fn().mockResolvedValue(undefined);
       const tasks = [createMockTask({ id: "t-1", title: "Delete Me" })];
       mockedUseTasks.mockReturnValue({
@@ -667,22 +668,37 @@ describe("TasksScreen", () => {
         tasks,
         deleteTask,
       });
-      mockedShowConfirm.mockResolvedValue(true);
 
       render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
       fireEvent.press(screen.getByLabelText("Task: Delete Me"));
       fireEvent.press(screen.getByLabelText("Delete task"));
+      fireEvent.press(screen.getByLabelText("Delete permanently"));
 
       await waitFor(() => {
-        expect(mockedShowConfirm).toHaveBeenCalledWith(
-          "Delete Task",
-          expect.stringContaining('Delete "Delete Me"?'),
-        );
         expect(deleteTask).toHaveBeenCalledWith("t-1");
       });
     });
 
-    it("pauses task when confirmed", async () => {
+    it("archives task after in-app archive confirmation", async () => {
+      const archiveTask = jest.fn().mockResolvedValue(undefined);
+      const tasks = [createMockTask({ id: "t-1", title: "Archive Me" })];
+      mockedUseTasks.mockReturnValue({
+        ...defaultTasksHook,
+        tasks,
+        archiveTask,
+      });
+
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      fireEvent.press(screen.getByLabelText("Task: Archive Me"));
+      fireEvent.press(screen.getByLabelText("Archive task"));
+      fireEvent.press(screen.getByLabelText("Archive"));
+
+      await waitFor(() => {
+        expect(archiveTask).toHaveBeenCalledWith("t-1");
+      });
+    });
+
+    it("pauses task after in-app pause confirmation", async () => {
       const pauseTask = jest.fn().mockResolvedValue(undefined);
       const tasks = [createMockTask({ id: "t-1", title: "Pause Me" })];
       mockedUseTasks.mockReturnValue({
@@ -690,11 +706,11 @@ describe("TasksScreen", () => {
         tasks,
         pauseTask,
       });
-      mockedShowConfirm.mockResolvedValue(true);
 
       render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
       fireEvent.press(screen.getByLabelText("Task: Pause Me"));
       fireEvent.press(screen.getByLabelText("Pause task"));
+      fireEvent.press(screen.getByLabelText("Pause"));
 
       await waitFor(() => {
         expect(pauseTask).toHaveBeenCalledWith("t-1");

@@ -84,6 +84,47 @@ export const styles = StyleSheet.create({
   filterToggleTextActive: {
     color: "#60A5FA",
   },
+  viewModeRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1F2937",
+  },
+  viewModeToggle: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  viewModeToggleActive: {
+    borderBottomColor: "#3B82F6",
+  },
+  viewModeToggleText: {
+    color: "#6B7280",
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  viewModeToggleTextActive: {
+    color: "#F9FAFB",
+    fontWeight: "600",
+  },
+  badgeColumn: {
+    alignItems: "flex-end",
+    gap: 4,
+  },
+  recordStateBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  recordStateText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
   loader: {
     marginTop: 40,
   },
@@ -326,5 +367,34 @@ export const getStatusLabel = (status: string): string => {
       return "Abandoned";
     default:
       return status;
+  }
+};
+
+export const getRecordStateColor = (recordState: string): string => {
+  switch (recordState) {
+    case "paused":
+      return "#D97706";
+    case "archived":
+      return "#64748B";
+    case "deleted":
+      return "#4B5563";
+    case "active":
+    default:
+      return "#4B5563";
+  }
+};
+
+export const getRecordStateLabel = (recordState: string | undefined): string => {
+  const state = recordState ?? "active";
+  switch (state) {
+    case "paused":
+      return "Paused";
+    case "archived":
+      return "Archived";
+    case "deleted":
+      return "Deleted";
+    case "active":
+    default:
+      return "Active";
   }
 };

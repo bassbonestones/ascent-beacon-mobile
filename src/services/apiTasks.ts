@@ -69,6 +69,7 @@ export interface TasksMethods {
   createTask(data: CreateTaskRequest): Promise<Task>;
   updateTask(taskId: string, data: UpdateTaskRequest): Promise<Task>;
   deleteTask(taskId: string): Promise<void>;
+  archiveTask(taskId: string): Promise<Task>;
   pauseTask(taskId: string): Promise<Task>;
   unpauseTask(taskId: string): Promise<Task>;
 
@@ -243,6 +244,12 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
     async deleteTask(taskId: string): Promise<void> {
       await this.request<void>(`/tasks/${taskId}`, {
         method: "DELETE",
+      });
+    }
+
+    async archiveTask(taskId: string): Promise<Task> {
+      return await this.request<Task>(`/tasks/${taskId}/archive`, {
+        method: "POST",
       });
     }
 

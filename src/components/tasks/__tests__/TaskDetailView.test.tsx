@@ -43,6 +43,7 @@ describe("TaskDetailView", () => {
     onReopen: jest.fn(),
     onPause: jest.fn(),
     onUnpause: jest.fn(),
+    onArchive: jest.fn(),
     onDelete: jest.fn(),
     onEdit: jest.fn(),
   };
@@ -214,6 +215,79 @@ describe("TaskDetailView", () => {
     });
   });
 
+  describe("pause / unpause actions", () => {
+    it("shows Pause and not Unpause for active pending task", () => {
+      render(
+        <TaskDetailView
+          {...defaultProps}
+          task={createMockTask({ status: "pending" })}
+        />,
+      );
+      expect(screen.getByLabelText("Pause task")).toBeTruthy();
+      expect(screen.queryByLabelText("Unpause task")).toBeNull();
+    });
+
+    it("calls onPause only after pause confirmation", () => {
+      const task = createMockTask({ status: "pending", title: "Hold" });
+      render(<TaskDetailView {...defaultProps} task={task} />);
+      fireEvent.press(screen.getByLabelText("Pause task"));
+      expect(defaultProps.onPause).not.toHaveBeenCalled();
+      fireEvent.press(screen.getByLabelText("Pause"));
+      expect(defaultProps.onPause).toHaveBeenCalledWith(task);
+    });
+
+    it("shows Unpause and not Pause when task record_state is paused", () => {
+      const task = createMockTask({
+        status: "pending",
+        record_state: "paused",
+      });
+      render(<TaskDetailView {...defaultProps} task={task} />);
+      expect(screen.queryByLabelText("Pause task")).toBeNull();
+      expect(screen.getByLabelText("Unpause task")).toBeTruthy();
+    });
+
+    it("hides Pause when goal is paused even if task record is active", () => {
+      const task = createMockTask({
+        status: "pending",
+        goal: {
+          id: "goal-1",
+          title: "Paused Goal",
+          status: "in_progress",
+          record_state: "paused",
+        },
+      });
+      render(<TaskDetailView {...defaultProps} task={task} />);
+      expect(screen.queryByLabelText("Pause task")).toBeNull();
+      expect(screen.queryByLabelText("Unpause task")).toBeNull();
+      expect(
+        screen.getByText("Unpause this goal from the Goals screen."),
+      ).toBeTruthy();
+    });
+
+    it("shows Unpause linked goal when goal is paused and onUnpauseGoal is set", () => {
+      const onUnpauseGoal = jest.fn();
+      const task = createMockTask({
+        status: "pending",
+        goal: {
+          id: "goal-1",
+          title: "Paused Goal",
+          status: "in_progress",
+          record_state: "paused",
+        },
+      });
+      render(
+        <TaskDetailView
+          {...defaultProps}
+          task={task}
+          onUnpauseGoal={onUnpauseGoal}
+        />,
+      );
+      expect(screen.getByLabelText("Unpause linked goal")).toBeTruthy();
+      fireEvent.press(screen.getByLabelText("Unpause linked goal"));
+      expect(onUnpauseGoal).toHaveBeenCalledWith("goal-1");
+    });
+  });
+
   describe("completed task actions", () => {
     it("shows reopen button for completed tasks", () => {
       const task = createMockTask({ status: "completed" });
@@ -257,11 +331,22 @@ describe("TaskDetailView", () => {
       expect(screen.getByLabelText("Delete task")).toBeTruthy();
     });
 
-    it("calls onDelete when delete button is pressed", () => {
+    it("calls onDelete after delete confirmation", () => {
       const task = createMockTask();
       render(<TaskDetailView {...defaultProps} task={task} />);
       fireEvent.press(screen.getByLabelText("Delete task"));
+      expect(defaultProps.onDelete).not.toHaveBeenCalled();
+      fireEvent.press(screen.getByLabelText("Delete permanently"));
       expect(defaultProps.onDelete).toHaveBeenCalledWith(task);
+    });
+
+    it("calls onArchive after archive confirmation", () => {
+      const task = createMockTask();
+      render(<TaskDetailView {...defaultProps} task={task} />);
+      fireEvent.press(screen.getByLabelText("Archive task"));
+      expect(defaultProps.onArchive).not.toHaveBeenCalled();
+      fireEvent.press(screen.getByLabelText("Archive"));
+      expect(defaultProps.onArchive).toHaveBeenCalledWith(task);
     });
 
     it("shows delete button for completed tasks", () => {

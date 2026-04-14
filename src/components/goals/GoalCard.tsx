@@ -5,6 +5,8 @@ import {
   styles,
   getStatusColor,
   getStatusLabel,
+  getRecordStateColor,
+  getRecordStateLabel,
 } from "../../screens/styles/goalsScreenStyles";
 
 interface GoalCardProps {
@@ -29,13 +31,33 @@ export function GoalCard({ goal, onPress }: GoalCardProps): React.ReactElement {
         <Text style={styles.goalTitle} numberOfLines={2}>
           {goal.title}
         </Text>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: getStatusColor(goal.status) },
-          ]}
-        >
-          <Text style={styles.statusText}>{getStatusLabel(goal.status)}</Text>
+        <View style={styles.badgeColumn}>
+          <View
+            style={[
+              styles.recordStateBadge,
+              {
+                backgroundColor: getRecordStateColor(
+                  goal.record_state ?? "active",
+                ),
+              },
+            ]}
+            accessibilityLabel={`Record state: ${getRecordStateLabel(goal.record_state ?? "active")}`}
+            accessibilityRole="text"
+          >
+            <Text style={styles.recordStateText}>
+              {getRecordStateLabel(goal.record_state)}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(goal.status) },
+            ]}
+            accessibilityLabel={`Goal progress: ${getStatusLabel(goal.status)}`}
+            accessibilityRole="text"
+          >
+            <Text style={styles.statusText}>{getStatusLabel(goal.status)}</Text>
+          </View>
         </View>
       </View>
       {goal.description && (

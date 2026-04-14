@@ -189,6 +189,19 @@ describe("apiTasks", () => {
     });
   });
 
+  describe("archiveTask", () => {
+    it("should call request with POST to archive endpoint", async () => {
+      (api.request as jest.Mock).mockResolvedValueOnce({
+        id: "t1",
+        record_state: "archived",
+      });
+      await api.archiveTask("t1");
+      expect(api.request).toHaveBeenCalledWith("/tasks/t1/archive", {
+        method: "POST",
+      });
+    });
+  });
+
   describe("unpauseTask", () => {
     it("should call request with POST to unpause endpoint", async () => {
       (api.request as jest.Mock).mockResolvedValueOnce({ id: "t1" });

@@ -101,6 +101,13 @@ export function TaskCard({
   hasPrerequisites = false,
 }: TaskCardProps): React.ReactElement {
   const { timezone } = useTimezone();
+  /** Task may stay `active` when the linked goal is paused; embed goal.record_state from API. */
+  const taskRecordState = String(task.record_state ?? "active").toLowerCase();
+  const goalRecordState = task.goal?.record_state
+    ? String(task.goal.record_state).toLowerCase()
+    : "active";
+  const isPaused =
+    taskRecordState === "paused" || goalRecordState === "paused";
   const isCompleted = task.status === "completed";
   const isPending = task.status === "pending";
   const overdue = isTaskOverdue(task, currentDate);
@@ -223,27 +230,42 @@ export function TaskCard({
     </>
   );
 
+  let a11yLabel = isPaused ? `Paused task: ${task.title}` : `Task: ${task.title}`;
+  if (depA11y) {
+    a11yLabel += `. ${depA11y}`;
+  }
+
   return (
-    <View
-      style={[
-        styles.taskCard,
-        overdue && styles.taskCardOverdue,
-        isActive && styles.taskCardDragging,
-      ]}
-    >
-      {/* Main card content - pressable for navigation, long-press for drag */}
+    <View style={styles.taskCardWrapper}>
+      {/* Surface + fill on Pressable so backgroundColor reliably paints (incl. web). */}
       <Pressable
-        style={styles.taskCardPressable}
+        style={[
+          styles.taskCardSurface,
+          isPaused && styles.taskCardSurfacePaused,
+          overdue && styles.taskCardOverdue,
+          isActive && styles.taskCardDragging,
+        ]}
         onPress={() => onPress(task)}
         onLongPress={drag}
         delayLongPress={150}
-        accessibilityLabel={
-          depA11y ? `Task: ${task.title}. ${depA11y}` : `Task: ${task.title}`
-        }
+        accessibilityLabel={a11yLabel}
         accessibilityRole="button"
       >
         {cardContent}
       </Pressable>
+
+      {isPaused && (
+        <View
+          style={styles.pausedWatermark}
+          pointerEvents="none"
+          accessibilityElementsHidden
+        >
+          <View style={styles.pauseIconLarge}>
+            <View style={styles.pauseBar} />
+            <View style={styles.pauseBar} />
+          </View>
+        </View>
+      )}
 
       {/* Web: div avoids invalid <button> inside the card Pressable (a11y/DOM).
           Native: Pressable — same onComplete(task) as web. */}
