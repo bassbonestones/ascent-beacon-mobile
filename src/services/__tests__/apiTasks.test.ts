@@ -130,6 +130,16 @@ describe("apiTasks", () => {
         "/tasks?include_paused=true&include_archived=true",
       );
     });
+
+    it("should include task_record_state when set to archived", async () => {
+      await api.getTasks({
+        task_record_state: "archived",
+        client_today: "2026-04-13",
+      });
+      expect(api.request).toHaveBeenCalledWith(
+        "/tasks?client_today=2026-04-13&task_record_state=archived",
+      );
+    });
   });
 
   describe("getTask", () => {

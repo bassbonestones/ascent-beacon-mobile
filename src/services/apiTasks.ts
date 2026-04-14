@@ -160,6 +160,8 @@ export interface TasksListParams {
   client_timezone?: string;
   include_paused?: boolean;
   include_archived?: boolean;
+  /** Server: only tasks with this record_state (e.g. archived browse). */
+  task_record_state?: "archived";
 }
 
 export interface GetTaskParams {
@@ -204,6 +206,9 @@ export const tasksMethods = <TBase extends Constructor<ApiServiceBase>>(
       }
       if (params.include_archived !== undefined) {
         searchParams.append("include_archived", String(params.include_archived));
+      }
+      if (params.task_record_state) {
+        searchParams.append("task_record_state", params.task_record_state);
       }
 
       const queryString = searchParams.toString();

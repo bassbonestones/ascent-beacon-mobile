@@ -118,6 +118,25 @@ describe("useTasks", () => {
       });
     });
 
+    it("passes task_record_state archived when taskRecordStateArchivedOnly", async () => {
+      renderHook(() =>
+        useTasks({
+          taskRecordStateArchivedOnly: true,
+          includeCompleted: true,
+        }),
+      );
+
+      await waitFor(() => {
+        expect(mockedApi.getTasks).toHaveBeenCalledWith(
+          expect.objectContaining({
+            task_record_state: "archived",
+            include_dependency_summary: false,
+            include_completed: true,
+          }),
+        );
+      });
+    });
+
     it("passes options to api.getTasks", async () => {
       renderHook(() => useTasks({ goalId: "g1", status: "pending" }));
 

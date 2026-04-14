@@ -23,6 +23,8 @@ interface TaskDetailViewProps {
   onViewTracking?: (task: Task) => void;
   /** When the linked goal is paused, resumes the goal (not the task record). */
   onUnpauseGoal?: (goalId: string) => void | Promise<void>;
+  /** Archived browse: read-only detail; only permanent delete is available. */
+  archivedBrowseMode?: boolean;
 }
 
 const ARCHIVE_CONFIRM_TITLE = "Archive this task?";
@@ -389,6 +391,7 @@ export function TaskDetailView({
   onEdit,
   onViewTracking,
   onUnpauseGoal,
+  archivedBrowseMode = false,
 }: TaskDetailViewProps): React.ReactElement {
   const { timezone } = useTimezone();
   const insets = useSafeAreaInsets();
@@ -419,12 +422,18 @@ export function TaskDetailView({
         <TouchableOpacity
           style={styles.backButton}
           onPress={onBack}
-          accessibilityLabel="Back to tasks"
+          accessibilityLabel={
+            archivedBrowseMode ? "Back to archived list" : "Back to tasks"
+          }
           accessibilityRole="button"
         >
-          <Text style={styles.backButtonText}>← Tasks</Text>
+          <Text style={styles.backButtonText}>
+            {archivedBrowseMode ? "← Archived" : "← Tasks"}
+          </Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Task Details</Text>
+        <Text style={styles.headerTitle}>
+          {archivedBrowseMode ? "Archived task" : "Task Details"}
+        </Text>
         <View style={{ width: 60 }} />
       </View>
 
@@ -565,7 +574,7 @@ export function TaskDetailView({
           </View>
         </View>
 
-        {isGoalPaused && task.goal && (
+        {!archivedBrowseMode && isGoalPaused && task.goal && (
           <View style={styles.goalPausedNotice}>
             <Text style={styles.goalPausedNoticeText}>
               This goal is paused, so this task cannot be completed or skipped until
@@ -593,10 +602,12 @@ export function TaskDetailView({
         )}
 
         {/* Phase 4i: Dependencies */}
-        <TaskDependenciesSection taskId={task.originalTaskId || task.id} />
+        {!archivedBrowseMode && (
+          <TaskDependenciesSection taskId={task.originalTaskId || task.id} />
+        )}
 
         <View style={styles.actionButtons}>
-          {task.is_recurring && onViewTracking && (
+          {!archivedBrowseMode && task.is_recurring && onViewTracking && (
             <TouchableOpacity
               style={[styles.actionButton, styles.trackingButton]}
               onPress={() => onViewTracking(task)}
@@ -607,17 +618,22 @@ export function TaskDetailView({
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity
-            style={[styles.actionButton, styles.editButton]}
-            onPress={() => onEdit(task)}
-            accessibilityLabel="Edit task"
-            accessibilityRole="button"
-            disabled={isArchived}
-          >
-            <Text style={styles.actionButtonText}>✏️ Edit Task</Text>
-          </TouchableOpacity>
+          {!archivedBrowseMode && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.editButton]}
+              onPress={() => onEdit(task)}
+              accessibilityLabel="Edit task"
+              accessibilityRole="button"
+              disabled={isArchived}
+            >
+              <Text style={styles.actionButtonText}>✏️ Edit Task</Text>
+            </TouchableOpacity>
+          )}
 
-          {isPending && !isArchived && !isPausedForActions && (
+          {!archivedBrowseMode &&
+            isPending &&
+            !isArchived &&
+            !isPausedForActions && (
             <>
               <TouchableOpacity
                 style={[styles.actionButton, styles.completeButton]}
@@ -639,7 +655,7 @@ export function TaskDetailView({
             </>
           )}
 
-          {(isCompleted || isSkipped) && (
+          {!archivedBrowseMode && (isCompleted || isSkipped) && (
             <TouchableOpacity
               style={[styles.actionButton, styles.reopenButton]}
               onPress={() => onReopen(task)}
@@ -650,7 +666,10 @@ export function TaskDetailView({
             </TouchableOpacity>
           )}
 
-          {!isArchived && !isTaskRecordPaused && !isGoalPaused && (
+          {!archivedBrowseMode &&
+            !isArchived &&
+            !isTaskRecordPaused &&
+            !isGoalPaused && (
             <TouchableOpacity
               style={[styles.actionButton, styles.skipButton]}
               onPress={() => setConfirmKind("pause")}
@@ -661,7 +680,7 @@ export function TaskDetailView({
             </TouchableOpacity>
           )}
 
-          {isTaskRecordPaused && (
+          {!archivedBrowseMode && isTaskRecordPaused && (
             <TouchableOpacity
               style={[styles.actionButton, styles.reopenButton]}
               onPress={() => onUnpause(task)}
@@ -672,7 +691,7 @@ export function TaskDetailView({
             </TouchableOpacity>
           )}
 
-          {!isArchived && (
+          {!archivedBrowseMode && !isArchived && (
             <TouchableOpacity
               style={[styles.actionButton, styles.archiveButton]}
               onPress={() => setConfirmKind("archive")}
@@ -688,7 +707,7 @@ export function TaskDetailView({
             onPress={() => setConfirmKind("delete")}
             accessibilityLabel="Delete task"
             accessibilityRole="button"
-            disabled={isArchived}
+            disabled={isArchived && !archivedBrowseMode}
           >
             <Text style={styles.deleteButtonText}>Delete Task</Text>
           </TouchableOpacity>

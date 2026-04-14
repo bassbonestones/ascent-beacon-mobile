@@ -19,6 +19,8 @@ export interface UseTasksOptions {
   includeCompleted?: boolean;
   includePaused?: boolean;
   includeArchived?: boolean;
+  /** Fetch only archived tasks (browse mode; server filters). */
+  taskRecordStateArchivedOnly?: boolean;
   daysAhead?: number; // How many days ahead to load completion data (default: 14)
   clientToday?: Date; // Override "today" for time travel support (default: new Date())
 }
@@ -61,10 +63,13 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
         include_completed: options.includeCompleted,
         client_today: clientTodayStr,
         days_ahead: options.daysAhead,
-        include_dependency_summary: true,
+        include_dependency_summary: !options.taskRecordStateArchivedOnly,
         client_timezone: clientTimezone,
         include_paused: options.includePaused,
         include_archived: options.includeArchived,
+        task_record_state: options.taskRecordStateArchivedOnly
+          ? "archived"
+          : undefined,
       });
       setTasks(response.tasks);
       setPendingCount(response.pending_count);
@@ -82,6 +87,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
     options.includeCompleted,
     options.includePaused,
     options.includeArchived,
+    options.taskRecordStateArchivedOnly,
     options.daysAhead,
     clientTodayStr,
     clientTimezone,

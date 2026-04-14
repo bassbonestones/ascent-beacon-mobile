@@ -50,6 +50,38 @@ export const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "600",
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  archiveNavButton: {
+    backgroundColor: "#4B5563",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  archiveNavButtonText: {
+    color: "#F9FAFB",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  taskCardArchivedRow: {
+    opacity: 0.95,
+  },
+  archivedRowBadge: {
+    backgroundColor: "#78350F",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+    marginTop: 6,
+  },
+  archivedRowBadgeText: {
+    color: "#FDE68A",
+    fontSize: 12,
+    fontWeight: "600",
+  },
   filterRow: {
     flexDirection: "row",
     paddingHorizontal: 16,

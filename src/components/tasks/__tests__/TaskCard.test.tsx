@@ -55,6 +55,26 @@ describe("TaskCard", () => {
     expect(screen.getByText("My Important Task")).toBeTruthy();
   });
 
+  it("archived variant shows condensed row without complete control", () => {
+    const task = createMockTask({
+      title: "Archived row",
+      record_state: "archived",
+    });
+    render(
+      <TaskCard
+        task={task}
+        variant="archived"
+        onPress={mockOnPress}
+        onComplete={mockOnComplete}
+      />,
+    );
+    expect(screen.getByLabelText("Archived task: Archived row")).toBeTruthy();
+    expect(screen.getByText("Archived")).toBeTruthy();
+    expect(
+      screen.queryByLabelText("Complete task: Archived row"),
+    ).toBeNull();
+  });
+
   it("renders goal title when goal is present", () => {
     const task = createMockTask({
       goal: { id: "goal-1", title: "Associated Goal", status: "in_progress" },

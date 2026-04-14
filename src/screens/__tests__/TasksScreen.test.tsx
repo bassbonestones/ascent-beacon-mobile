@@ -203,6 +203,11 @@ describe("TasksScreen", () => {
       expect(screen.getByLabelText("Create new task")).toBeTruthy();
     });
 
+    it("renders Archived browse control", () => {
+      render(<TasksScreen user={mockUser} navigation={mockNavigation} />);
+      expect(screen.getByLabelText("View archived tasks")).toBeTruthy();
+    });
+
     it("shows pending and completed counts based on tasks", () => {
       const pendingTasks = Array.from({ length: 5 }, (_, i) =>
         createMockTask({ id: `pending-${i}`, status: "pending" }),

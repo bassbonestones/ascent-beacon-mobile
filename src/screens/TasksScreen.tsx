@@ -72,7 +72,7 @@ const blurActiveElement = (): void => {
 };
 
 type ScreenMode = "list" | "create" | "detail" | "edit";
-type ListViewMode = "today" | "upcoming" | "anytime";
+type ListViewMode = "today" | "upcoming" | "anytime" | "archived";
 type StatusFilter = "all" | "pending" | "completed" | "skipped";
 
 // Subtitle marker for separating Scheduled vs To-Do tasks within a day
@@ -143,6 +143,7 @@ export default function TasksScreen({
   const [skipModalTask, setSkipModalTask] = useState<Task | null>(null);
   const [overdueModalTask, setOverdueModalTask] = useState<Task | null>(null);
   const [condenseRecurring, setCondenseRecurring] = useState(false);
+  const listViewModeBeforeArchivedRef = useRef<ListViewMode>("today");
   // Phase 4i: Track which tasks have prerequisites for badge display
   const [tasksWithPrerequisites, setTasksWithPrerequisites] = useState<
     Set<string>
@@ -197,19 +198,23 @@ export default function TasksScreen({
   // filters because recurring tasks have status="pending" but their occurrences
   // can be completed/skipped (stored in completions_by_date / skips_by_date).
   const apiStatusFilter =
-    listViewMode === "today"
-      ? undefined // Fetch all, filter on frontend
-      : statusFilter === "all" ||
-          statusFilter === "completed" ||
-          statusFilter === "skipped"
-        ? undefined // Fetch all, filter on frontend after generating virtual occurrences
-        : statusFilter;
+    listViewMode === "archived"
+      ? undefined
+      : listViewMode === "today"
+        ? undefined // Fetch all, filter on frontend
+        : statusFilter === "all" ||
+            statusFilter === "completed" ||
+            statusFilter === "skipped"
+          ? undefined // Fetch all, filter on frontend after generating virtual occurrences
+          : statusFilter;
 
   // Include completed tasks when:
   // - Today view (to show in "Completed" filter)
   // - Upcoming view with "all", "completed", or "skipped" filter
+  // - Archived browse (all archived templates regardless of status)
   // NOTE: "skipped" needs this too to get skips_by_date from the API
   const apiIncludeCompleted =
+    listViewMode === "archived" ||
     listViewMode === "today" ||
     statusFilter === "all" ||
     statusFilter === "completed" ||
@@ -220,7 +225,7 @@ export default function TasksScreen({
   // - Upcoming + completed/skipped: load all (365 days) since these are finite
   // - Upcoming + pending/all: use paginated daysAhead
   const effectiveDaysAhead =
-    listViewMode === "today"
+    listViewMode === "archived" || listViewMode === "today"
       ? INITIAL_DAYS_AHEAD
       : statusFilter === "completed" || statusFilter === "skipped"
         ? MAX_DAYS_AHEAD
@@ -248,6 +253,7 @@ export default function TasksScreen({
     daysAhead: effectiveDaysAhead,
     clientToday: getCurrentDate(), // Support time travel
     includePaused,
+    taskRecordStateArchivedOnly: listViewMode === "archived",
   });
 
   const onDependencyFlowFinished = useCallback(() => {
@@ -380,7 +386,9 @@ export default function TasksScreen({
   // This runs when tasks are loaded and silently skips overdue habitual occurrences
   const autoSkippedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (loading || tasks.length === 0) return;
+    if (listViewMode === "archived" || loading || tasks.length === 0) {
+      return;
+    }
 
     const todayDateStr = toLocalDateString(currentDate);
 
@@ -444,7 +452,7 @@ export default function TasksScreen({
         // Silently fail - don't show error to user
       }
     });
-  }, [tasks, loading, currentDate, skipTask]);
+  }, [tasks, loading, currentDate, skipTask, listViewMode]);
 
   // Filter and sort tasks based on view mode
   const {
@@ -454,6 +462,20 @@ export default function TasksScreen({
     viewCompletedCount,
     viewSkippedCount,
   } = useMemo(() => {
+      if (listViewMode === "archived") {
+        const archivedSorted = [...tasks].sort(
+          (a, b) =>
+            new Date(b.updated_at).getTime() -
+            new Date(a.updated_at).getTime(),
+        );
+        return {
+          sortedTasks: archivedSorted,
+          sections: null,
+          viewPendingCount: 0,
+          viewCompletedCount: 0,
+          viewSkippedCount: 0,
+        };
+      }
       if (listViewMode === "today") {
         // Today view: overdue → timed → todos
         // Get today's LOCAL date as YYYY-MM-DD string for comparison
@@ -1315,6 +1337,17 @@ export default function TasksScreen({
     [archiveTask],
   );
 
+  const openArchivedBrowse = useCallback(() => {
+    if (listViewMode !== "archived") {
+      listViewModeBeforeArchivedRef.current = listViewMode;
+    }
+    setListViewMode("archived");
+  }, [listViewMode]);
+
+  const exitArchivedBrowse = useCallback(() => {
+    setListViewMode(listViewModeBeforeArchivedRef.current);
+  }, []);
+
   const handleUnpause = useCallback(
     async (task: Task) => {
       try {
@@ -1511,6 +1544,7 @@ export default function TasksScreen({
             });
           }}
           onUnpauseGoal={handleUnpauseGoal}
+          archivedBrowseMode={listViewMode === "archived"}
         />
         {taskFlowModalsEl}
       </>
@@ -1534,17 +1568,41 @@ export default function TasksScreen({
       </View>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Tasks</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setScreenMode("create")}
-          accessibilityLabel="Create new task"
-          accessibilityRole="button"
-        >
-          <Text style={styles.addButtonText}>+ New</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {listViewMode !== "archived" ? (
+            <TouchableOpacity
+              style={styles.archiveNavButton}
+              onPress={openArchivedBrowse}
+              accessibilityLabel="View archived tasks"
+              accessibilityRole="button"
+            >
+              <Text style={styles.archiveNavButtonText}>Archived</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.archiveNavButton}
+              onPress={exitArchivedBrowse}
+              accessibilityLabel="Back to task lists"
+              accessibilityRole="button"
+            >
+              <Text style={styles.archiveNavButtonText}>Done</Text>
+            </TouchableOpacity>
+          )}
+          {listViewMode !== "archived" && (
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => setScreenMode("create")}
+              accessibilityLabel="Create new task"
+              accessibilityRole="button"
+            >
+              <Text style={styles.addButtonText}>+ New</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Summary row: Today counts; Condense + Include Paused toggles (right-aligned) */}
+      {listViewMode !== "archived" && (
       <View style={styles.summaryRow}>
         {listViewMode === "today" && (
           <>
@@ -1614,7 +1672,9 @@ export default function TasksScreen({
           </TouchableOpacity>
         </View>
       </View>
+      )}
 
+      {listViewMode !== "archived" && (
       <View style={styles.viewModeRow}>
         {(["today", "upcoming", "anytime"] as ListViewMode[]).map((mode) => (
           <TouchableOpacity
@@ -1637,7 +1697,9 @@ export default function TasksScreen({
           </TouchableOpacity>
         ))}
       </View>
+      )}
 
+      {listViewMode !== "archived" && (
       <View style={styles.filterRow}>
         {(["pending", "completed", "skipped", "all"] as StatusFilter[]).map(
           (filter) => (
@@ -1662,32 +1724,37 @@ export default function TasksScreen({
           ),
         )}
       </View>
+      )}
 
       {loading && !loadingMore ? (
         <ActivityIndicator size="large" style={styles.loader} />
       ) : isListEmpty ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateTitle}>
-            {listViewMode === "today"
-              ? statusFilter === "pending"
-                ? "No tasks for today"
-                : statusFilter === "completed"
-                  ? "No completed tasks today"
-                  : "No tasks today"
-              : listViewMode === "anytime"
+            {listViewMode === "archived"
+              ? "No archived tasks"
+              : listViewMode === "today"
                 ? statusFilter === "pending"
-                  ? "No tasks in backlog"
-                  : "No anytime tasks"
-                : statusFilter === "pending"
-                  ? "No upcoming tasks"
-                  : "No tasks scheduled"}
+                  ? "No tasks for today"
+                  : statusFilter === "completed"
+                    ? "No completed tasks today"
+                    : "No tasks today"
+                : listViewMode === "anytime"
+                  ? statusFilter === "pending"
+                    ? "No tasks in backlog"
+                    : "No anytime tasks"
+                  : statusFilter === "pending"
+                    ? "No upcoming tasks"
+                    : "No tasks scheduled"}
           </Text>
           <Text style={styles.emptyStateText}>
-            {listViewMode === "today"
-              ? "Create a task to get started"
-              : listViewMode === "anytime"
-                ? "Create tasks without a schedule for your backlog"
-                : "Schedule tasks with future dates to see them here"}
+            {listViewMode === "archived"
+              ? "Archive a task from its details to see it here."
+              : listViewMode === "today"
+                ? "Create a task to get started"
+                : listViewMode === "anytime"
+                  ? "Create tasks without a schedule for your backlog"
+                  : "Schedule tasks with future dates to see them here"}
           </Text>
         </View>
       ) : listViewMode === "anytime" ? (
@@ -1862,9 +1929,13 @@ export default function TasksScreen({
           renderItem={({ item }) => (
             <TaskCard
               task={item}
+              variant={listViewMode === "archived" ? "archived" : "default"}
               currentDate={currentDate}
               onPress={(t) => {
-                if (isTaskOverdue(t, currentDate)) {
+                if (
+                  listViewMode !== "archived" &&
+                  isTaskOverdue(t, currentDate)
+                ) {
                   setOverdueModalTask(t);
                 } else {
                   setSelectedTask(t);

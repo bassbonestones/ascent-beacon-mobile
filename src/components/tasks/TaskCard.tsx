@@ -48,6 +48,8 @@ interface TaskCardProps {
   task: Task;
   onPress: (task: Task) => void;
   onComplete: (task: Task) => void;
+  /** Condensed row for archived browse (no complete / dependency chrome). */
+  variant?: "default" | "archived";
   currentDate?: Date;
   showReorderButtons?: boolean;
   onMoveUp?: () => void;
@@ -92,6 +94,7 @@ export function TaskCard({
   task,
   onPress,
   onComplete,
+  variant = "default",
   currentDate = new Date(),
   showReorderButtons = false,
   onMoveUp,
@@ -101,6 +104,43 @@ export function TaskCard({
   hasPrerequisites = false,
 }: TaskCardProps): React.ReactElement {
   const { timezone } = useTimezone();
+
+  if (variant === "archived") {
+    return (
+      <View style={styles.taskCardWrapper}>
+        <Pressable
+          style={[styles.taskCardSurface, styles.taskCardArchivedRow]}
+          onPress={() => onPress(task)}
+          accessibilityLabel={`Archived task: ${task.title}`}
+          accessibilityRole="button"
+        >
+          <View style={[styles.taskHeader, { alignItems: "flex-start" }]}>
+            <View style={[styles.taskTitleContainer, { flex: 1 }]}>
+              <Text style={styles.taskTitle} numberOfLines={2}>
+                {task.title}
+              </Text>
+              {task.goal ? (
+                <Text style={styles.taskGoal} numberOfLines={1}>
+                  {task.goal.title}
+                </Text>
+              ) : (
+                <Text
+                  style={[styles.taskGoal, styles.unalignedText]}
+                  numberOfLines={1}
+                >
+                  ⊘ Unaligned
+                </Text>
+              )}
+            </View>
+            <View style={styles.archivedRowBadge}>
+              <Text style={styles.archivedRowBadgeText}>Archived</Text>
+            </View>
+          </View>
+        </Pressable>
+      </View>
+    );
+  }
+
   /** Task may stay `active` when the linked goal is paused; embed goal.record_state from API. */
   const taskRecordState = String(task.record_state ?? "active").toLowerCase();
   const goalRecordState = task.goal?.record_state

@@ -324,6 +324,28 @@ describe("TaskDetailView", () => {
     });
   });
 
+  describe("archived browse mode", () => {
+    it("shows only delete for archived task when browse mode is on", () => {
+      const task = createMockTask({
+        record_state: "archived",
+        status: "pending",
+      });
+      render(
+        <TaskDetailView
+          {...defaultProps}
+          task={task}
+          archivedBrowseMode
+        />,
+      );
+      expect(screen.getByText("Archived task")).toBeTruthy();
+      expect(screen.queryByLabelText("Edit task")).toBeNull();
+      expect(screen.queryByLabelText("Archive task")).toBeNull();
+      const deleteBtn = screen.getByLabelText("Delete task");
+      expect(deleteBtn).toBeTruthy();
+      expect(deleteBtn.props.accessibilityState?.disabled).not.toBe(true);
+    });
+  });
+
   describe("delete action", () => {
     it("always shows delete button", () => {
       const task = createMockTask();
