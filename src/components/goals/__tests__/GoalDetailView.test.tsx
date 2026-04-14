@@ -35,7 +35,6 @@ jest.mock("../../../screens/styles/goalsScreenStyles", () => ({
       not_started: "#888",
       in_progress: "#3B82F6",
       completed: "#10B981",
-      abandoned: "#EF4444",
     };
     return colors[status] || "#888";
   },
@@ -44,7 +43,6 @@ jest.mock("../../../screens/styles/goalsScreenStyles", () => ({
       not_started: "Not Started",
       in_progress: "In Progress",
       completed: "Completed",
-      abandoned: "Abandoned",
     };
     return labels[status] || status;
   },
@@ -73,7 +71,6 @@ const createMockGoal = (overrides: Partial<Goal> = {}): Goal => ({
 describe("GoalDetailView", () => {
   const mockOnBack = jest.fn();
   const mockOnDelete = jest.fn();
-  const mockOnStatusChange = jest.fn();
   const mockOnPause = jest.fn();
 
   beforeEach(() => {
@@ -87,7 +84,6 @@ describe("GoalDetailView", () => {
         goal={goal}
         onBack={mockOnBack}
         onDelete={mockOnDelete}
-        onStatusChange={mockOnStatusChange}
         onPause={mockOnPause}
       />,
     );
@@ -101,7 +97,6 @@ describe("GoalDetailView", () => {
         goal={goal}
         onBack={mockOnBack}
         onDelete={mockOnDelete}
-        onStatusChange={mockOnStatusChange}
       />,
     );
     expect(screen.getByText("← Goals")).toBeTruthy();
@@ -116,7 +111,6 @@ describe("GoalDetailView", () => {
         goal={goal}
         onBack={mockOnBack}
         onDelete={mockOnDelete}
-        onStatusChange={mockOnStatusChange}
       />,
     );
     fireEvent.press(screen.getByLabelText("Back to goals list"));
@@ -130,7 +124,19 @@ describe("GoalDetailView", () => {
         goal={goal}
         onBack={mockOnBack}
         onDelete={mockOnDelete}
-        onStatusChange={mockOnStatusChange}
+      />,
+    );
+    fireEvent.press(screen.getByLabelText("Delete goal"));
+    expect(mockOnDelete).toHaveBeenCalledWith(goal);
+  });
+
+  it("calls onDelete when archived goal delete button pressed", () => {
+    const goal = createMockGoal({ record_state: "archived" });
+    render(
+      <GoalDetailView
+        goal={goal}
+        onBack={mockOnBack}
+        onDelete={mockOnDelete}
       />,
     );
     fireEvent.press(screen.getByLabelText("Delete goal"));
@@ -144,11 +150,9 @@ describe("GoalDetailView", () => {
         goal={goal}
         onBack={mockOnBack}
         onDelete={mockOnDelete}
-        onStatusChange={mockOnStatusChange}
       />,
     );
-    // "In Progress" appears both in badge and status button - verify at least 2 instances
-    expect(screen.getAllByText("In Progress").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("In Progress")).toBeTruthy();
   });
 
   it("renders description when provided", () => {
@@ -158,7 +162,6 @@ describe("GoalDetailView", () => {
         goal={goal}
         onBack={mockOnBack}
         onDelete={mockOnDelete}
-        onStatusChange={mockOnStatusChange}
       />,
     );
     expect(screen.getByText("Description")).toBeTruthy();
@@ -172,7 +175,6 @@ describe("GoalDetailView", () => {
         goal={goal}
         onBack={mockOnBack}
         onDelete={mockOnDelete}
-        onStatusChange={mockOnStatusChange}
       />,
     );
     expect(screen.queryByText("Description")).toBeNull();
@@ -185,7 +187,6 @@ describe("GoalDetailView", () => {
         goal={goal}
         onBack={mockOnBack}
         onDelete={mockOnDelete}
-        onStatusChange={mockOnStatusChange}
       />,
     );
     expect(screen.getByText("Target Date")).toBeTruthy();
@@ -199,7 +200,6 @@ describe("GoalDetailView", () => {
         goal={goal}
         onBack={mockOnBack}
         onDelete={mockOnDelete}
-        onStatusChange={mockOnStatusChange}
       />,
     );
     expect(screen.queryByText("Target Date")).toBeNull();
@@ -217,7 +217,6 @@ describe("GoalDetailView", () => {
         goal={goal}
         onBack={mockOnBack}
         onDelete={mockOnDelete}
-        onStatusChange={mockOnStatusChange}
       />,
     );
     expect(screen.getByText("Linked Priorities")).toBeTruthy();
@@ -232,41 +231,18 @@ describe("GoalDetailView", () => {
         goal={goal}
         onBack={mockOnBack}
         onDelete={mockOnDelete}
-        onStatusChange={mockOnStatusChange}
       />,
     );
     expect(screen.queryByText("Linked Priorities")).toBeNull();
   });
 
-  it("renders all status change buttons", () => {
+  it("does not render manual status controls", () => {
     const goal = createMockGoal();
     render(
-      <GoalDetailView
-        goal={goal}
-        onBack={mockOnBack}
-        onDelete={mockOnDelete}
-        onStatusChange={mockOnStatusChange}
-      />,
+      <GoalDetailView goal={goal} onBack={mockOnBack} onDelete={mockOnDelete} />,
     );
-    expect(screen.getByText("Change Status")).toBeTruthy();
-    expect(screen.getByLabelText("Set status to Not Started")).toBeTruthy();
-    expect(screen.getByLabelText("Set status to In Progress")).toBeTruthy();
-    expect(screen.getByLabelText("Set status to Completed")).toBeTruthy();
-    expect(screen.getByLabelText("Set status to Abandoned")).toBeTruthy();
-  });
-
-  it("calls onStatusChange when status button pressed", () => {
-    const goal = createMockGoal({ status: "not_started" });
-    render(
-      <GoalDetailView
-        goal={goal}
-        onBack={mockOnBack}
-        onDelete={mockOnDelete}
-        onStatusChange={mockOnStatusChange}
-      />,
-    );
-    fireEvent.press(screen.getByLabelText("Set status to In Progress"));
-    expect(mockOnStatusChange).toHaveBeenCalledWith(goal, "in_progress");
+    expect(screen.queryByText("Change Status")).toBeNull();
+    expect(screen.queryByLabelText("Set status to In Progress")).toBeNull();
   });
 
   it("renders warning when has_incomplete_breakdown", () => {
@@ -276,7 +252,6 @@ describe("GoalDetailView", () => {
         goal={goal}
         onBack={mockOnBack}
         onDelete={mockOnDelete}
-        onStatusChange={mockOnStatusChange}
       />,
     );
     expect(
@@ -293,7 +268,6 @@ describe("GoalDetailView", () => {
         goal={goal}
         onBack={mockOnBack}
         onDelete={mockOnDelete}
-        onStatusChange={mockOnStatusChange}
         onPause={mockOnPause}
       />,
     );
@@ -307,7 +281,6 @@ describe("GoalDetailView", () => {
         goal={goal}
         onBack={mockOnBack}
         onDelete={mockOnDelete}
-        onStatusChange={mockOnStatusChange}
         onPause={mockOnPause}
       />,
     );

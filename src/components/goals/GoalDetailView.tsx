@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
-import type { Goal, GoalStatus } from "../../types";
+import type { Goal } from "../../types";
 import {
   styles,
   getStatusColor,
@@ -11,24 +11,15 @@ interface GoalDetailViewProps {
   goal: Goal;
   onBack: () => void;
   onDelete: (goal: Goal) => void;
-  onStatusChange: (goal: Goal, status: GoalStatus) => void;
   onArchive?: (goal: Goal) => void;
   onPause?: (goal: Goal) => void;
   onUnpause?: (goal: Goal) => void;
 }
 
-const STATUSES: GoalStatus[] = [
-  "not_started",
-  "in_progress",
-  "completed",
-  "abandoned",
-];
-
 export function GoalDetailView({
   goal,
   onBack,
   onDelete,
-  onStatusChange,
   onArchive = () => {},
   onPause = () => {},
   onUnpause = () => {},
@@ -53,11 +44,8 @@ export function GoalDetailView({
           onPress={() => onDelete(goal)}
           accessibilityLabel="Delete goal"
           accessibilityRole="button"
-          disabled={isArchived}
         >
-          <Text style={[styles.deleteButton, isArchived && styles.disabledActionText]}>
-            Delete
-          </Text>
+          <Text style={styles.deleteButton}>Delete</Text>
         </TouchableOpacity>
       </View>
 
@@ -104,35 +92,6 @@ export function GoalDetailView({
             ))}
           </View>
         )}
-
-        <View style={styles.detailSection}>
-          <Text style={styles.detailLabel}>Change Status</Text>
-          <View style={styles.statusButtons}>
-            {STATUSES.map((status) => (
-              <TouchableOpacity
-                key={status}
-                style={[
-                  styles.statusButton,
-                  goal.status === status && styles.statusButtonActive,
-                  { borderColor: getStatusColor(status) },
-                ]}
-                onPress={() => onStatusChange(goal, status)}
-                accessibilityLabel={`Set status to ${getStatusLabel(status)}`}
-                accessibilityRole="button"
-                disabled={isArchived}
-              >
-                <Text
-                  style={[
-                    styles.statusButtonText,
-                    goal.status === status && { color: getStatusColor(status) },
-                  ]}
-                >
-                  {getStatusLabel(status)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
 
         <View style={styles.detailSection}>
           <Text style={styles.detailLabel}>Visibility Controls</Text>

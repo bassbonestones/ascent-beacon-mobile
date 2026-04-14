@@ -14,7 +14,6 @@ import type {
   Goal,
   User,
   RootStackParamList,
-  GoalStatus,
   GoalArchiveResolutionAction,
   GoalArchivePreviewResponse,
   GoalArchiveTaskResolution,
@@ -67,7 +66,6 @@ export default function GoalsScreen({
     error,
     refetch,
     createGoal,
-    updateGoalStatus,
     deleteGoal,
     previewArchive,
     archiveGoal,
@@ -110,23 +108,6 @@ export default function GoalsScreen({
       // Error already handled in hook
     }
   }, [newGoalTitle, newGoalDescription, createGoal]);
-
-  const handleStatusChange = useCallback(
-    async (goal: Goal, newStatus: GoalStatus) => {
-      try {
-        await updateGoalStatus(goal.id, newStatus);
-        if (selectedGoal?.id === goal.id) {
-          setSelectedGoal({ ...goal, status: newStatus });
-        }
-        if (newStatus === "completed" && !showCompleted) {
-          // Goal will disappear from list since we're not showing completed
-        }
-      } catch {
-        // Error already handled in hook
-      }
-    },
-    [updateGoalStatus, showCompleted, selectedGoal],
-  );
 
   const handleArchiveGoal = useCallback(
     async (goal: Goal) => {
@@ -207,10 +188,11 @@ export default function GoalsScreen({
 
   const handleDeleteGoal = useCallback(
     async (goal: Goal) => {
-      const confirmed = await showConfirm(
-        "Delete Goal",
-        `Are you sure you want to delete "${goal.title}"?`,
-      );
+      const isArchivedGoal = goal.record_state === "archived";
+      const message = isArchivedGoal
+        ? `Permanently delete archived goal "${goal.title}" and its data? This cannot be undone.`
+        : `Are you sure you want to delete "${goal.title}"?`;
+      const confirmed = await showConfirm("Delete Goal", message);
       if (confirmed) {
         try {
           await deleteGoal(goal.id);
@@ -227,12 +209,21 @@ export default function GoalsScreen({
   const handleGoalPress = useCallback((goal: Goal) => {
     setSelectedGoal(goal);
     setViewMode("detail");
+    void (async () => {
+      try {
+        const fresh = await api.getGoal(goal.id);
+        setSelectedGoal(fresh);
+      } catch {
+        // Keep list copy if refresh fails
+      }
+    })();
   }, []);
 
   const handleDetailBack = useCallback(() => {
     setViewMode("list");
     setSelectedGoal(null);
-  }, []);
+    void refetch();
+  }, [refetch]);
 
   const blurActiveElement = (): void => {
     if (Platform.OS === "web" && typeof document !== "undefined") {
@@ -612,7 +603,6 @@ export default function GoalsScreen({
           goal={selectedGoal}
           onBack={handleDetailBack}
           onDelete={handleDeleteGoal}
-          onStatusChange={handleStatusChange}
           onArchive={handleArchiveGoal}
           onPause={handlePauseGoal}
           onUnpause={handleUnpauseGoal}

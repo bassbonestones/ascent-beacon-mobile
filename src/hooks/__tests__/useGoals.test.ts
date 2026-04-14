@@ -10,7 +10,6 @@ jest.mock("../../services/api", () => ({
     getGoals: jest.fn(),
     createGoal: jest.fn(),
     updateGoal: jest.fn(),
-    updateGoalStatus: jest.fn(),
     deleteGoal: jest.fn(),
     previewArchive: jest.fn(),
     archiveGoal: jest.fn(),
@@ -199,49 +198,6 @@ describe("useGoals", () => {
       expect(Alert.alert).toHaveBeenCalledWith(
         "Error",
         "Failed to update goal",
-      );
-    });
-  });
-
-  describe("updateGoalStatus", () => {
-    it("updates goal status in list", async () => {
-      const updatedGoal = {
-        ...mockGoals[0],
-        status: "completed" as GoalStatus,
-      };
-      mockedApi.updateGoalStatus.mockResolvedValue(updatedGoal);
-
-      const { result } = renderHook(() => useGoals());
-
-      await waitFor(() => expect(result.current.loading).toBe(false));
-
-      await act(async () => {
-        await result.current.updateGoalStatus("g1", "completed");
-      });
-
-      expect(mockedApi.updateGoalStatus).toHaveBeenCalledWith(
-        "g1",
-        "completed",
-      );
-      expect(result.current.goals[0].status).toBe("completed");
-    });
-
-    it("shows alert on status update failure", async () => {
-      mockedApi.updateGoalStatus.mockRejectedValue(new Error("Status failed"));
-
-      const { result } = renderHook(() => useGoals());
-
-      await waitFor(() => expect(result.current.loading).toBe(false));
-
-      await expect(
-        act(async () => {
-          await result.current.updateGoalStatus("g1", "completed");
-        }),
-      ).rejects.toThrow();
-
-      expect(Alert.alert).toHaveBeenCalledWith(
-        "Error",
-        "Failed to update goal status",
       );
     });
   });

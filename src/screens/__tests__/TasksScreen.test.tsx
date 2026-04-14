@@ -132,7 +132,6 @@ const defaultGoalsHook: UseGoalsReturn = {
   refetch: jest.fn(),
   createGoal: jest.fn(),
   updateGoal: jest.fn(),
-  updateGoalStatus: jest.fn(),
   deleteGoal: jest.fn(),
   previewArchive: jest.fn(),
   archiveGoal: jest.fn(),

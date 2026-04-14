@@ -547,11 +547,7 @@ export interface UseLinksReturn {
 // Goal Types
 // ============================================================================
 
-export type GoalStatus =
-  | "not_started"
-  | "in_progress"
-  | "completed"
-  | "abandoned";
+export type GoalStatus = "not_started" | "in_progress" | "completed";
 
 export interface GoalPriorityInfo {
   id: string;
@@ -603,12 +599,8 @@ export interface UpdateGoalRequest {
   title?: string;
   description?: string | null;
   target_date?: string | null;
-  status?: GoalStatus;
   parent_goal_id?: string | null;
-}
-
-export interface UpdateGoalStatusRequest {
-  status: GoalStatus;
+  priority_id?: string | null;
 }
 
 export interface SetPriorityLinksRequest {
@@ -660,7 +652,6 @@ export interface UseGoalsReturn {
   refetch: () => Promise<void>;
   createGoal: (data: CreateGoalRequest) => Promise<Goal>;
   updateGoal: (id: string, data: UpdateGoalRequest) => Promise<Goal>;
-  updateGoalStatus: (id: string, status: GoalStatus) => Promise<Goal>;
   deleteGoal: (id: string) => Promise<void>;
   previewArchive: (goalId: string) => Promise<GoalArchivePreviewResponse>;
   archiveGoal: (goalId: string, request: ArchiveGoalRequest) => Promise<Goal>;

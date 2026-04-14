@@ -11,6 +11,7 @@ const mockUnpauseGoal = jest.fn();
 const mockShowConfirm = jest.fn();
 const mockShowAlert = jest.fn();
 const mockGetGoals = jest.fn();
+const mockGetGoal = jest.fn();
 
 jest.mock("../../hooks/useGoals", () => ({
   useGoals: jest.fn(),
@@ -24,6 +25,7 @@ jest.mock("../../services/api", () => ({
   __esModule: true,
   default: {
     getGoals: (...args: unknown[]) => mockGetGoals(...args),
+    getGoal: (...args: unknown[]) => mockGetGoal(...args),
   },
 }));
 
@@ -76,10 +78,12 @@ describe("GoalsScreen archive and unpause", () => {
     mockArchiveGoal.mockResolvedValue(baseGoal({ record_state: "archived" }));
     mockPauseGoal.mockResolvedValue(baseGoal({ record_state: "paused" }));
     mockUnpauseGoal.mockResolvedValue(baseGoal({ record_state: "active" }));
+    mockGetGoal.mockImplementation(async () => baseGoal());
   });
 
   it("archives from detail view using per-task resolution flow", async () => {
     mockShowConfirm.mockResolvedValueOnce(true);
+    mockGetGoal.mockResolvedValue(baseGoal());
 
     useGoals.mockReturnValue({
       goals: [baseGoal()],
@@ -88,7 +92,6 @@ describe("GoalsScreen archive and unpause", () => {
       refetch: jest.fn(),
       createGoal: jest.fn(),
       updateGoal: jest.fn(),
-      updateGoalStatus: jest.fn(),
       deleteGoal: jest.fn(),
       previewArchive: mockPreviewArchive,
       archiveGoal: mockArchiveGoal,
@@ -98,6 +101,9 @@ describe("GoalsScreen archive and unpause", () => {
 
     render(<GoalsScreen user={user} navigation={navigation} />);
     fireEvent.press(screen.getByLabelText("Goal: Archive Me"));
+    await waitFor(() => {
+      expect(screen.getByLabelText("Archive goal")).toBeTruthy();
+    });
     fireEvent.press(screen.getByLabelText("Archive goal"));
     await screen.findByText("Resolve linked tasks");
     fireEvent.press(screen.getByText("Reassign"));
@@ -127,14 +133,15 @@ describe("GoalsScreen archive and unpause", () => {
   });
 
   it("unpauses paused goals from detail actions", async () => {
+    const paused = baseGoal({ title: "Paused Goal", record_state: "paused" });
+    mockGetGoal.mockResolvedValue(paused);
     useGoals.mockReturnValue({
-      goals: [baseGoal({ title: "Paused Goal", record_state: "paused" })],
+      goals: [paused],
       loading: false,
       error: null,
       refetch: jest.fn(),
       createGoal: jest.fn(),
       updateGoal: jest.fn(),
-      updateGoalStatus: jest.fn(),
       deleteGoal: jest.fn(),
       previewArchive: mockPreviewArchive,
       archiveGoal: mockArchiveGoal,
@@ -143,7 +150,11 @@ describe("GoalsScreen archive and unpause", () => {
     });
 
     render(<GoalsScreen user={user} navigation={navigation} />);
+    fireEvent.press(screen.getByLabelText("Show paused goals"));
     fireEvent.press(screen.getByLabelText("Goal: Paused Goal"));
+    await waitFor(() => {
+      expect(screen.getByLabelText("Unpause goal")).toBeTruthy();
+    });
     fireEvent.press(screen.getByLabelText("Unpause goal"));
 
     await waitFor(() => {
@@ -153,14 +164,15 @@ describe("GoalsScreen archive and unpause", () => {
 
   it("pauses active goals from detail actions", async () => {
     mockShowConfirm.mockResolvedValueOnce(true);
+    const active = baseGoal({ title: "Active Goal", record_state: "active" });
+    mockGetGoal.mockResolvedValue(active);
     useGoals.mockReturnValue({
-      goals: [baseGoal({ title: "Active Goal", record_state: "active" })],
+      goals: [active],
       loading: false,
       error: null,
       refetch: jest.fn(),
       createGoal: jest.fn(),
       updateGoal: jest.fn(),
-      updateGoalStatus: jest.fn(),
       deleteGoal: jest.fn(),
       previewArchive: mockPreviewArchive,
       archiveGoal: mockArchiveGoal,
@@ -170,6 +182,9 @@ describe("GoalsScreen archive and unpause", () => {
 
     render(<GoalsScreen user={user} navigation={navigation} />);
     fireEvent.press(screen.getByLabelText("Goal: Active Goal"));
+    await waitFor(() => {
+      expect(screen.getByLabelText("Pause goal")).toBeTruthy();
+    });
     fireEvent.press(screen.getByLabelText("Pause goal"));
 
     await waitFor(() => {

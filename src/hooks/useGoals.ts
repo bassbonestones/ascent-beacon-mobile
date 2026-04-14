@@ -7,7 +7,6 @@ import type {
   GoalArchivePreviewResponse,
   CreateGoalRequest,
   UpdateGoalRequest,
-  GoalStatus,
   UseGoalsReturn,
 } from "../types";
 
@@ -88,21 +87,6 @@ export function useGoals(options: UseGoalsOptions = {}): UseGoalsReturn {
     [],
   );
 
-  const updateGoalStatus = useCallback(
-    async (id: string, status: GoalStatus): Promise<Goal> => {
-      try {
-        const updated = await api.updateGoalStatus(id, status);
-        setGoals((prev) => prev.map((g) => (g.id === id ? updated : g)));
-        return updated;
-      } catch (err) {
-        const error = err instanceof Error ? err : new Error(String(err));
-        showAlert("Error", "Failed to update goal status");
-        throw error;
-      }
-    },
-    [],
-  );
-
   const deleteGoal = useCallback(async (id: string): Promise<void> => {
     try {
       await api.deleteGoal(id);
@@ -154,7 +138,6 @@ export function useGoals(options: UseGoalsOptions = {}): UseGoalsReturn {
     refetch: fetchGoals,
     createGoal,
     updateGoal,
-    updateGoalStatus,
     deleteGoal,
     previewArchive,
     archiveGoal,

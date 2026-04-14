@@ -119,20 +119,6 @@ describe("apiGoals", () => {
     });
   });
 
-  describe("updateGoalStatus", () => {
-    it("should call request with PATCH to status endpoint", async () => {
-      (api.request as jest.Mock).mockResolvedValueOnce({
-        id: "g1",
-        status: "completed",
-      });
-      await api.updateGoalStatus("g1", "completed");
-      expect(api.request).toHaveBeenCalledWith("/goals/g1/status", {
-        method: "PATCH",
-        body: JSON.stringify({ status: "completed" }),
-      });
-    });
-  });
-
   describe("deleteGoal", () => {
     it("should call request with DELETE", async () => {
       (api.request as jest.Mock).mockResolvedValueOnce(undefined);

@@ -13,6 +13,15 @@ import { Alert } from "react-native";
 import GoalsScreen from "../GoalsScreen";
 import type { User, Goal, RootStackParamList, GoalStatus } from "../../types";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import api from "../../services/api";
+
+jest.mock("../../services/api", () => ({
+  __esModule: true,
+  default: {
+    getGoal: jest.fn(),
+    getGoals: jest.fn(),
+  },
+}));
 
 // Mock styles
 jest.mock("../styles/goalsScreenStyles", () => ({
@@ -84,7 +93,6 @@ jest.mock("../styles/goalsScreenStyles", () => ({
       not_started: "Not Started",
       in_progress: "In Progress",
       completed: "Completed",
-      abandoned: "Abandoned",
     };
     return labels[status] || status;
   },
@@ -99,7 +107,6 @@ jest.mock("../styles/goalsScreenStyles", () => ({
 
 // Mock useGoals hook
 const mockCreateGoal = jest.fn();
-const mockUpdateGoalStatus = jest.fn();
 const mockDeleteGoal = jest.fn();
 const mockPreviewArchive = jest.fn();
 const mockArchiveGoal = jest.fn();
@@ -114,7 +121,6 @@ jest.mock("../../hooks/useGoals", () => ({
     error: null,
     refetch: mockRefetch,
     createGoal: mockCreateGoal,
-    updateGoalStatus: mockUpdateGoalStatus,
     deleteGoal: mockDeleteGoal,
     previewArchive: mockPreviewArchive,
     archiveGoal: mockArchiveGoal,
@@ -171,13 +177,16 @@ describe("GoalsScreen", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (api.getGoal as jest.Mock).mockImplementation(async (id: string) =>
+      createMockGoal({ id }),
+    );
+    (api.getGoals as jest.Mock).mockResolvedValue({ goals: [] });
     (useGoals as jest.Mock).mockReturnValue({
       goals: [],
       loading: false,
       error: null,
       refetch: mockRefetch,
       createGoal: mockCreateGoal,
-      updateGoalStatus: mockUpdateGoalStatus,
       deleteGoal: mockDeleteGoal,
       previewArchive: mockPreviewArchive,
       archiveGoal: mockArchiveGoal,
@@ -219,7 +228,6 @@ describe("GoalsScreen", () => {
         error: null,
         refetch: mockRefetch,
         createGoal: mockCreateGoal,
-        updateGoalStatus: mockUpdateGoalStatus,
         deleteGoal: mockDeleteGoal,
         previewArchive: mockPreviewArchive,
         archiveGoal: mockArchiveGoal,
@@ -243,7 +251,6 @@ describe("GoalsScreen", () => {
         error: null,
         refetch: mockRefetch,
         createGoal: mockCreateGoal,
-        updateGoalStatus: mockUpdateGoalStatus,
         deleteGoal: mockDeleteGoal,
         previewArchive: mockPreviewArchive,
         archiveGoal: mockArchiveGoal,
@@ -304,7 +311,6 @@ describe("GoalsScreen", () => {
         error: null,
         refetch: mockRefetch,
         createGoal: mockCreateGoal,
-        updateGoalStatus: mockUpdateGoalStatus,
         deleteGoal: mockDeleteGoal,
         previewArchive: mockPreviewArchive,
         archiveGoal: mockArchiveGoal,
@@ -341,7 +347,6 @@ describe("GoalsScreen", () => {
         error: null,
         refetch: mockRefetch,
         createGoal: mockCreateGoal,
-        updateGoalStatus: mockUpdateGoalStatus,
         deleteGoal: mockDeleteGoal,
         previewArchive: mockPreviewArchive,
         archiveGoal: mockArchiveGoal,
@@ -354,7 +359,7 @@ describe("GoalsScreen", () => {
       expect(screen.getByText("No paused goals")).toBeTruthy();
     });
 
-    it("navigates to detail view when goal pressed", () => {
+    it("navigates to detail view when goal pressed", async () => {
       const goal = createMockGoal({ title: "My Goal", record_state: "active" });
       (useGoals as jest.Mock).mockReturnValue({
         goals: [goal],
@@ -362,7 +367,6 @@ describe("GoalsScreen", () => {
         error: null,
         refetch: mockRefetch,
         createGoal: mockCreateGoal,
-        updateGoalStatus: mockUpdateGoalStatus,
         deleteGoal: mockDeleteGoal,
         previewArchive: mockPreviewArchive,
         archiveGoal: mockArchiveGoal,
@@ -372,7 +376,9 @@ describe("GoalsScreen", () => {
 
       render(<GoalsScreen user={mockUser} navigation={mockNavigation} />);
       fireEvent.press(screen.getByLabelText("Goal: My Goal"));
-      expect(screen.getByText("Goal Detail")).toBeTruthy();
+      await waitFor(() => {
+        expect(screen.getByText("Goal Detail")).toBeTruthy();
+      });
     });
   });
 
@@ -439,20 +445,26 @@ describe("GoalsScreen", () => {
       status: "not_started",
     });
 
-    beforeEach(() => {
+    beforeEach(async () => {
+      (api.getGoal as jest.Mock).mockResolvedValue(goal);
       (useGoals as jest.Mock).mockReturnValue({
         goals: [goal],
         loading: false,
         error: null,
         refetch: mockRefetch,
         createGoal: mockCreateGoal,
-        updateGoalStatus: mockUpdateGoalStatus,
         deleteGoal: mockDeleteGoal,
+        previewArchive: mockPreviewArchive,
+        archiveGoal: mockArchiveGoal,
         pauseGoal: mockPauseGoal,
+        unpauseGoal: mockUnpauseGoal,
       });
 
       render(<GoalsScreen user={mockUser} navigation={mockNavigation} />);
       fireEvent.press(screen.getByLabelText("Goal: Detail Goal"));
+      await waitFor(() => {
+        expect(screen.getByText("Goal Detail")).toBeTruthy();
+      });
     });
 
     it("renders detail view with goal title", () => {
@@ -466,14 +478,9 @@ describe("GoalsScreen", () => {
       expect(screen.queryByText("Goal Detail")).toBeNull();
     });
 
-    it("calls updateGoalStatus when status changed", async () => {
-      fireEvent.press(screen.getByLabelText("Set status to In Progress"));
-
+    it("loads fresh goal from API when opening detail", async () => {
       await waitFor(() => {
-        expect(mockUpdateGoalStatus).toHaveBeenCalledWith(
-          goal.id,
-          "in_progress",
-        );
+        expect(api.getGoal).toHaveBeenCalledWith(goal.id);
       });
     });
 

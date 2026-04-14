@@ -30,7 +30,6 @@ jest.mock("../../../screens/styles/goalsScreenStyles", () => ({
       not_started: "#888",
       in_progress: "#3B82F6",
       completed: "#10B981",
-      abandoned: "#EF4444",
     };
     return colors[status] || "#888";
   },
@@ -39,7 +38,6 @@ jest.mock("../../../screens/styles/goalsScreenStyles", () => ({
       not_started: "Not Started",
       in_progress: "In Progress",
       completed: "Completed",
-      abandoned: "Abandoned",
     };
     return labels[status] || status;
   },
@@ -207,7 +205,6 @@ describe("GoalCard", () => {
       "not_started",
       "in_progress",
       "completed",
-      "abandoned",
     ];
     const expectedLabels = [
       "Not Started",

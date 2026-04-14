@@ -348,8 +348,6 @@ export const getStatusColor = (status: string): string => {
       return "#3B82F6";
     case "completed":
       return "#10B981";
-    case "abandoned":
-      return "#EF4444";
     default:
       return "#9CA3AF";
   }
@@ -363,8 +361,6 @@ export const getStatusLabel = (status: string): string => {
       return "In Progress";
     case "completed":
       return "Completed";
-    case "abandoned":
-      return "Abandoned";
     default:
       return status;
   }

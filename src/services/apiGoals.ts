@@ -4,7 +4,6 @@ import type {
   GoalWithSubGoals,
   CreateGoalRequest,
   UpdateGoalRequest,
-  UpdateGoalStatusRequest,
   SetPriorityLinksRequest,
   RescheduleGoalsRequest,
   GoalArchivePreviewResponse,
@@ -25,7 +24,6 @@ export interface GoalsMethods {
   getGoalTree(goalId: string): Promise<GoalWithSubGoals>;
   createGoal(data: CreateGoalRequest): Promise<Goal>;
   updateGoal(goalId: string, data: UpdateGoalRequest): Promise<Goal>;
-  updateGoalStatus(goalId: string, status: string): Promise<Goal>;
   deleteGoal(goalId: string): Promise<void>;
 
   // Priority links
@@ -114,16 +112,6 @@ export const goalsMethods = <TBase extends Constructor<ApiServiceBase>>(
 
     async updateGoal(goalId: string, data: UpdateGoalRequest): Promise<Goal> {
       return await this.request<Goal>(`/goals/${goalId}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      });
-    }
-
-    async updateGoalStatus(goalId: string, status: string): Promise<Goal> {
-      const data: UpdateGoalStatusRequest = {
-        status: status as Goal["status"],
-      };
-      return await this.request<Goal>(`/goals/${goalId}/status`, {
         method: "PATCH",
         body: JSON.stringify(data),
       });
